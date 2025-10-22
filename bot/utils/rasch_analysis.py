@@ -25,7 +25,8 @@ class RaschAnalyzer:
         """
         response_matrix = data.values
         
-        self.difficulty = rasch_mml(response_matrix)
+        rasch_result = rasch_mml(response_matrix)
+        self.difficulty = rasch_result['Difficulty']
         
         self.person_abilities = self._estimate_person_abilities(
             response_matrix, self.difficulty
