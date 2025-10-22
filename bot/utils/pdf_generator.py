@@ -158,12 +158,20 @@ class PDFReportGenerator:
         individual_data = person_stats.get('individual', [])
         
         if individual_data:
-            # Create table header
-            person_table_data = [['ID', 'Raw Score', 'Ability (θ)', 'Z-Score', 'T-Score', 'SE']]
+            # Sort by T-Score in descending order (highest first)
+            individual_data_sorted = sorted(
+                individual_data, 
+                key=lambda x: x['t_score'] if not np.isnan(x['t_score']) else -999,
+                reverse=True
+            )
             
-            # Add data for each person
-            for person in individual_data:
+            # Create table header with rank
+            person_table_data = [['Rank', 'ID', 'Raw Score', 'Ability (θ)', 'Z-Score', 'T-Score', 'SE']]
+            
+            # Add data for each person with rank
+            for rank, person in enumerate(individual_data_sorted, start=1):
                 person_table_data.append([
+                    str(rank),
                     str(person['person_id']),
                     str(person['raw_score']),
                     f"{person['ability']:.3f}" if not np.isnan(person['ability']) else "N/A",
@@ -172,7 +180,7 @@ class PDFReportGenerator:
                     f"{person['se']:.3f}" if not np.isnan(person['se']) else "N/A"
                 ])
             
-            person_table = Table(person_table_data, colWidths=[0.6*inch, 0.9*inch, 1.0*inch, 0.9*inch, 0.9*inch, 0.7*inch])
+            person_table = Table(person_table_data, colWidths=[0.5*inch, 0.5*inch, 0.85*inch, 0.95*inch, 0.85*inch, 0.85*inch, 0.65*inch])
             person_table.setStyle(TableStyle([
                 ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#E74C3C')),
                 ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
@@ -191,6 +199,7 @@ class PDFReportGenerator:
             story.append(Spacer(1, 0.2 * inch))
             legend_text = (
                 "<b>Tushuntirish:</b><br/>"
+                "• <b>Rank:</b> O'rin (T-Score bo'yicha tartiblangan, eng yuqoridan boshlab)<br/>"
                 "• <b>ID:</b> Talabgor raqami<br/>"
                 "• <b>Raw Score:</b> To'g'ri javoblar soni<br/>"
                 "• <b>Ability (θ):</b> Qobiliyat darajasi (logit o'lchovi)<br/>"
