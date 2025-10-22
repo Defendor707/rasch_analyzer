@@ -6,6 +6,7 @@ from telegram.ext import (
     Application,
     CommandHandler,
     MessageHandler,
+    CallbackQueryHandler,
     filters,
     ContextTypes
 )
@@ -14,7 +15,8 @@ from bot.handlers.message_handlers import (
     help_command,
     sample_command,
     handle_document,
-    handle_message
+    handle_message,
+    handle_callback_query
 )
 
 load_dotenv()
@@ -49,6 +51,8 @@ def main():
     application.add_handler(CommandHandler("start", start_command))
     application.add_handler(CommandHandler("help", help_command))
     application.add_handler(CommandHandler("namuna", sample_command))
+    
+    application.add_handler(CallbackQueryHandler(handle_callback_query))
     
     application.add_handler(MessageHandler(
         filters.Document.ALL,

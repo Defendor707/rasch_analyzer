@@ -1,12 +1,23 @@
 import os
 import pandas as pd
-from telegram import Update, ReplyKeyboardMarkup, KeyboardButton
+from telegram import Update, ReplyKeyboardMarkup, KeyboardButton, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ContextTypes
 from bot.utils.rasch_analysis import RaschAnalyzer
 from bot.utils.pdf_generator import PDFReportGenerator
+from bot.utils.user_data import UserDataManager
 import logging
 
 logger = logging.getLogger(__name__)
+
+# Initialize user data manager
+user_data_manager = UserDataManager()
+
+# Conversation states
+WAITING_FOR_FIRST_NAME = 1
+WAITING_FOR_LAST_NAME = 2
+WAITING_FOR_BIO = 3
+WAITING_FOR_SUBJECT = 4
+WAITING_FOR_SCHOOL = 5
 
 
 def get_main_keyboard():
@@ -270,14 +281,128 @@ async def handle_document(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def handle_profile(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Handle Profile button"""
     user = update.effective_user
+    user_data = user_data_manager.get_user_data(user.id)
+    
+    # Display profile information
     profile_text = (
         f"👤 *Profil ma'lumotlari*\n\n"
-        f"Ism: {user.first_name or 'N/A'}\n"
-        f"Familiya: {user.last_name or 'N/A'}\n"
-        f"Username: @{user.username or 'N/A'}\n"
-        f"ID: {user.id}"
+        f"*Ism:* {user_data.get('first_name') or 'Kiritilmagan'}\n"
+        f"*Familiya:* {user_data.get('last_name') or 'Kiritilmagan'}\n"
+        f"*Mutaxassislik:* {user_data.get('subject') or 'Kiritilmagan'}\n"
+        f"*Maktab/Muassasa:* {user_data.get('school') or 'Kiritilmagan'}\n"
+        f"*Bio:* {user_data.get('bio') or 'Kiritilmagan'}\n\n"
+        f"*Telegram:* @{user.username or 'N/A'}\n"
+        f"*ID:* {user.id}"
     )
-    await update.message.reply_text(profile_text, parse_mode='Markdown')
+    
+    # Inline keyboard for editing
+    keyboard = [
+        [InlineKeyboardButton("✏️ Ismni o'zgartirish", callback_data='edit_first_name')],
+        [InlineKeyboardButton("✏️ Familiyani o'zgartirish", callback_data='edit_last_name')],
+        [InlineKeyboardButton("✏️ Mutaxassislikni o'zgartirish", callback_data='edit_subject')],
+        [InlineKeyboardButton("✏️ Maktab/Muassasani o'zgartirish", callback_data='edit_school')],
+        [InlineKeyboardButton("✏️ Bio qo'shish/o'zgartirish", callback_data='edit_bio')]
+    ]
+    reply_markup = InlineKeyboardMarkup(keyboard)
+    
+    await update.message.reply_text(
+        profile_text, 
+
+
+
+async def handle_callback_query(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Handle inline keyboard button callbacks"""
+    query = update.callback_query
+    await query.answer()
+    
+    user_id = update.effective_user.id
+    
+    if query.data == 'edit_first_name':
+        context.user_data['editing'] = WAITING_FOR_FIRST_NAME
+        await query.message.reply_text(
+            "✏️ Yangi ismingizni kiriting:",
+            reply_markup=get_main_keyboard()
+        )
+    
+    elif query.data == 'edit_last_name':
+        context.user_data['editing'] = WAITING_FOR_LAST_NAME
+        await query.message.reply_text(
+            "✏️ Yangi familiyangizni kiriting:",
+            reply_markup=get_main_keyboard()
+        )
+    
+    elif query.data == 'edit_subject':
+        context.user_data['editing'] = WAITING_FOR_SUBJECT
+        await query.message.reply_text(
+            "✏️ Mutaxassisligingizni kiriting (masalan: Matematika, Fizika, Ingliz tili):",
+            reply_markup=get_main_keyboard()
+        )
+    
+    elif query.data == 'edit_school':
+        context.user_data['editing'] = WAITING_FOR_SCHOOL
+        await query.message.reply_text(
+            "✏️ Maktab yoki muassasa nomini kiriting:",
+            reply_markup=get_main_keyboard()
+        )
+    
+    elif query.data == 'edit_bio':
+        context.user_data['editing'] = WAITING_FOR_BIO
+        await query.message.reply_text(
+            "✏️ O'zingiz haqida qisqacha ma'lumot kiriting:",
+            reply_markup=get_main_keyboard()
+        )
+
+
+async def handle_profile_edit(update: Update, context: ContextTypes.DEFAULT_TYPE, text: str):
+    """Handle profile editing text input"""
+    user_id = update.effective_user.id
+    editing_state = context.user_data.get('editing')
+    
+    if editing_state == WAITING_FOR_FIRST_NAME:
+        user_data_manager.update_user_field(user_id, 'first_name', text)
+        await update.message.reply_text(
+            f"✅ Ism muvaffaqiyatli o'zgartirildi: *{text}*",
+            parse_mode='Markdown'
+        )
+        context.user_data['editing'] = None
+    
+    elif editing_state == WAITING_FOR_LAST_NAME:
+        user_data_manager.update_user_field(user_id, 'last_name', text)
+        await update.message.reply_text(
+            f"✅ Familiya muvaffaqiyatli o'zgartirildi: *{text}*",
+            parse_mode='Markdown'
+        )
+        context.user_data['editing'] = None
+    
+    elif editing_state == WAITING_FOR_SUBJECT:
+        user_data_manager.update_user_field(user_id, 'subject', text)
+        await update.message.reply_text(
+            f"✅ Mutaxassislik muvaffaqiyatli o'zgartirildi: *{text}*",
+            parse_mode='Markdown'
+        )
+        context.user_data['editing'] = None
+    
+    elif editing_state == WAITING_FOR_SCHOOL:
+        user_data_manager.update_user_field(user_id, 'school', text)
+        await update.message.reply_text(
+            f"✅ Maktab/Muassasa muvaffaqiyatli o'zgartirildi: *{text}*",
+            parse_mode='Markdown'
+        )
+        context.user_data['editing'] = None
+    
+    elif editing_state == WAITING_FOR_BIO:
+        user_data_manager.update_user_field(user_id, 'bio', text)
+        await update.message.reply_text(
+            f"✅ Bio muvaffaqiyatli o'zgartirildi: *{text}*",
+            parse_mode='Markdown'
+        )
+        context.user_data['editing'] = None
+    
+    return editing_state is not None
+
+        parse_mode='Markdown',
+        reply_markup=reply_markup
+    )
 
 
 async def handle_settings(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -322,6 +447,12 @@ async def handle_other(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Handle regular text messages"""
     message_text = update.message.text
+    
+    # Check if user is editing profile
+    if context.user_data.get('editing'):
+        handled = await handle_profile_edit(update, context, message_text)
+        if handled:
+            return
     
     # Handle keyboard button presses
     if message_text == "👤 Profil":
