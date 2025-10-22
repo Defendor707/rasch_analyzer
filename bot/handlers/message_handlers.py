@@ -378,17 +378,66 @@ async def handle_profile_edit(update: Update, context: ContextTypes.DEFAULT_TYPE
     return editing_state is not None
 
 
+def get_settings_keyboard():
+    """Create keyboard for Settings section"""
+    keyboard = [
+        [KeyboardButton("📚 Mutaxassislik fanini tanlash")],
+        [KeyboardButton("📊 Fan bo'limlari bo'yicha natijalash")],
+        [KeyboardButton("✍️ Yozma ish funksiyasi")],
+        [KeyboardButton("◀️ Ortga")]
+    ]
+    return ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
+
+
 async def handle_settings(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Handle Settings button"""
     settings_text = (
         "⚙️ *Sozlamalar*\n\n"
-        "Hozircha sozlamalar mavjud emas.\n"
-        "Kelajakda qo'shiladi:\n"
-        "• Til tanlash\n"
-        "• PDF format sozlamalari\n"
-        "• Bildirishnomalar"
+        "Quyidagi sozlamalardan birini tanlang:"
     )
-    await update.message.reply_text(settings_text, parse_mode='Markdown')
+    await update.message.reply_text(
+        settings_text, 
+        parse_mode='Markdown',
+        reply_markup=get_settings_keyboard()
+    )
+
+
+async def handle_select_subject(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Handle Select Subject button"""
+    subject_text = (
+        "📚 *Mutaxassislik fanini tanlash*\n\n"
+        "Qaysi fanni tanlashni xohlaysiz?\n"
+        "Masalan: Matematika, Fizika, Ingliz tili, Biologiya\n\n"
+        "Fanni kiriting:"
+    )
+    context.user_data['editing'] = WAITING_FOR_SUBJECT
+    await update.message.reply_text(subject_text, parse_mode='Markdown')
+
+
+async def handle_section_results(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Handle Section Results button"""
+    section_text = (
+        "📊 *Fan bo'limlari bo'yicha natijalash*\n\n"
+        "Bu funksiya sizga quyidagilarni beradi:\n"
+        "• Har bir bo'lim bo'yicha natijalar\n"
+        "• Bo'limlar qiyoslash\n"
+        "• Talabgorlar yutuqlari tahlili\n\n"
+        "🔜 Tez orada faollashtiriladi!"
+    )
+    await update.message.reply_text(section_text, parse_mode='Markdown')
+
+
+async def handle_writing_task(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Handle Writing Task button"""
+    writing_text = (
+        "✍️ *Yozma ish funksiyasi*\n\n"
+        "Bu funksiya quyidagilarni o'z ichiga oladi:\n"
+        "• Yozma ishlarni yuklash\n"
+        "• Avtomatik baholash\n"
+        "• Tahlil va statistika\n\n"
+        "🔜 Tez orada faollashtiriladi!"
+    )
+    await update.message.reply_text(writing_text, parse_mode='Markdown')
 
 
 async def handle_students(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -813,6 +862,13 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await handle_edit_student(update, context)
     elif message_text == "🗑 O'quvchini o'chirish":
         await handle_delete_student(update, context)
+    # Handle settings section buttons
+    elif message_text == "📚 Mutaxassislik fanini tanlash":
+        await handle_select_subject(update, context)
+    elif message_text == "📊 Fan bo'limlari bo'yicha natijalash":
+        await handle_section_results(update, context)
+    elif message_text == "✍️ Yozma ish funksiyasi":
+        await handle_writing_task(update, context)
     else:
         await update.message.reply_text(
             "📎 Ma'lumotlar faylini yuboring!\n\n"
