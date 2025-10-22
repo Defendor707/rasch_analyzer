@@ -5,17 +5,22 @@ from telegram.ext import ContextTypes
 from bot.utils.rasch_analysis import RaschAnalyzer
 from bot.utils.pdf_generator import PDFReportGenerator
 from bot.utils.user_data import UserDataManager
+from bot.utils.student_data import StudentDataManager
 import logging
 
 logger = logging.getLogger(__name__)
 
 # Initialize user data manager
 user_data_manager = UserDataManager()
+student_data_manager = StudentDataManager()
 
 # Conversation states
 WAITING_FOR_FULL_NAME = 1
 WAITING_FOR_BIO = 2
 WAITING_FOR_SUBJECT = 3
+WAITING_FOR_STUDENT_NAME = 4
+WAITING_FOR_STUDENT_TELEGRAM = 5
+WAITING_FOR_PARENT_TELEGRAM = 6
 
 
 def get_main_keyboard():
@@ -387,16 +392,39 @@ async def handle_settings(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 
 async def handle_students(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Handle Students button"""
-    students_text = (
-        "👥 *O'quvchilar bo'limi*\n\n"
-        "Bu yerda siz:\n"
-        "• Yuklangan ma'lumotlarni ko'rishingiz\n"
-        "• Talabgorlar natijalarini tahlil qilishingiz\n"
-        "• Tarixiy ma'lumotlarni ko'rishingiz mumkin\n\n"
-        "Fayl yuklang va tahlil boshlang!"
-    )
-    await update.message.reply_text(students_text, parse_mode='Markdown')
+    """Handle Students button - show list of students"""
+    user_id = update.effective_user.id
+    students = student_data_manager.get_all_students(user_id)
+    
+    if not students:
+        students_text = (
+            "👥 *O'quvchilar ro'yxati*\n\n"
+            "Hozircha ro'yxatda o'quvchilar yo'q.\n\n"
+            "Yangi o'quvchi qo'shish uchun pastdagi tugmani bosing."
+        )
+        keyboard = [
+            [KeyboardButton("➕ Yangi o'quvchi qo'shish")],
+            [KeyboardButton("◀️ Ortga")]
+        ]
+    else:
+        students_text = f"👥 *O'quvchilar ro'yxati* ({len(students)} ta)\n\n"
+        
+        for student in students:
+            students_text += f"👤 *{student.get('full_name', 'Noma\'lum')}*\n"
+            if student.get('telegram_username'):
+                students_text += f"   📱 @{student.get('telegram_username')}\n"
+            if student.get('parent_telegram'):
+                students_text += f"   👨‍👩‍👦 Ota-ona: @{student.get('parent_telegram')}\n"
+            students_text += "\n"
+        
+        keyboard = [
+            [KeyboardButton("➕ Yangi o'quvchi qo'shish")],
+            [KeyboardButton("✏️ O'quvchini tahrirlash"), KeyboardButton("🗑 O'quvchini o'chirish")],
+            [KeyboardButton("◀️ Ortga")]
+        ]
+    
+    reply_markup = ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
+    await update.message.reply_text(students_text, parse_mode='Markdown', reply_markup=reply_markup)
 
 
 def get_other_keyboard():
@@ -478,6 +506,11 @@ async def handle_contact_admin(update: Update, context: ContextTypes.DEFAULT_TYP
 
 async def handle_back(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Handle Back button - return to main menu"""
+    # Clear any ongoing operations
+    context.user_data['editing'] = None
+    context.user_data['adding_student'] = None
+    context.user_data['student_temp'] = None
+    
     welcome_text = (
         "🏠 *Bosh menyu*\n\n"
         "Kerakli bo'limni tanlang:"
@@ -489,6 +522,155 @@ async def handle_back(update: Update, context: ContextTypes.DEFAULT_TYPE):
     )
 
 
+async def handle_add_student(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Start adding new student"""
+    context.user_data['adding_student'] = WAITING_FOR_STUDENT_NAME
+    context.user_data['student_temp'] = {}
+    
+    await update.message.reply_text(
+        "➕ *Yangi o'quvchi qo'shish*\n\n"
+        "O'quvchining ism va familiyasini kiriting:",
+        parse_mode='Markdown'
+    )
+
+
+async def handle_edit_student(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Start editing student"""
+    user_id = update.effective_user.id
+    students = student_data_manager.get_all_students(user_id)
+    
+    if not students:
+        await update.message.reply_text("❌ O'quvchilar ro'yxati bo'sh!")
+        return
+    
+    text = "✏️ *Tahrirlash uchun o'quvchi ID raqamini kiriting:*\n\n"
+    for student in students:
+        text += f"{student['id']}. {student.get('full_name', 'Noma\'lum')}\n"
+    
+    context.user_data['editing_student'] = True
+    await update.message.reply_text(text, parse_mode='Markdown')
+
+
+async def handle_delete_student(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Start deleting student"""
+    user_id = update.effective_user.id
+    students = student_data_manager.get_all_students(user_id)
+    
+    if not students:
+        await update.message.reply_text("❌ O'quvchilar ro'yxati bo'sh!")
+        return
+    
+    text = "🗑 *O'chirish uchun o'quvchi ID raqamini kiriting:*\n\n"
+    for student in students:
+        text += f"{student['id']}. {student.get('full_name', 'Noma\'lum')}\n"
+    
+    context.user_data['deleting_student'] = True
+    await update.message.reply_text(text, parse_mode='Markdown')
+
+
+async def handle_student_input(update: Update, context: ContextTypes.DEFAULT_TYPE, text: str):
+    """Handle student data input"""
+    user_id = update.effective_user.id
+    
+    # Handle adding new student
+    if context.user_data.get('adding_student') == WAITING_FOR_STUDENT_NAME:
+        context.user_data['student_temp']['full_name'] = text
+        context.user_data['adding_student'] = WAITING_FOR_STUDENT_TELEGRAM
+        await update.message.reply_text(
+            "📱 O'quvchining Telegram username'ini kiriting\n"
+            "(@ belgisisiz, masalan: johndoe)\n\n"
+            "Agar yo'q bo'lsa, 'yo'q' deb yozing:"
+        )
+        return True
+    
+    elif context.user_data.get('adding_student') == WAITING_FOR_STUDENT_TELEGRAM:
+        if text.lower() != "yo'q" and text.lower() != "yoq":
+            context.user_data['student_temp']['telegram_username'] = text.replace('@', '')
+        context.user_data['adding_student'] = WAITING_FOR_PARENT_TELEGRAM
+        await update.message.reply_text(
+            "👨‍👩‍👦 Ota-onaning Telegram username'ini kiriting\n"
+            "(@ belgisisiz, masalan: parent123)\n\n"
+            "Agar yo'q bo'lsa, 'yo'q' deb yozing:"
+        )
+        return True
+    
+    elif context.user_data.get('adding_student') == WAITING_FOR_PARENT_TELEGRAM:
+        if text.lower() != "yo'q" and text.lower() != "yoq":
+            context.user_data['student_temp']['parent_telegram'] = text.replace('@', '')
+        
+        # Save student
+        student_data = context.user_data['student_temp']
+        student_id = student_data_manager.add_student(user_id, student_data)
+        
+        await update.message.reply_text(
+            f"✅ O'quvchi muvaffaqiyatli qo'shildi!\n\n"
+            f"👤 *{student_data.get('full_name')}*\n"
+            f"ID: {student_id}",
+            parse_mode='Markdown'
+        )
+        
+        # Clear temp data
+        context.user_data['adding_student'] = None
+        context.user_data['student_temp'] = None
+        
+        # Show updated list
+        await handle_students(update, context)
+        return True
+    
+    # Handle editing student
+    elif context.user_data.get('editing_student'):
+        try:
+            student_id = int(text)
+            student = student_data_manager.get_student(user_id, student_id)
+            
+            if not student:
+                await update.message.reply_text("❌ Bunday ID'li o'quvchi topilmadi!")
+                context.user_data['editing_student'] = None
+                return True
+            
+            context.user_data['editing_student_id'] = student_id
+            context.user_data['student_temp'] = student.copy()
+            context.user_data['editing_student'] = None
+            context.user_data['adding_student'] = WAITING_FOR_STUDENT_NAME
+            
+            await update.message.reply_text(
+                f"✏️ O'quvchini tahrirlash: *{student.get('full_name')}*\n\n"
+                f"Yangi ism va familiyani kiriting\n"
+                f"(hozirgi: {student.get('full_name')}):",
+                parse_mode='Markdown'
+            )
+            return True
+        except ValueError:
+            await update.message.reply_text("❌ Iltimos, raqam kiriting!")
+            return True
+    
+    # Handle deleting student
+    elif context.user_data.get('deleting_student'):
+        try:
+            student_id = int(text)
+            student = student_data_manager.get_student(user_id, student_id)
+            
+            if not student:
+                await update.message.reply_text("❌ Bunday ID'li o'quvchi topilmadi!")
+                context.user_data['deleting_student'] = None
+                return True
+            
+            student_data_manager.delete_student(user_id, student_id)
+            await update.message.reply_text(
+                f"✅ O'quvchi o'chirildi: *{student.get('full_name')}*",
+                parse_mode='Markdown'
+            )
+            
+            context.user_data['deleting_student'] = None
+            await handle_students(update, context)
+            return True
+        except ValueError:
+            await update.message.reply_text("❌ Iltimos, raqam kiriting!")
+            return True
+    
+    return False
+
+
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Handle regular text messages"""
     message_text = update.message.text
@@ -496,6 +678,12 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     # Check if user is editing profile
     if context.user_data.get('editing'):
         handled = await handle_profile_edit(update, context, message_text)
+        if handled:
+            return
+    
+    # Check if user is managing students
+    if context.user_data.get('adding_student') or context.user_data.get('editing_student') or context.user_data.get('deleting_student'):
+        handled = await handle_student_input(update, context, message_text)
         if handled:
             return
     
@@ -519,6 +707,13 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await handle_contact_admin(update, context)
     elif message_text == "◀️ Ortga":
         await handle_back(update, context)
+    # Handle student management buttons
+    elif message_text == "➕ Yangi o'quvchi qo'shish":
+        await handle_add_student(update, context)
+    elif message_text == "✏️ O'quvchini tahrirlash":
+        await handle_edit_student(update, context)
+    elif message_text == "🗑 O'quvchini o'chirish":
+        await handle_delete_student(update, context)
     else:
         await update.message.reply_text(
             "📎 Ma'lumotlar faylini yuboring!\n\n"
