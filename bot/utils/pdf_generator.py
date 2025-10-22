@@ -257,19 +257,28 @@ class PDFReportGenerator:
             )
 
             # Create table header with rank
-            person_table_data = [['Rank', 'Raw Score', 'Ability (θ)', 'T-Score', 'SE']]
+            person_table_data = [['Rank', 'Talabgor', 'Raw Score', 'Ability (θ)', 'T-Score', 'Foiz']]
 
             # Add data for each person with rank
             for rank, person in enumerate(individual_data_sorted, start=1):
+                # Calculate percentage from T-Score
+                t_score = person['t_score']
+                if not np.isnan(t_score):
+                    percentage = (t_score / 65) * 100
+                    percentage_str = f"{percentage:.1f}%"
+                else:
+                    percentage_str = "N/A"
+                
                 person_table_data.append([
                     str(rank),
+                    f"Talabgor {person['person_id']}",
                     str(person['raw_score']),
                     f"{person['ability']:.3f}" if not np.isnan(person['ability']) else "N/A",
                     f"{person['t_score']:.1f}" if not np.isnan(person['t_score']) else "N/A",
-                    f"{person['se']:.3f}" if not np.isnan(person['se']) else "N/A"
+                    percentage_str
                 ])
 
-            person_table = Table(person_table_data, colWidths=[1.2*inch, 1.5*inch, 1.5*inch, 1.2*inch])
+            person_table = Table(person_table_data, colWidths=[0.8*inch, 1.2*inch, 1*inch, 1*inch, 1*inch, 0.9*inch])
             person_table.setStyle(TableStyle([
                 ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#E74C3C')),
                 ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
@@ -289,10 +298,11 @@ class PDFReportGenerator:
             legend_text = (
                 "<b>Tushuntirish:</b><br/>"
                 "• <b>Rank:</b> O'rin (T-Score bo'yicha tartiblangan, eng yuqoridan boshlab)<br/>"
+                "• <b>Talabgor:</b> Talabgor identifikatori<br/>"
                 "• <b>Raw Score:</b> To'g'ri javoblar soni<br/>"
                 "• <b>Ability (θ):</b> Qobiliyat darajasi (logit o'lchovi)<br/>"
                 "• <b>T-Score:</b> T-ball (o'rtacha=50, standart og'ish=10)<br/>"
-                "• <b>SE:</b> Standart xato (ability baholashning aniqlik darajasi)"
+                "• <b>Foiz:</b> Natija foizda (T-Score/65 × 100)"
             )
             story.append(Paragraph(legend_text, styles['Normal']))
 
