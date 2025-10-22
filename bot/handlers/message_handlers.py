@@ -304,7 +304,6 @@ async def handle_profile(update: Update, context: ContextTypes.DEFAULT_TYPE):
     # Inline keyboard for editing
     keyboard = [
         [InlineKeyboardButton("✏️ Ism va Familiyani o'zgartirish", callback_data='edit_full_name')],
-        [InlineKeyboardButton("✏️ Mutaxassislikni o'zgartirish", callback_data='edit_subject')],
         [InlineKeyboardButton("✏️ Bio qo'shish/o'zgartirish", callback_data='edit_bio')]
     ]
     reply_markup = InlineKeyboardMarkup(keyboard)
@@ -328,13 +327,6 @@ async def handle_callback_query(update: Update, context: ContextTypes.DEFAULT_TY
         context.user_data['editing'] = WAITING_FOR_FULL_NAME
         await query.message.reply_text(
             "✏️ Ism va familiyangizni kiriting (masalan: Akmal Rahimov):",
-            reply_markup=get_main_keyboard()
-        )
-    
-    elif query.data == 'edit_subject':
-        context.user_data['editing'] = WAITING_FOR_SUBJECT
-        await query.message.reply_text(
-            "✏️ Mutaxassisligingizni kiriting (masalan: Matematika, Fizika, Ingliz tili):",
             reply_markup=get_main_keyboard()
         )
     
