@@ -410,7 +410,8 @@ async def handle_students(update: Update, context: ContextTypes.DEFAULT_TYPE):
         students_text = f"👥 *O'quvchilar ro'yxati* ({len(students)} ta)\n\n"
         
         for student in students:
-            students_text += f"👤 *{student.get('full_name', 'Noma\'lum')}*\n"
+            full_name = student.get('full_name', "Noma'lum")
+            students_text += f"👤 *{full_name}*\n"
             if student.get('telegram_username'):
                 students_text += f"   📱 @{student.get('telegram_username')}\n"
             if student.get('parent_telegram'):
@@ -545,7 +546,8 @@ async def handle_edit_student(update: Update, context: ContextTypes.DEFAULT_TYPE
     
     text = "✏️ *Tahrirlash uchun o'quvchi ID raqamini kiriting:*\n\n"
     for student in students:
-        text += f"{student['id']}. {student.get('full_name', 'Noma\'lum')}\n"
+        full_name = student.get('full_name', "Noma'lum")
+        text += f"{student['id']}. {full_name}\n"
     
     context.user_data['editing_student'] = True
     await update.message.reply_text(text, parse_mode='Markdown')
@@ -562,7 +564,8 @@ async def handle_delete_student(update: Update, context: ContextTypes.DEFAULT_TY
     
     text = "🗑 *O'chirish uchun o'quvchi ID raqamini kiriting:*\n\n"
     for student in students:
-        text += f"{student['id']}. {student.get('full_name', 'Noma\'lum')}\n"
+        full_name = student.get('full_name', "Noma'lum")
+        text += f"{student['id']}. {full_name}\n"
     
     context.user_data['deleting_student'] = True
     await update.message.reply_text(text, parse_mode='Markdown')
