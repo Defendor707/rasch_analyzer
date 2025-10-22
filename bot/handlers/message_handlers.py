@@ -109,9 +109,17 @@ async def handle_document(update: Update, context: ContextTypes.DEFAULT_TYPE):
         summary_text = analyzer.get_summary(results)
         
         pdf_generator = PDFReportGenerator()
-        pdf_path = pdf_generator.generate_report(
+        
+        # Generate general statistics report
+        general_pdf_path = pdf_generator.generate_report(
             results,
-            filename=f"rasch_analysis_user_{user_id}"
+            filename=f"umumiy_statistika_{user_id}"
+        )
+        
+        # Generate person results report
+        person_pdf_path = pdf_generator.generate_person_results_report(
+            results,
+            filename=f"talabgorlar_natijalari_{user_id}"
         )
         
         await update.message.reply_text(
@@ -119,15 +127,24 @@ async def handle_document(update: Update, context: ContextTypes.DEFAULT_TYPE):
             f"📊 Ishtirokchilar soni: {results['n_persons']}\n"
             f"📝 Itemlar soni: {results['n_items']}\n"
             f"📈 Reliability: {results['reliability']:.3f}\n\n"
-            f"PDF hisobot yuborilmoqda...",
+            f"Ikkita PDF hisobot yuborilmoqda...",
             parse_mode='Markdown'
         )
         
-        with open(pdf_path, 'rb') as pdf_file:
+        # Send general statistics PDF
+        with open(general_pdf_path, 'rb') as pdf_file:
             await update.message.reply_document(
                 document=pdf_file,
-                filename=os.path.basename(pdf_path),
-                caption="📄 Rasch Model tahlil hisoboti"
+                filename=os.path.basename(general_pdf_path),
+                caption="📊 Umumiy statistika va item parametrlari"
+            )
+        
+        # Send person results PDF
+        with open(person_pdf_path, 'rb') as pdf_file:
+            await update.message.reply_document(
+                document=pdf_file,
+                filename=os.path.basename(person_pdf_path),
+                caption="👥 Talabgorlar natijalari (T-Score bo'yicha tartiblangan)"
             )
         
         os.remove(file_path)

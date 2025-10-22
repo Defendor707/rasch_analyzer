@@ -151,9 +151,100 @@ class PDFReportGenerator:
         
         story.append(Spacer(1, 0.4 * inch))
         
-        # Add individual person statistics table
-        story.append(Paragraph("Individual Person Statistics", heading_style))
+        footer_style = ParagraphStyle(
+            'Footer',
+            parent=styles['Normal'],
+            fontSize=8,
+            textColor=colors.grey,
+            alignment=TA_CENTER
+        )
+        story.append(Paragraph(
+            "Report generated using Rasch Model Analysis (MML Estimation)",
+            footer_style
+        ))
         
+        doc.build(story)
+        
+        return filepath
+    
+    def generate_person_results_report(self, results: Dict[str, Any], filename: str = None) -> str:
+        """
+        Generate separate PDF report for individual person results only
+        
+        Args:
+            results: Dictionary containing analysis results
+            filename: Optional filename (without extension)
+            
+        Returns:
+            Path to generated PDF file
+        """
+        if filename is None:
+            filename = f"person_results_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
+        
+        if not filename.endswith('.pdf'):
+            filename = filename + '.pdf'
+            
+        filepath = os.path.join(self.output_dir, filename)
+        
+        doc = SimpleDocTemplate(
+            filepath,
+            pagesize=A4,
+            rightMargin=72,
+            leftMargin=72,
+            topMargin=72,
+            bottomMargin=18,
+        )
+        
+        story = []
+        
+        styles = getSampleStyleSheet()
+        title_style = ParagraphStyle(
+            'CustomTitle',
+            parent=styles['Heading1'],
+            fontSize=24,
+            textColor=colors.HexColor('#2C3E50'),
+            spaceAfter=30,
+            alignment=TA_CENTER
+        )
+        
+        heading_style = ParagraphStyle(
+            'CustomHeading',
+            parent=styles['Heading2'],
+            fontSize=14,
+            textColor=colors.HexColor('#34495E'),
+            spaceAfter=12,
+            spaceBefore=12
+        )
+        
+        story.append(Paragraph("Talabgorlar Natijalari", title_style))
+        story.append(Spacer(1, 0.2 * inch))
+        
+        story.append(Paragraph(f"Yaratilgan: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}", styles['Normal']))
+        story.append(Spacer(1, 0.3 * inch))
+        
+        # Add person count info
+        story.append(Paragraph("Ma'lumotlar", heading_style))
+        info_data = [
+            ["Talabgorlar soni:", str(results['n_persons'])],
+            ["Savollar soni:", str(results['n_items'])]
+        ]
+        info_table = Table(info_data, colWidths=[3*inch, 2*inch])
+        info_table.setStyle(TableStyle([
+            ('BACKGROUND', (0, 0), (0, -1), colors.HexColor('#ECF0F1')),
+            ('TEXTCOLOR', (0, 0), (-1, -1), colors.HexColor('#2C3E50')),
+            ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
+            ('FONTNAME', (0, 0), (0, -1), 'Helvetica-Bold'),
+            ('FONTSIZE', (0, 0), (-1, -1), 10),
+            ('BOTTOMPADDING', (0, 0), (-1, -1), 12),
+            ('GRID', (0, 0), (-1, -1), 0.5, colors.grey)
+        ]))
+        story.append(info_table)
+        story.append(Spacer(1, 0.4 * inch))
+        
+        # Individual person statistics table
+        story.append(Paragraph("Talabgorlar Natijalari (T-Score bo'yicha tartiblangan)", heading_style))
+        
+        import numpy as np
         person_stats = results.get('person_statistics', {})
         individual_data = person_stats.get('individual', [])
         
@@ -219,7 +310,7 @@ class PDFReportGenerator:
             alignment=TA_CENTER
         )
         story.append(Paragraph(
-            "Report generated using Rasch Model Analysis (MML Estimation)",
+            "Rasch Model Tahlili - Talabgorlar Natijalari",
             footer_style
         ))
         
