@@ -95,7 +95,7 @@ async def sample_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         
         # Perform Rasch analysis
         analyzer = RaschAnalyzer()
-        results = analyzer.fit(data.astype(float))
+        results = analyzer.fit(data.astype(int))
         
         pdf_generator = PDFReportGenerator()
         
@@ -139,7 +139,9 @@ async def sample_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         logger.info(f"Sample analysis completed for user {user_id}")
         
     except Exception as e:
+        import traceback
         logger.error(f"Error in sample analysis for user {user_id}: {str(e)}")
+        logger.error(f"Traceback: {traceback.format_exc()}")
         await update.message.reply_text(
             f"❌ Xatolik yuz berdi: {str(e)}\n\n"
             "Iltimos, qayta urinib ko'ring."
@@ -190,6 +192,9 @@ async def handle_document(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 "Rasch modeli uchun faqat dikotomik ma'lumotlar (0/1) talab qilinadi.\n"
                 "Davom etmoqdamiz, lekin natijalar noto'g'ri bo'lishi mumkin."
             )
+        
+        # Convert to integer type for girth library
+        numeric_data = numeric_data.astype(int)
         
         analyzer = RaschAnalyzer()
         results = analyzer.fit(numeric_data)

@@ -27,7 +27,7 @@ class RaschAnalyzer:
         
         # girth expects data as (items x persons), so we transpose
         rasch_result = rasch_mml(response_matrix.T)
-        self.difficulty = rasch_result['Difficulty']
+        self.difficulty = np.asarray(rasch_result['Difficulty'])
         
         self.person_abilities = self._estimate_person_abilities(
             response_matrix, self.difficulty
@@ -57,15 +57,16 @@ class RaschAnalyzer:
         
         for i in range(n_persons):
             person_responses = responses[i, :]
-            # Create proper boolean array for indexing
-            valid_idx = ~np.isnan(person_responses)
+            # Find valid (non-NaN) indices
+            valid_mask = ~np.isnan(person_responses)
+            valid_indices = np.where(valid_mask)[0]
             
-            if not np.any(valid_idx):
+            if len(valid_indices) == 0:
                 abilities[i] = np.nan
                 continue
                 
-            valid_responses = person_responses[valid_idx]
-            valid_difficulty = difficulty[valid_idx]
+            valid_responses = person_responses[valid_indices]
+            valid_difficulty = difficulty[valid_indices]
             
             total_score = np.sum(valid_responses)
             if total_score == 0:
@@ -187,11 +188,12 @@ class RaschAnalyzer:
                 se_array[i] = np.nan
             else:
                 theta = abilities[i]
-                # Create proper boolean array for indexing
-                valid_idx = ~np.isnan(responses[i, :])
+                # Find valid (non-NaN) indices
+                valid_mask = ~np.isnan(responses[i, :])
+                valid_indices = np.where(valid_mask)[0]
                 
-                if self.difficulty is not None:
-                    valid_difficulty = self.difficulty[valid_idx]
+                if self.difficulty is not None and len(valid_indices) > 0:
+                    valid_difficulty = self.difficulty[valid_indices]
                     
                     # Fisher information
                     p = 1 / (1 + np.exp(-(theta - valid_difficulty)))
