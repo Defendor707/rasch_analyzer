@@ -1,12 +1,21 @@
 import os
 import pandas as pd
-from telegram import Update
+from telegram import Update, ReplyKeyboardMarkup, KeyboardButton
 from telegram.ext import ContextTypes
 from bot.utils.rasch_analysis import RaschAnalyzer
 from bot.utils.pdf_generator import PDFReportGenerator
 import logging
 
 logger = logging.getLogger(__name__)
+
+
+def get_main_keyboard():
+    """Create main reply keyboard with 4 buttons"""
+    keyboard = [
+        [KeyboardButton("👤 Profil"), KeyboardButton("⚙️ Sozlamalar")],
+        [KeyboardButton("👥 O'quvchilar"), KeyboardButton("ℹ️ Boshqa")]
+    ]
+    return ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
 
 
 async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -24,7 +33,7 @@ async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "📊 Excel (.xls, .xlsx, .csv) faylni yuborishingiz mumkin!"
     )
     
-    await update.message.reply_text(welcome_message)
+    await update.message.reply_text(welcome_message, reply_markup=get_main_keyboard())
     await update.message.reply_text(file_info_message)
 
 
@@ -258,10 +267,74 @@ async def handle_document(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
 
 
+async def handle_profile(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Handle Profile button"""
+    user = update.effective_user
+    profile_text = (
+        f"👤 *Profil ma'lumotlari*\n\n"
+        f"Ism: {user.first_name or 'N/A'}\n"
+        f"Familiya: {user.last_name or 'N/A'}\n"
+        f"Username: @{user.username or 'N/A'}\n"
+        f"ID: {user.id}"
+    )
+    await update.message.reply_text(profile_text, parse_mode='Markdown')
+
+
+async def handle_settings(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Handle Settings button"""
+    settings_text = (
+        "⚙️ *Sozlamalar*\n\n"
+        "Hozircha sozlamalar mavjud emas.\n"
+        "Kelajakda qo'shiladi:\n"
+        "• Til tanlash\n"
+        "• PDF format sozlamalari\n"
+        "• Bildirishnomalar"
+    )
+    await update.message.reply_text(settings_text, parse_mode='Markdown')
+
+
+async def handle_students(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Handle Students button"""
+    students_text = (
+        "👥 *O'quvchilar bo'limi*\n\n"
+        "Bu yerda siz:\n"
+        "• Yuklangan ma'lumotlarni ko'rishingiz\n"
+        "• Talabgorlar natijalarini tahlil qilishingiz\n"
+        "• Tarixiy ma'lumotlarni ko'rishingiz mumkin\n\n"
+        "Fayl yuklang va tahlil boshlang!"
+    )
+    await update.message.reply_text(students_text, parse_mode='Markdown')
+
+
+async def handle_other(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Handle Other button"""
+    other_text = (
+        "ℹ️ *Boshqa*\n\n"
+        "📚 Yordam: /help\n"
+        "🔬 Namuna tahlil: /namuna\n"
+        "🏠 Bosh sahifa: /start\n\n"
+        "Qo'shimcha ma'lumot yoki yordam kerak bo'lsa,\n"
+        "yuqoridagi buyruqlardan foydalaning."
+    )
+    await update.message.reply_text(other_text, parse_mode='Markdown')
+
+
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Handle regular text messages"""
-    await update.message.reply_text(
-        "📎 Ma'lumotlar faylini yuboring!\n\n"
-        "CSV yoki Excel formatdagi faylni yuboring. "
-        "Yordam kerak bo'lsa /help buyrug'ini yuboring."
-    )
+    message_text = update.message.text
+    
+    # Handle keyboard button presses
+    if message_text == "👤 Profil":
+        await handle_profile(update, context)
+    elif message_text == "⚙️ Sozlamalar":
+        await handle_settings(update, context)
+    elif message_text == "👥 O'quvchilar":
+        await handle_students(update, context)
+    elif message_text == "ℹ️ Boshqa":
+        await handle_other(update, context)
+    else:
+        await update.message.reply_text(
+            "📎 Ma'lumotlar faylini yuboring!\n\n"
+            "CSV yoki Excel formatdagi faylni yuboring. "
+            "Yordam kerak bo'lsa /help buyrug'ini yuboring."
+        )
