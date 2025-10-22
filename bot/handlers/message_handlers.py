@@ -678,6 +678,34 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Handle regular text messages"""
     message_text = update.message.text
     
+    # Handle "Ortga" button - cancel any ongoing operations
+    if message_text == "◀️ Ortga":
+        # Check if there was an ongoing operation
+        was_operation = (
+            context.user_data.get('editing') or 
+            context.user_data.get('adding_student') or 
+            context.user_data.get('editing_student') or 
+            context.user_data.get('deleting_student')
+        )
+        
+        # Clear all temporary states
+        context.user_data['editing'] = None
+        context.user_data['adding_student'] = None
+        context.user_data['editing_student'] = None
+        context.user_data['deleting_student'] = None
+        context.user_data['student_temp'] = None
+        context.user_data['editing_student_id'] = None
+        
+        # Show cancellation message if there was an operation
+        if was_operation:
+            await update.message.reply_text(
+                "❌ Amal bekor qilindi.",
+                reply_markup=get_main_keyboard()
+            )
+        else:
+            await handle_back(update, context)
+        return
+    
     # Check if user is editing profile
     if context.user_data.get('editing'):
         handled = await handle_profile_edit(update, context, message_text)
