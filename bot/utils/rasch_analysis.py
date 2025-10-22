@@ -33,9 +33,13 @@ class RaschAnalyzer:
             response_matrix, self.difficulty
         )
         
+        # Calculate person statistics
+        person_stats = self._calculate_person_statistics(response_matrix, self.person_abilities)
+        
         results = {
             'item_difficulty': self.difficulty,
             'person_ability': self.person_abilities,
+            'person_statistics': person_stats,
             'n_items': response_matrix.shape[1],
             'n_persons': response_matrix.shape[0],
             'item_names': list(data.columns),
@@ -124,6 +128,75 @@ class RaschAnalyzer:
         theta = 0.0  
         p = 1 / (1 + np.exp(-(theta - difficulty)))
         return np.sum(p * (1 - p))
+    
+    def _calculate_person_statistics(self, responses: np.ndarray, 
+                                    abilities: np.ndarray) -> Dict[str, Any]:
+        """Calculate detailed statistics for each person"""
+        n_persons = responses.shape[0]
+        
+        # Calculate raw scores
+        raw_scores = np.sum(responses, axis=1)
+        
+        # Calculate standard scores (z-scores) for abilities
+        valid_abilities = abilities[~np.isnan(abilities)]
+        if len(valid_abilities) > 0:
+            ability_mean = np.mean(valid_abilities)
+            ability_sd = np.std(valid_abilities)
+            
+            if ability_sd > 0:
+                z_scores = (abilities - ability_mean) / ability_sd
+            else:
+                z_scores = np.zeros_like(abilities)
+        else:
+            z_scores = np.full_like(abilities, np.nan)
+        
+        # Calculate T-scores (mean=50, sd=10)
+        t_scores = 50 + (z_scores * 10)
+        
+        # Calculate standard errors for each person
+        se_estimates = self._calculate_standard_errors(responses, abilities)
+        
+        person_data = []
+        for i in range(n_persons):
+            person_data.append({
+                'person_id': i + 1,
+                'raw_score': int(raw_scores[i]),
+                'ability': abilities[i],
+                'z_score': z_scores[i],
+                't_score': t_scores[i],
+                'se': se_estimates[i]
+            })
+        
+        return {
+            'individual': person_data,
+            'ability_mean': ability_mean if len(valid_abilities) > 0 else np.nan,
+            'ability_sd': ability_sd if len(valid_abilities) > 0 else np.nan
+        }
+    
+    def _calculate_standard_errors(self, responses: np.ndarray, 
+                                   abilities: np.ndarray) -> np.ndarray:
+        """Calculate standard error of ability estimates"""
+        n_persons = responses.shape[0]
+        se_array = np.zeros(n_persons)
+        
+        for i in range(n_persons):
+            if np.isnan(abilities[i]):
+                se_array[i] = np.nan
+            else:
+                theta = abilities[i]
+                valid_idx = ~np.isnan(responses[i, :])
+                valid_difficulty = self.difficulty[valid_idx]
+                
+                # Fisher information
+                p = 1 / (1 + np.exp(-(theta - valid_difficulty)))
+                information = np.sum(p * (1 - p))
+                
+                if information > 0:
+                    se_array[i] = 1.0 / np.sqrt(information)
+                else:
+                    se_array[i] = np.nan
+        
+        return se_array
     
     def get_summary(self, results: Dict[str, Any]) -> str:
         """Generate a text summary of the analysis"""

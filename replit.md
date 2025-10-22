@@ -11,6 +11,11 @@ Telegram bot for performing Rasch model analysis on dichotomous test data. The b
 - **Reports:** ReportLab PDF generation
 
 ## Recent Changes
+- **October 22, 2025**: Added individual person statistics to PDF reports
+  - Z-scores (standardized scores)
+  - T-scores (mean=50, SD=10)
+  - Standard errors for ability estimates
+  - Detailed person-by-person table
 - Initial project setup with complete Rasch analysis bot
 - Implemented file upload handling (CSV/Excel)
 - Created Rasch model analysis module with MML estimation

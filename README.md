@@ -109,10 +109,21 @@ Your data file should:
 
 The bot uses a **1-parameter logistic (1PL) Rasch model** with MML estimation, similar to TAM's `tam.cmle` function in R.
 
+**Model Formula:**
+
+P(X_ij = 1) = exp(θ_i - β_j) / (1 + exp(θ_i - β_j))
+
+Where:
+- **θ_i** (theta) = Person i's ability
+- **β_j** (beta) = Item j's difficulty
+- **P(X_ij = 1)** = Probability that person i answers item j correctly
+
 The model estimates:
-- **Item difficulties**: How hard each item is
-- **Person abilities**: Each person's skill level
-- **Reliability**: Test reliability (person separation)
+- **Item difficulties (β)**: How hard each item is
+- **Person abilities (θ)**: Each person's skill level on the latent trait
+- **Standard scores**: Z-scores and T-scores for easy interpretation
+- **Standard errors**: Measurement precision for each ability estimate
+- **Reliability**: Test reliability (person separation coefficient)
 
 ### PDF Report Contents
 
@@ -124,11 +135,19 @@ Generated reports include:
    - Reliability coefficient
 
 2. **Item Difficulty Parameters**
-   - Difficulty estimate for each item
+   - Difficulty estimate for each item (β)
    - Mean score for each item
 
 3. **Person Ability Distribution**
    - Mean, SD, Min, Max of person abilities
+
+4. **Individual Person Statistics** (NEW!)
+   - Person ID
+   - Raw score (total correct answers)
+   - Ability estimate (θ - theta in logits)
+   - Z-Score (standardized score, mean=0, SD=1)
+   - T-Score (mean=50, SD=10)
+   - Standard Error (SE) of ability estimate
 
 ## Technical Notes
 

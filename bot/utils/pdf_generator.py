@@ -151,6 +151,57 @@ class PDFReportGenerator:
         
         story.append(Spacer(1, 0.4 * inch))
         
+        # Add individual person statistics table
+        story.append(Paragraph("Individual Person Statistics", heading_style))
+        
+        person_stats = results.get('person_statistics', {})
+        individual_data = person_stats.get('individual', [])
+        
+        if individual_data:
+            # Create table header
+            person_table_data = [['ID', 'Raw Score', 'Ability (θ)', 'Z-Score', 'T-Score', 'SE']]
+            
+            # Add data for each person
+            for person in individual_data:
+                person_table_data.append([
+                    str(person['person_id']),
+                    str(person['raw_score']),
+                    f"{person['ability']:.3f}" if not np.isnan(person['ability']) else "N/A",
+                    f"{person['z_score']:.3f}" if not np.isnan(person['z_score']) else "N/A",
+                    f"{person['t_score']:.1f}" if not np.isnan(person['t_score']) else "N/A",
+                    f"{person['se']:.3f}" if not np.isnan(person['se']) else "N/A"
+                ])
+            
+            person_table = Table(person_table_data, colWidths=[0.6*inch, 0.9*inch, 1.0*inch, 0.9*inch, 0.9*inch, 0.7*inch])
+            person_table.setStyle(TableStyle([
+                ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#E74C3C')),
+                ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+                ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+                ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+                ('FONTSIZE', (0, 0), (-1, 0), 10),
+                ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
+                ('BACKGROUND', (0, 1), (-1, -1), colors.HexColor('#ECF0F1')),
+                ('GRID', (0, 0), (-1, -1), 0.5, colors.grey),
+                ('FONTSIZE', (0, 1), (-1, -1), 8),
+                ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, colors.HexColor('#F8F9FA')])
+            ]))
+            story.append(person_table)
+            
+            # Add legend/explanation
+            story.append(Spacer(1, 0.2 * inch))
+            legend_text = (
+                "<b>Tushuntirish:</b><br/>"
+                "• <b>ID:</b> Talabgor raqami<br/>"
+                "• <b>Raw Score:</b> To'g'ri javoblar soni<br/>"
+                "• <b>Ability (θ):</b> Qobiliyat darajasi (logit o'lchovi)<br/>"
+                "• <b>Z-Score:</b> Standart ball (o'rtacha=0, standart og'ish=1)<br/>"
+                "• <b>T-Score:</b> T-ball (o'rtacha=50, standart og'ish=10)<br/>"
+                "• <b>SE:</b> Standart xato (ability baholashning aniqlik darajasi)"
+            )
+            story.append(Paragraph(legend_text, styles['Normal']))
+        
+        story.append(Spacer(1, 0.4 * inch))
+        
         footer_style = ParagraphStyle(
             'Footer',
             parent=styles['Normal'],
