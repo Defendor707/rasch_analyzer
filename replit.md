@@ -11,6 +11,11 @@ Telegram bot for performing Rasch model analysis on dichotomous test data. The b
 - **Reports:** ReportLab PDF generation
 
 ## Recent Changes
+- **October 22, 2025 (Latest)**: Fixed critical indexing bug in Rasch analysis
+  - Removed unnecessary `.astype(bool)` conversion causing NumPy indexing errors
+  - Fixed unbound variable issue in person statistics calculation
+  - Added null safety checks for difficulty array indexing
+  - Bot now runs without errors
 - **October 22, 2025**: Added individual person statistics to PDF reports
   - Z-scores (standardized scores)
   - T-scores (mean=50, SD=10)

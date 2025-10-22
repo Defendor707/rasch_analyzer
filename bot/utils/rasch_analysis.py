@@ -59,7 +59,6 @@ class RaschAnalyzer:
             person_responses = responses[i, :]
             # Create proper boolean array for indexing
             valid_idx = ~np.isnan(person_responses)
-            valid_idx = valid_idx.astype(bool)
             
             if not np.any(valid_idx):
                 abilities[i] = np.nan
@@ -150,6 +149,8 @@ class RaschAnalyzer:
             else:
                 z_scores = np.zeros_like(abilities)
         else:
+            ability_mean = 0.0
+            ability_sd = 0.0
             z_scores = np.full_like(abilities, np.nan)
         
         # Calculate T-scores (mean=50, sd=10)
@@ -188,12 +189,15 @@ class RaschAnalyzer:
                 theta = abilities[i]
                 # Create proper boolean array for indexing
                 valid_idx = ~np.isnan(responses[i, :])
-                valid_idx = valid_idx.astype(bool)
-                valid_difficulty = self.difficulty[valid_idx]
                 
-                # Fisher information
-                p = 1 / (1 + np.exp(-(theta - valid_difficulty)))
-                information = np.sum(p * (1 - p))
+                if self.difficulty is not None:
+                    valid_difficulty = self.difficulty[valid_idx]
+                    
+                    # Fisher information
+                    p = 1 / (1 + np.exp(-(theta - valid_difficulty)))
+                    information = np.sum(p * (1 - p))
+                else:
+                    information = 0
                 
                 if information > 0:
                     se_array[i] = 1.0 / np.sqrt(information)
