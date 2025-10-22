@@ -306,7 +306,10 @@ async def handle_profile(update: Update, context: ContextTypes.DEFAULT_TYPE):
     reply_markup = InlineKeyboardMarkup(keyboard)
     
     await update.message.reply_text(
-        profile_text, 
+        profile_text,
+        parse_mode='Markdown',
+        reply_markup=reply_markup
+    )
 
 
 
@@ -399,10 +402,6 @@ async def handle_profile_edit(update: Update, context: ContextTypes.DEFAULT_TYPE
         context.user_data['editing'] = None
     
     return editing_state is not None
-
-        parse_mode='Markdown',
-        reply_markup=reply_markup
-    )
 
 
 async def handle_settings(update: Update, context: ContextTypes.DEFAULT_TYPE):
