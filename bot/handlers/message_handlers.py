@@ -399,17 +399,94 @@ async def handle_students(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(students_text, parse_mode='Markdown')
 
 
+def get_other_keyboard():
+    """Create keyboard for 'Boshqa' section"""
+    keyboard = [
+        [KeyboardButton("📝 Ommaviy test o'tkazish")],
+        [KeyboardButton("📊 Statistika")],
+        [KeyboardButton("👥 Hamjamiyat")],
+        [KeyboardButton("💬 Adminga murojaat")],
+        [KeyboardButton("◀️ Ortga")]
+    ]
+    return ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
+
+
 async def handle_other(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Handle Other button"""
     other_text = (
-        "ℹ️ *Boshqa*\n\n"
-        "📚 Yordam: /help\n"
-        "🔬 Namuna tahlil: /namuna\n"
-        "🏠 Bosh sahifa: /start\n\n"
-        "Qo'shimcha ma'lumot yoki yordam kerak bo'lsa,\n"
-        "yuqoridagi buyruqlardan foydalaning."
+        "ℹ️ *Boshqa bo'lim*\n\n"
+        "Quyidagi bo'limlardan birini tanlang:"
     )
-    await update.message.reply_text(other_text, parse_mode='Markdown')
+    await update.message.reply_text(
+        other_text, 
+        parse_mode='Markdown',
+        reply_markup=get_other_keyboard()
+    )
+
+
+async def handle_public_test(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Handle Public Test button"""
+    test_text = (
+        "📝 *Ommaviy test o'tkazish*\n\n"
+        "Bu bo'limda siz:\n"
+        "• Ommaviy testlar yaratishingiz\n"
+        "• Testlarni tarqatishingiz\n"
+        "• Natijalarni yig'ishingiz mumkin\n\n"
+        "🔜 Tez orada faollashtiriladi!"
+    )
+    await update.message.reply_text(test_text, parse_mode='Markdown')
+
+
+async def handle_statistics(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Handle Statistics button"""
+    stats_text = (
+        "📊 *Statistika*\n\n"
+        "Bu yerda siz:\n"
+        "• Umumiy tahlil statistikasini\n"
+        "• Talabgorlar o'sish dinamikasini\n"
+        "• Test natijalarini ko'rishingiz mumkin\n\n"
+        "🔜 Tez orada faollashtiriladi!"
+    )
+    await update.message.reply_text(stats_text, parse_mode='Markdown')
+
+
+async def handle_community(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Handle Community button"""
+    community_text = (
+        "👥 *Hamjamiyat*\n\n"
+        "Bizning hamjamiyatga qo'shiling:\n"
+        "• Tajriba almashish\n"
+        "• Savollar berish\n"
+        "• Yangiliklar va yangilanishlar\n\n"
+        "🔜 Tez orada faollashtiriladi!"
+    )
+    await update.message.reply_text(community_text, parse_mode='Markdown')
+
+
+async def handle_contact_admin(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Handle Contact Admin button"""
+    contact_text = (
+        "💬 *Adminga murojaat*\n\n"
+        "Savollaringiz yoki takliflaringiz bo'lsa,\n"
+        "quyidagi ma'lumotlardan foydalaning:\n\n"
+        "📧 Email: support@raschbot.uz\n"
+        "📱 Telegram: @raschbot_admin\n\n"
+        "Tez orada javob beramiz! 😊"
+    )
+    await update.message.reply_text(contact_text, parse_mode='Markdown')
+
+
+async def handle_back(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Handle Back button - return to main menu"""
+    welcome_text = (
+        "🏠 *Bosh menyu*\n\n"
+        "Kerakli bo'limni tanlang:"
+    )
+    await update.message.reply_text(
+        welcome_text,
+        parse_mode='Markdown',
+        reply_markup=get_main_keyboard()
+    )
 
 
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -422,7 +499,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         if handled:
             return
     
-    # Handle keyboard button presses
+    # Handle main keyboard button presses
     if message_text == "👤 Profil":
         await handle_profile(update, context)
     elif message_text == "⚙️ Sozlamalar":
@@ -431,6 +508,17 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await handle_students(update, context)
     elif message_text == "ℹ️ Boshqa":
         await handle_other(update, context)
+    # Handle 'Boshqa' section buttons
+    elif message_text == "📝 Ommaviy test o'tkazish":
+        await handle_public_test(update, context)
+    elif message_text == "📊 Statistika":
+        await handle_statistics(update, context)
+    elif message_text == "👥 Hamjamiyat":
+        await handle_community(update, context)
+    elif message_text == "💬 Adminga murojaat":
+        await handle_contact_admin(update, context)
+    elif message_text == "◀️ Ortga":
+        await handle_back(update, context)
     else:
         await update.message.reply_text(
             "📎 Ma'lumotlar faylini yuboring!\n\n"
