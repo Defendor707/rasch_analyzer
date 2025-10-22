@@ -398,7 +398,7 @@ async def handle_students(update: Update, context: ContextTypes.DEFAULT_TYPE):
     
     if not students:
         students_text = (
-            "👥 *O'quvchilar ro'yxati*\n\n"
+            "👥 <b>O'quvchilar ro'yxati</b>\n\n"
             "Hozircha ro'yxatda o'quvchilar yo'q.\n\n"
             "Yangi o'quvchi qo'shish uchun pastdagi tugmani bosing."
         )
@@ -407,11 +407,11 @@ async def handle_students(update: Update, context: ContextTypes.DEFAULT_TYPE):
             [KeyboardButton("◀️ Ortga")]
         ]
     else:
-        students_text = f"👥 *O'quvchilar ro'yxati* ({len(students)} ta)\n\n"
+        students_text = f"👥 <b>O'quvchilar ro'yxati</b> ({len(students)} ta)\n\n"
         
         for student in students:
             full_name = student.get('full_name', "Noma'lum")
-            students_text += f"👤 *{full_name}*\n"
+            students_text += f"👤 <b>{full_name}</b>\n"
             if student.get('telegram_username'):
                 students_text += f"   📱 @{student.get('telegram_username')}\n"
             if student.get('parent_telegram'):
@@ -425,7 +425,7 @@ async def handle_students(update: Update, context: ContextTypes.DEFAULT_TYPE):
         ]
     
     reply_markup = ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
-    await update.message.reply_text(students_text, parse_mode='Markdown', reply_markup=reply_markup)
+    await update.message.reply_text(students_text, parse_mode='HTML', reply_markup=reply_markup)
 
 
 def get_other_keyboard():
