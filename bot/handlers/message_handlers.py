@@ -627,10 +627,27 @@ async def handle_student_input(update: Update, context: ContextTypes.DEFAULT_TYP
             student = student_data_manager.get_student(user_id, student_id)
             
             if not student:
-                await update.message.reply_text("❌ Bunday ID'li o'quvchi topilmadi!")
-                context.user_data['editing_student'] = None
+                # Increment error count
+                error_count = context.user_data.get('edit_error_count', 0) + 1
+                context.user_data['edit_error_count'] = error_count
+                
+                if error_count >= 3:
+                    await update.message.reply_text(
+                        "❌ 3 marta noto'g'ri urinish. Jarayon bekor qilindi.",
+                        reply_markup=get_main_keyboard()
+                    )
+                    context.user_data['editing_student'] = None
+                    context.user_data['edit_error_count'] = 0
+                    return True
+                
+                await update.message.reply_text(
+                    f"❌ Bunday ID'li o'quvchi topilmadi!\n"
+                    f"Urinish: {error_count}/3"
+                )
                 return True
             
+            # Reset error count on success
+            context.user_data['edit_error_count'] = 0
             context.user_data['editing_student_id'] = student_id
             context.user_data['student_temp'] = student.copy()
             context.user_data['editing_student'] = None
@@ -644,7 +661,23 @@ async def handle_student_input(update: Update, context: ContextTypes.DEFAULT_TYP
             )
             return True
         except ValueError:
-            await update.message.reply_text("❌ Iltimos, raqam kiriting!")
+            # Increment error count
+            error_count = context.user_data.get('edit_error_count', 0) + 1
+            context.user_data['edit_error_count'] = error_count
+            
+            if error_count >= 3:
+                await update.message.reply_text(
+                    "❌ 3 marta noto'g'ri urinish. Jarayon bekor qilindi.",
+                    reply_markup=get_main_keyboard()
+                )
+                context.user_data['editing_student'] = None
+                context.user_data['edit_error_count'] = 0
+                return True
+            
+            await update.message.reply_text(
+                f"❌ Iltimos, raqam kiriting!\n"
+                f"Urinish: {error_count}/3"
+            )
             return True
     
     # Handle deleting student
@@ -654,10 +687,27 @@ async def handle_student_input(update: Update, context: ContextTypes.DEFAULT_TYP
             student = student_data_manager.get_student(user_id, student_id)
             
             if not student:
-                await update.message.reply_text("❌ Bunday ID'li o'quvchi topilmadi!")
-                context.user_data['deleting_student'] = None
+                # Increment error count
+                error_count = context.user_data.get('delete_error_count', 0) + 1
+                context.user_data['delete_error_count'] = error_count
+                
+                if error_count >= 3:
+                    await update.message.reply_text(
+                        "❌ 3 marta noto'g'ri urinish. Jarayon bekor qilindi.",
+                        reply_markup=get_main_keyboard()
+                    )
+                    context.user_data['deleting_student'] = None
+                    context.user_data['delete_error_count'] = 0
+                    return True
+                
+                await update.message.reply_text(
+                    f"❌ Bunday ID'li o'quvchi topilmadi!\n"
+                    f"Urinish: {error_count}/3"
+                )
                 return True
             
+            # Reset error count on success
+            context.user_data['delete_error_count'] = 0
             student_data_manager.delete_student(user_id, student_id)
             await update.message.reply_text(
                 f"✅ O'quvchi o'chirildi: *{student.get('full_name')}*",
@@ -668,7 +718,23 @@ async def handle_student_input(update: Update, context: ContextTypes.DEFAULT_TYP
             await handle_students(update, context)
             return True
         except ValueError:
-            await update.message.reply_text("❌ Iltimos, raqam kiriting!")
+            # Increment error count
+            error_count = context.user_data.get('delete_error_count', 0) + 1
+            context.user_data['delete_error_count'] = error_count
+            
+            if error_count >= 3:
+                await update.message.reply_text(
+                    "❌ 3 marta noto'g'ri urinish. Jarayon bekor qilindi.",
+                    reply_markup=get_main_keyboard()
+                )
+                context.user_data['deleting_student'] = None
+                context.user_data['delete_error_count'] = 0
+                return True
+            
+            await update.message.reply_text(
+                f"❌ Iltimos, raqam kiriting!\n"
+                f"Urinish: {error_count}/3"
+            )
             return True
     
     return False
@@ -695,6 +761,8 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         context.user_data['deleting_student'] = None
         context.user_data['student_temp'] = None
         context.user_data['editing_student_id'] = None
+        context.user_data['edit_error_count'] = 0
+        context.user_data['delete_error_count'] = 0
         
         # Show cancellation message if there was an operation
         if was_operation:
