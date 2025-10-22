@@ -12,6 +12,7 @@ from telegram.ext import (
 from bot.handlers.message_handlers import (
     start_command,
     help_command,
+    sample_command,
     handle_document,
     handle_message
 )
@@ -47,6 +48,7 @@ def main():
     
     application.add_handler(CommandHandler("start", start_command))
     application.add_handler(CommandHandler("help", help_command))
+    application.add_handler(CommandHandler("namuna", sample_command))
     
     application.add_handler(MessageHandler(
         filters.Document.ALL,

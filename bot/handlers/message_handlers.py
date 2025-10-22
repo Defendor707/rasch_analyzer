@@ -55,6 +55,97 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(help_message, parse_mode='Markdown')
 
 
+async def sample_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Generate and analyze sample data with 50 persons and 55 items"""
+    user_id = update.effective_user.id
+    
+    await update.message.reply_text(
+        "🔬 Namunaviy ma'lumotlar yaratilmoqda...\n"
+        "📊 50 talabgor va 55 savol"
+    )
+    
+    try:
+        import numpy as np
+        
+        # Generate sample data: 50 persons × 55 items
+        np.random.seed(42)  # For reproducibility
+        n_persons = 50
+        n_items = 55
+        
+        # Generate abilities for persons (mean=0, sd=1)
+        person_abilities = np.random.normal(0, 1, n_persons)
+        
+        # Generate item difficulties (mean=0, sd=1.2)
+        item_difficulties = np.random.normal(0, 1.2, n_items)
+        
+        # Generate responses using Rasch model
+        sample_data = np.zeros((n_persons, n_items))
+        for i in range(n_persons):
+            for j in range(n_items):
+                # Rasch probability
+                prob = 1 / (1 + np.exp(-(person_abilities[i] - item_difficulties[j])))
+                # Generate response
+                sample_data[i, j] = 1 if np.random.random() < prob else 0
+        
+        # Create DataFrame with item names
+        item_names = [f"Savol_{i+1}" for i in range(n_items)]
+        data = pd.DataFrame(sample_data, columns=item_names)
+        
+        await update.message.reply_text("⏳ Tahlil boshlanmoqda...")
+        
+        # Perform Rasch analysis
+        analyzer = RaschAnalyzer()
+        results = analyzer.fit(data)
+        
+        pdf_generator = PDFReportGenerator()
+        
+        # Generate general statistics report
+        general_pdf_path = pdf_generator.generate_report(
+            results,
+            filename=f"namuna_umumiy_{user_id}"
+        )
+        
+        # Generate person results report
+        person_pdf_path = pdf_generator.generate_person_results_report(
+            results,
+            filename=f"namuna_talabgorlar_{user_id}"
+        )
+        
+        await update.message.reply_text(
+            f"✅ *Namunaviy tahlil tugallandi!*\n\n"
+            f"📊 Talabgorlar: {results['n_persons']}\n"
+            f"📝 Savollar: {results['n_items']}\n"
+            f"📈 Reliability: {results['reliability']:.3f}\n\n"
+            f"PDF hisobotlar yuborilmoqda...",
+            parse_mode='Markdown'
+        )
+        
+        # Send general statistics PDF
+        with open(general_pdf_path, 'rb') as pdf_file:
+            await update.message.reply_document(
+                document=pdf_file,
+                filename=os.path.basename(general_pdf_path),
+                caption="📊 Namunaviy tahlil - Umumiy statistika"
+            )
+        
+        # Send person results PDF
+        with open(person_pdf_path, 'rb') as pdf_file:
+            await update.message.reply_document(
+                document=pdf_file,
+                filename=os.path.basename(person_pdf_path),
+                caption="👥 Namunaviy tahlil - Talabgorlar natijalari"
+            )
+        
+        logger.info(f"Sample analysis completed for user {user_id}")
+        
+    except Exception as e:
+        logger.error(f"Error in sample analysis for user {user_id}: {str(e)}")
+        await update.message.reply_text(
+            f"❌ Xatolik yuz berdi: {str(e)}\n\n"
+            "Iltimos, qayta urinib ko'ring."
+        )
+
+
 async def handle_document(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Handle uploaded document files"""
     document = update.message.document
