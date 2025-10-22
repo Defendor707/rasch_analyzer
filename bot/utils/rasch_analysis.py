@@ -57,7 +57,9 @@ class RaschAnalyzer:
         
         for i in range(n_persons):
             person_responses = responses[i, :]
-            valid_idx = np.array(~np.isnan(person_responses), dtype=bool)
+            # Create proper boolean array for indexing
+            valid_idx = ~np.isnan(person_responses)
+            valid_idx = valid_idx.astype(bool)
             
             if not np.any(valid_idx):
                 abilities[i] = np.nan
@@ -184,7 +186,9 @@ class RaschAnalyzer:
                 se_array[i] = np.nan
             else:
                 theta = abilities[i]
-                valid_idx = np.array(~np.isnan(responses[i, :]), dtype=bool)
+                # Create proper boolean array for indexing
+                valid_idx = ~np.isnan(responses[i, :])
+                valid_idx = valid_idx.astype(bool)
                 valid_difficulty = self.difficulty[valid_idx]
                 
                 # Fisher information
