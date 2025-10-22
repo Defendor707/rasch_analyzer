@@ -13,11 +13,9 @@ logger = logging.getLogger(__name__)
 user_data_manager = UserDataManager()
 
 # Conversation states
-WAITING_FOR_FIRST_NAME = 1
-WAITING_FOR_LAST_NAME = 2
-WAITING_FOR_BIO = 3
-WAITING_FOR_SUBJECT = 4
-WAITING_FOR_SCHOOL = 5
+WAITING_FOR_FULL_NAME = 1
+WAITING_FOR_BIO = 2
+WAITING_FOR_SUBJECT = 3
 
 
 def get_main_keyboard():
@@ -31,10 +29,15 @@ def get_main_keyboard():
 
 async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Send welcome message when the command /start is issued"""
-    user_name = update.effective_user.first_name or "foydalanuvchi"
+    user_id = update.effective_user.id
+    user_data = user_data_manager.get_user_data(user_id)
+    
+    full_name = user_data.get('full_name')
+    if not full_name:
+        full_name = update.effective_user.first_name or "foydalanuvchi"
     
     welcome_message = (
-        f"👋 Assalomu alaykum, {user_name}!\n\n"
+        f"👋 Assalomu alaykum, {full_name}!\n\n"
         "🎓 Rasch analiyzer botga xush kelibsiz!\n\n"
         "📝 Matritsani yuboring yoki /namuna buyrug'i bilan namuna tahlilni ko'ring\n\n"
         "/help commandasini yuborib foydalanish yo'riqnomasi bilan tanishing."
@@ -286,10 +289,8 @@ async def handle_profile(update: Update, context: ContextTypes.DEFAULT_TYPE):
     # Display profile information
     profile_text = (
         f"👤 *Profil ma'lumotlari*\n\n"
-        f"*Ism:* {user_data.get('first_name') or 'Kiritilmagan'}\n"
-        f"*Familiya:* {user_data.get('last_name') or 'Kiritilmagan'}\n"
+        f"*Ism va Familiya:* {user_data.get('full_name') or 'Kiritilmagan'}\n"
         f"*Mutaxassislik:* {user_data.get('subject') or 'Kiritilmagan'}\n"
-        f"*Maktab/Muassasa:* {user_data.get('school') or 'Kiritilmagan'}\n"
         f"*Bio:* {user_data.get('bio') or 'Kiritilmagan'}\n\n"
         f"*Telegram:* @{user.username or 'N/A'}\n"
         f"*ID:* {user.id}"
@@ -297,10 +298,8 @@ async def handle_profile(update: Update, context: ContextTypes.DEFAULT_TYPE):
     
     # Inline keyboard for editing
     keyboard = [
-        [InlineKeyboardButton("✏️ Ismni o'zgartirish", callback_data='edit_first_name')],
-        [InlineKeyboardButton("✏️ Familiyani o'zgartirish", callback_data='edit_last_name')],
+        [InlineKeyboardButton("✏️ Ism va Familiyani o'zgartirish", callback_data='edit_full_name')],
         [InlineKeyboardButton("✏️ Mutaxassislikni o'zgartirish", callback_data='edit_subject')],
-        [InlineKeyboardButton("✏️ Maktab/Muassasani o'zgartirish", callback_data='edit_school')],
         [InlineKeyboardButton("✏️ Bio qo'shish/o'zgartirish", callback_data='edit_bio')]
     ]
     reply_markup = InlineKeyboardMarkup(keyboard)
@@ -320,17 +319,10 @@ async def handle_callback_query(update: Update, context: ContextTypes.DEFAULT_TY
     
     user_id = update.effective_user.id
     
-    if query.data == 'edit_first_name':
-        context.user_data['editing'] = WAITING_FOR_FIRST_NAME
+    if query.data == 'edit_full_name':
+        context.user_data['editing'] = WAITING_FOR_FULL_NAME
         await query.message.reply_text(
-            "✏️ Yangi ismingizni kiriting:",
-            reply_markup=get_main_keyboard()
-        )
-    
-    elif query.data == 'edit_last_name':
-        context.user_data['editing'] = WAITING_FOR_LAST_NAME
-        await query.message.reply_text(
-            "✏️ Yangi familiyangizni kiriting:",
+            "✏️ Ism va familiyangizni kiriting (masalan: Akmal Rahimov):",
             reply_markup=get_main_keyboard()
         )
     
@@ -338,13 +330,6 @@ async def handle_callback_query(update: Update, context: ContextTypes.DEFAULT_TY
         context.user_data['editing'] = WAITING_FOR_SUBJECT
         await query.message.reply_text(
             "✏️ Mutaxassisligingizni kiriting (masalan: Matematika, Fizika, Ingliz tili):",
-            reply_markup=get_main_keyboard()
-        )
-    
-    elif query.data == 'edit_school':
-        context.user_data['editing'] = WAITING_FOR_SCHOOL
-        await query.message.reply_text(
-            "✏️ Maktab yoki muassasa nomini kiriting:",
             reply_markup=get_main_keyboard()
         )
     
@@ -361,18 +346,10 @@ async def handle_profile_edit(update: Update, context: ContextTypes.DEFAULT_TYPE
     user_id = update.effective_user.id
     editing_state = context.user_data.get('editing')
     
-    if editing_state == WAITING_FOR_FIRST_NAME:
-        user_data_manager.update_user_field(user_id, 'first_name', text)
+    if editing_state == WAITING_FOR_FULL_NAME:
+        user_data_manager.update_user_field(user_id, 'full_name', text)
         await update.message.reply_text(
-            f"✅ Ism muvaffaqiyatli o'zgartirildi: *{text}*",
-            parse_mode='Markdown'
-        )
-        context.user_data['editing'] = None
-    
-    elif editing_state == WAITING_FOR_LAST_NAME:
-        user_data_manager.update_user_field(user_id, 'last_name', text)
-        await update.message.reply_text(
-            f"✅ Familiya muvaffaqiyatli o'zgartirildi: *{text}*",
+            f"✅ Ism va familiya muvaffaqiyatli o'zgartirildi: *{text}*",
             parse_mode='Markdown'
         )
         context.user_data['editing'] = None
@@ -381,14 +358,6 @@ async def handle_profile_edit(update: Update, context: ContextTypes.DEFAULT_TYPE
         user_data_manager.update_user_field(user_id, 'subject', text)
         await update.message.reply_text(
             f"✅ Mutaxassislik muvaffaqiyatli o'zgartirildi: *{text}*",
-            parse_mode='Markdown'
-        )
-        context.user_data['editing'] = None
-    
-    elif editing_state == WAITING_FOR_SCHOOL:
-        user_data_manager.update_user_field(user_id, 'school', text)
-        await update.message.reply_text(
-            f"✅ Maktab/Muassasa muvaffaqiyatli o'zgartirildi: *{text}*",
             parse_mode='Markdown'
         )
         context.user_data['editing'] = None
