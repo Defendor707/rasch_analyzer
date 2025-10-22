@@ -11,24 +11,21 @@ logger = logging.getLogger(__name__)
 
 async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Send welcome message when the command /start is issued"""
+    user_name = update.effective_user.first_name or "foydalanuvchi"
+    
     welcome_message = (
-        "👋 *Rasch Model Tahlil Boti*\n\n"
-        "Men sizning ma'lumotlaringizni Rasch modeli yordamida tahlil qilaman "
-        "va PDF formatda natijalarni taqdim etaman.\n\n"
-        "*Qanday foydalanish kerak:*\n"
-        "1️⃣ Ma'lumotlar faylini yuboring (CSV yoki Excel)\n"
-        "2️⃣ Tahlil tugashini kuting\n"
-        "3️⃣ PDF hisobot  olasiz\n\n"
-        "*Fayl formati:*\n"
-        "- Qatorlar: Ishtirokchilar\n"
-        "- Ustunlar: Savollar/Itemlar\n"
-        "- Qiymatlar: 0 (noto'g'ri) yoki 1 (to'g'ri)\n\n"
-        "*Buyruqlar:*\n"
-        "/start - Botni ishga tushirish\n"
-        "/help - Yordam\n\n"
-        "Faylni yuboring va boshlaylik! 🚀"
+        f"👋 Assalomu alaykum, {user_name}!\n\n"
+        "🎓 Rasch analiyzer botga xush kelibsiz!\n\n"
+        "📝 Matritsani yuboring yoki /namuna buyrug'i bilan namuna tahlilni ko'ring\n\n"
+        "/help commandasini yuborib foydalanish yo'riqnomasi bilan tanishing."
     )
-    await update.message.reply_text(welcome_message, parse_mode='Markdown')
+    
+    file_info_message = (
+        "📊 Excel (.xls, .xlsx, .csv) faylni yuborishingiz mumkin!"
+    )
+    
+    await update.message.reply_text(welcome_message)
+    await update.message.reply_text(file_info_message)
 
 
 async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
