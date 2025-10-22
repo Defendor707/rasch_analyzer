@@ -344,6 +344,33 @@ async def handle_callback_query(update: Update, context: ContextTypes.DEFAULT_TY
             "✏️ O'zingiz haqida qisqacha ma'lumot kiriting:",
             reply_markup=get_main_keyboard()
         )
+    
+    # Handle subject selection
+    elif query.data.startswith('subject_'):
+        subject_mapping = {
+            'subject_matematika': 'Matematika',
+            'subject_fizika': 'Fizika',
+            'subject_onatili': 'Ona tili',
+            'subject_qoraqalpoqtili': 'Qoraqalpoq tili',
+            'subject_rustili': 'Rus tili',
+            'subject_tarix': 'Tarix',
+            'subject_kimyo': 'Kimyo',
+            'subject_biologiya': 'Biologiya',
+            'subject_geografiya': 'Geografiya'
+        }
+        
+        selected_subject = subject_mapping.get(query.data)
+        if selected_subject:
+            user_data_manager.update_user_field(user_id, 'subject', selected_subject)
+            await query.edit_message_text(
+                f"✅ Mutaxassislik fani muvaffaqiyatli tanlandi:\n\n"
+                f"📚 *{selected_subject}*",
+                parse_mode='Markdown'
+            )
+            await query.message.reply_text(
+                "Bosh menyuga qaytdingiz.",
+                reply_markup=get_main_keyboard()
+            )
 
 
 async def handle_profile_edit(update: Update, context: ContextTypes.DEFAULT_TYPE, text: str):
@@ -406,12 +433,28 @@ async def handle_select_subject(update: Update, context: ContextTypes.DEFAULT_TY
     """Handle Select Subject button"""
     subject_text = (
         "📚 *Mutaxassislik fanini tanlash*\n\n"
-        "Qaysi fanni tanlashni xohlaysiz?\n"
-        "Masalan: Matematika, Fizika, Ingliz tili, Biologiya\n\n"
-        "Fanni kiriting:"
+        "Quyidagi fanlardan birini tanlang:"
     )
-    context.user_data['editing'] = WAITING_FOR_SUBJECT
-    await update.message.reply_text(subject_text, parse_mode='Markdown')
+    
+    # Create inline keyboard with 9 subjects
+    keyboard = [
+        [InlineKeyboardButton("📐 Matematika", callback_data='subject_matematika'),
+         InlineKeyboardButton("⚛️ Fizika", callback_data='subject_fizika')],
+        [InlineKeyboardButton("📝 Ona tili", callback_data='subject_onatili'),
+         InlineKeyboardButton("📚 Qoraqalpoq tili", callback_data='subject_qoraqalpoqtili')],
+        [InlineKeyboardButton("🇷🇺 Rus tili", callback_data='subject_rustili'),
+         InlineKeyboardButton("📜 Tarix", callback_data='subject_tarix')],
+        [InlineKeyboardButton("🧪 Kimyo", callback_data='subject_kimyo'),
+         InlineKeyboardButton("🧬 Biologiya", callback_data='subject_biologiya')],
+        [InlineKeyboardButton("🌍 Geografiya", callback_data='subject_geografiya')]
+    ]
+    reply_markup = InlineKeyboardMarkup(keyboard)
+    
+    await update.message.reply_text(
+        subject_text,
+        parse_mode='Markdown',
+        reply_markup=reply_markup
+    )
 
 
 async def handle_section_results(update: Update, context: ContextTypes.DEFAULT_TYPE):
