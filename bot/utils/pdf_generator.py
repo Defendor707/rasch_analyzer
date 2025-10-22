@@ -256,8 +256,8 @@ class PDFReportGenerator:
                 reverse=True
             )
 
-            # Create table header with rank
-            person_table_data = [['Rank', 'Talabgor', 'Raw Score', 'Ability (θ)', 'T-Score', 'Foiz']]
+            # Create table header with rank and grade
+            person_table_data = [['Rank', 'Talabgor', 'Raw Score', 'Ability (θ)', 'T-Score', 'Foiz', 'Daraja']]
 
             # Add data for each person with rank
             for rank, person in enumerate(individual_data_sorted, start=1):
@@ -271,8 +271,25 @@ class PDFReportGenerator:
                     elif percentage < 70:
                         percentage = 0.0
                     percentage_str = f"{percentage:.1f}%"
+                    
+                    # Determine grade based on T-Score (UZBMB standards)
+                    if t_score >= 70:
+                        grade = "A+"
+                    elif t_score >= 65:
+                        grade = "A"
+                    elif t_score >= 60:
+                        grade = "B+"
+                    elif t_score >= 55:
+                        grade = "B"
+                    elif t_score >= 50:
+                        grade = "C+"
+                    elif t_score >= 46:
+                        grade = "C"
+                    else:
+                        grade = "NC"
                 else:
                     percentage_str = "N/A"
+                    grade = "N/A"
                 
                 person_table_data.append([
                     str(rank),
@@ -280,10 +297,11 @@ class PDFReportGenerator:
                     str(person['raw_score']),
                     f"{person['ability']:.3f}" if not np.isnan(person['ability']) else "N/A",
                     f"{person['t_score']:.1f}" if not np.isnan(person['t_score']) else "N/A",
-                    percentage_str
+                    percentage_str,
+                    grade
                 ])
 
-            person_table = Table(person_table_data, colWidths=[0.8*inch, 1.2*inch, 1*inch, 1*inch, 1*inch, 0.9*inch])
+            person_table = Table(person_table_data, colWidths=[0.6*inch, 1.1*inch, 0.9*inch, 0.9*inch, 0.9*inch, 0.8*inch, 0.7*inch])
             person_table.setStyle(TableStyle([
                 ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#E74C3C')),
                 ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
@@ -307,7 +325,8 @@ class PDFReportGenerator:
                 "• <b>Raw Score:</b> To'g'ri javoblar soni<br/>"
                 "• <b>Ability (θ):</b> Qobiliyat darajasi (logit o'lchovi)<br/>"
                 "• <b>T-Score:</b> T-ball (o'rtacha=50, standart og'ish=10)<br/>"
-                "• <b>Foiz:</b> Natija foizda (T-Score/65 × 100)"
+                "• <b>Foiz:</b> Natija foizda (T-Score/65 × 100)<br/>"
+                "• <b>Daraja:</b> UZBMB standarti (A+≥70, A≥65, B+≥60, B≥55, C+≥50, C≥46, NC&lt;46)"
             )
             story.append(Paragraph(legend_text, styles['Normal']))
 
