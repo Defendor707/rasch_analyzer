@@ -265,6 +265,11 @@ class PDFReportGenerator:
                 t_score = person['t_score']
                 if not np.isnan(t_score):
                     percentage = (t_score / 65) * 100
+                    # Cap percentage between 0% and 100%
+                    if percentage > 100:
+                        percentage = 100.0
+                    elif percentage < 0:
+                        percentage = 0.0
                     percentage_str = f"{percentage:.1f}%"
                 else:
                     percentage_str = "N/A"
