@@ -95,7 +95,7 @@ async def sample_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         
         # Perform Rasch analysis
         analyzer = RaschAnalyzer()
-        results = analyzer.fit(data)
+        results = analyzer.fit(data.astype(float))
         
         pdf_generator = PDFReportGenerator()
         
