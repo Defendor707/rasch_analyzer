@@ -11,30 +11,30 @@ from datetime import datetime
 
 class PDFReportGenerator:
     """Generates PDF reports for Rasch model analysis results"""
-    
+
     def __init__(self, output_dir: str = "data/results"):
         self.output_dir = output_dir
         os.makedirs(output_dir, exist_ok=True)
-        
+
     def generate_report(self, results: Dict[str, Any], filename: str = None) -> str:
         """
         Generate PDF report from Rasch analysis results
-        
+
         Args:
             results: Dictionary containing analysis results
             filename: Optional filename (without extension)
-            
+
         Returns:
             Path to generated PDF file
         """
         if filename is None:
             filename = f"rasch_analysis_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
-        
+
         if not filename.endswith('.pdf'):
             filename = filename + '.pdf'
-            
+
         filepath = os.path.join(self.output_dir, filename)
-        
+
         doc = SimpleDocTemplate(
             filepath,
             pagesize=A4,
@@ -43,9 +43,9 @@ class PDFReportGenerator:
             topMargin=72,
             bottomMargin=18,
         )
-        
+
         story = []
-        
+
         styles = getSampleStyleSheet()
         title_style = ParagraphStyle(
             'CustomTitle',
@@ -55,7 +55,7 @@ class PDFReportGenerator:
             spaceAfter=30,
             alignment=TA_CENTER
         )
-        
+
         heading_style = ParagraphStyle(
             'CustomHeading',
             parent=styles['Heading2'],
@@ -64,13 +64,13 @@ class PDFReportGenerator:
             spaceAfter=12,
             spaceBefore=12
         )
-        
+
         story.append(Paragraph("Rasch Model Analysis Report", title_style))
         story.append(Spacer(1, 0.2 * inch))
-        
+
         story.append(Paragraph(f"Generated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}", styles['Normal']))
         story.append(Spacer(1, 0.3 * inch))
-        
+
         story.append(Paragraph("Sample Information", heading_style))
         sample_data = [
             ["Number of Persons:", str(results['n_persons'])],
@@ -89,9 +89,9 @@ class PDFReportGenerator:
         ]))
         story.append(sample_table)
         story.append(Spacer(1, 0.3 * inch))
-        
+
         story.append(Paragraph("Item Difficulty Parameters", heading_style))
-        
+
         item_data = [['Item', 'Difficulty', 'Mean Score']]
         for i, item_name in enumerate(results['item_names']):
             difficulty = results['item_difficulty'][i]
@@ -101,7 +101,7 @@ class PDFReportGenerator:
                 f"{difficulty:.3f}",
                 f"{mean:.3f}"
             ])
-        
+
         item_table = Table(item_data, colWidths=[2.5*inch, 1.5*inch, 1.5*inch])
         item_table.setStyle(TableStyle([
             ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#3498DB')),
@@ -117,13 +117,13 @@ class PDFReportGenerator:
         ]))
         story.append(item_table)
         story.append(Spacer(1, 0.3 * inch))
-        
+
         story.append(Paragraph("Person Ability Distribution", heading_style))
-        
+
         import numpy as np
         abilities = results['person_ability']
         valid_abilities = abilities[~np.isnan(abilities)]
-        
+
         if len(valid_abilities) > 0:
             ability_stats = [
                 ['Statistic', 'Value'],
@@ -132,7 +132,7 @@ class PDFReportGenerator:
                 ['Minimum', f"{np.min(valid_abilities):.3f}"],
                 ['Maximum', f"{np.max(valid_abilities):.3f}"],
             ]
-            
+
             ability_table = Table(ability_stats, colWidths=[2.5*inch, 1.5*inch])
             ability_table.setStyle(TableStyle([
                 ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#2ECC71')),
@@ -148,9 +148,9 @@ class PDFReportGenerator:
             story.append(ability_table)
         else:
             story.append(Paragraph("No valid person abilities calculated.", styles['Normal']))
-        
+
         story.append(Spacer(1, 0.4 * inch))
-        
+
         footer_style = ParagraphStyle(
             'Footer',
             parent=styles['Normal'],
@@ -162,30 +162,30 @@ class PDFReportGenerator:
             "Report generated using Rasch Model Analysis (MML Estimation)",
             footer_style
         ))
-        
+
         doc.build(story)
-        
+
         return filepath
-    
+
     def generate_person_results_report(self, results: Dict[str, Any], filename: str = None) -> str:
         """
         Generate separate PDF report for individual person results only
-        
+
         Args:
             results: Dictionary containing analysis results
             filename: Optional filename (without extension)
-            
+
         Returns:
             Path to generated PDF file
         """
         if filename is None:
             filename = f"person_results_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
-        
+
         if not filename.endswith('.pdf'):
             filename = filename + '.pdf'
-            
+
         filepath = os.path.join(self.output_dir, filename)
-        
+
         doc = SimpleDocTemplate(
             filepath,
             pagesize=A4,
@@ -194,9 +194,9 @@ class PDFReportGenerator:
             topMargin=72,
             bottomMargin=18,
         )
-        
+
         story = []
-        
+
         styles = getSampleStyleSheet()
         title_style = ParagraphStyle(
             'CustomTitle',
@@ -206,7 +206,7 @@ class PDFReportGenerator:
             spaceAfter=30,
             alignment=TA_CENTER
         )
-        
+
         heading_style = ParagraphStyle(
             'CustomHeading',
             parent=styles['Heading2'],
@@ -215,13 +215,13 @@ class PDFReportGenerator:
             spaceAfter=12,
             spaceBefore=12
         )
-        
+
         story.append(Paragraph("Talabgorlar Natijalari", title_style))
         story.append(Spacer(1, 0.2 * inch))
-        
+
         story.append(Paragraph(f"Yaratilgan: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}", styles['Normal']))
         story.append(Spacer(1, 0.3 * inch))
-        
+
         # Add person count info
         story.append(Paragraph("Ma'lumotlar", heading_style))
         info_data = [
@@ -240,38 +240,36 @@ class PDFReportGenerator:
         ]))
         story.append(info_table)
         story.append(Spacer(1, 0.4 * inch))
-        
+
         # Individual person statistics table
         story.append(Paragraph("Talabgorlar Natijalari (T-Score bo'yicha tartiblangan)", heading_style))
-        
+
         import numpy as np
         person_stats = results.get('person_statistics', {})
         individual_data = person_stats.get('individual', [])
-        
+
         if individual_data:
             # Sort by T-Score in descending order (highest first)
             individual_data_sorted = sorted(
-                individual_data, 
+                individual_data,
                 key=lambda x: x['t_score'] if not np.isnan(x['t_score']) else -999,
                 reverse=True
             )
-            
+
             # Create table header with rank
-            person_table_data = [['Rank', 'ID', 'Raw Score', 'Ability (θ)', 'Z-Score', 'T-Score', 'SE']]
-            
+            person_table_data = [['Rank', 'Raw Score', 'Ability (θ)', 'T-Score', 'SE']]
+
             # Add data for each person with rank
             for rank, person in enumerate(individual_data_sorted, start=1):
                 person_table_data.append([
                     str(rank),
-                    str(person['person_id']),
                     str(person['raw_score']),
                     f"{person['ability']:.3f}" if not np.isnan(person['ability']) else "N/A",
-                    f"{person['z_score']:.3f}" if not np.isnan(person['z_score']) else "N/A",
                     f"{person['t_score']:.1f}" if not np.isnan(person['t_score']) else "N/A",
                     f"{person['se']:.3f}" if not np.isnan(person['se']) else "N/A"
                 ])
-            
-            person_table = Table(person_table_data, colWidths=[0.5*inch, 0.5*inch, 0.85*inch, 0.95*inch, 0.85*inch, 0.85*inch, 0.65*inch])
+
+            person_table = Table(person_table_data, colWidths=[1.2*inch, 1.5*inch, 1.5*inch, 1.2*inch])
             person_table.setStyle(TableStyle([
                 ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#E74C3C')),
                 ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
@@ -285,23 +283,21 @@ class PDFReportGenerator:
                 ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, colors.HexColor('#F8F9FA')])
             ]))
             story.append(person_table)
-            
+
             # Add legend/explanation
             story.append(Spacer(1, 0.2 * inch))
             legend_text = (
                 "<b>Tushuntirish:</b><br/>"
                 "• <b>Rank:</b> O'rin (T-Score bo'yicha tartiblangan, eng yuqoridan boshlab)<br/>"
-                "• <b>ID:</b> Talabgor raqami<br/>"
                 "• <b>Raw Score:</b> To'g'ri javoblar soni<br/>"
                 "• <b>Ability (θ):</b> Qobiliyat darajasi (logit o'lchovi)<br/>"
-                "• <b>Z-Score:</b> Standart ball (o'rtacha=0, standart og'ish=1)<br/>"
                 "• <b>T-Score:</b> T-ball (o'rtacha=50, standart og'ish=10)<br/>"
                 "• <b>SE:</b> Standart xato (ability baholashning aniqlik darajasi)"
             )
             story.append(Paragraph(legend_text, styles['Normal']))
-        
+
         story.append(Spacer(1, 0.4 * inch))
-        
+
         footer_style = ParagraphStyle(
             'Footer',
             parent=styles['Normal'],
@@ -313,7 +309,7 @@ class PDFReportGenerator:
             "Rasch Model Tahlili - Talabgorlar Natijalari",
             footer_style
         ))
-        
+
         doc.build(story)
-        
+
         return filepath
