@@ -25,7 +25,8 @@ class RaschAnalyzer:
         """
         response_matrix = data.values
         
-        rasch_result = rasch_mml(response_matrix)
+        # girth expects data as (items x persons), so we transpose
+        rasch_result = rasch_mml(response_matrix.T)
         self.difficulty = rasch_result['Difficulty']
         
         self.person_abilities = self._estimate_person_abilities(
