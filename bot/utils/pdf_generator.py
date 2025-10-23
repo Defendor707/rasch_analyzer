@@ -169,8 +169,8 @@ class PDFReportGenerator:
 
         # Combine and sort for plotting
         all_measures = np.concatenate([valid_person_ability, valid_item_difficulty])
-        min_measure = float(np.min(all_measures)) - 1
-        max_measure = float(np.max(all_measures)) + 1
+        min_measure = float(np.min(all_measures) - 1)
+        max_measure = float(np.max(all_measures) + 1)
 
         plt.figure(figsize=(8, 10))
 
@@ -195,6 +195,7 @@ class PDFReportGenerator:
         plt.legend(loc='upper right')
 
         try:
+            os.makedirs(self.output_dir, exist_ok=True)
             chart_filename = os.path.join(self.output_dir, "wright_map.png")
             plt.savefig(chart_filename, bbox_inches='tight', dpi=300)
             plt.close()
@@ -225,6 +226,7 @@ class PDFReportGenerator:
         plt.grid(True, linestyle='--', alpha=0.6)
 
         try:
+            os.makedirs(self.output_dir, exist_ok=True)
             chart_filename = os.path.join(self.output_dir, "t_score_distribution.png")
             plt.savefig(chart_filename, bbox_inches='tight', dpi=150)
             plt.close()
