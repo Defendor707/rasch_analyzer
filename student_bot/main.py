@@ -35,6 +35,7 @@ async def error_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.effective_message.reply_text(
             "❌ Uzr, xatolik yuz berdi. Iltimos, qayta urinib ko'ring."
         )
+        )
 
 
 def main():
@@ -64,4 +65,4 @@ def main():
 
 
 if __name__ == '__main__':
-    main()
+    main()()

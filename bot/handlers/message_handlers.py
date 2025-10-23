@@ -47,6 +47,27 @@ async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Send welcome message when the command /start is issued"""
     user_id = update.effective_user.id
     user_data = user_data_manager.get_user_data(user_id)
+    
+    # Disable file analyzer mode when starting
+    user_data_manager.update_user_field(user_id, 'file_analyzer_mode', False)
+
+    full_name = user_data.get('full_name')
+    if not full_name:
+        full_name = update.effective_user.first_name or "foydalanuvchi"
+
+    welcome_message = (
+        f"👋 Assalomu alaykum, {full_name}!\n\n"
+        "🎓 Rasch analiyzer botga xush kelibsiz!\n\n"
+        "📝 Matritsani yuboring yoki /namuna buyrug'i bilan namuna tahlilni ko'ring\n\n"
+        "/help commandasini yuborib foydalanish yo'riqnomasi bilan tanishing."
+    )
+
+    file_info_message = (
+        "📊 Excel (.xls, .xlsx, .csv) faylni yuborishingiz mumkin!"
+    )
+
+    await update.message.reply_text(welcome_message, reply_markup=get_main_keyboard())
+    await update.message.reply_text(file_info_message)
 
 
 async def perform_test_rasch_analysis(message, context, test_id: str):
