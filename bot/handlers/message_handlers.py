@@ -27,11 +27,12 @@ WAITING_FOR_STUDENT_TELEGRAM = 5
 WAITING_FOR_PARENT_TELEGRAM = 6
 WAITING_FOR_SECTION_QUESTIONS = 7
 WAITING_FOR_TEST_NAME = 8
-WAITING_FOR_TEST_SUBJECT = 9
-WAITING_FOR_TEST_DURATION = 10
-WAITING_FOR_QUESTION_TEXT = 11
-WAITING_FOR_QUESTION_OPTIONS = 12
-WAITING_FOR_CORRECT_ANSWER = 13
+WAITING_FOR_TEST_START_DATE = 9
+WAITING_FOR_TEST_START_TIME = 10
+WAITING_FOR_TEST_DURATION = 11
+WAITING_FOR_QUESTION_TEXT = 12
+WAITING_FOR_QUESTION_OPTIONS = 13
+WAITING_FOR_CORRECT_ANSWER = 14
 
 
 def get_main_keyboard():
@@ -1413,10 +1414,11 @@ async def handle_public_test(update: Update, context: ContextTypes.DEFAULT_TYPE)
             status = "✅ Faol" if test.get('is_active') else "⏸ Faol emas"
             test_text += (
                 f"📋 *{test['name']}*\n"
-                f"   Fan: {test['subject']}\n"
-                f"   Savollar: {len(test['questions'])} ta\n"
-                f"   Status: {status}\n"
-                f"   Ishtirokchilar: {len(test['participants'])} ta\n\n"
+                f"   📚 Fan: {test['subject']}\n"
+                f"   📅 Boshlanish: {test.get('start_date', 'Belgilanmagan')} {test.get('start_time', '')}\n"
+                f"   📝 Savollar: {len(test['questions'])} ta\n"
+                f"   📊 Status: {status}\n"
+                f"   👥 Ishtirokchilar: {len(test['participants'])} ta\n\n"
             )
     else:
         test_text += "Hozircha testlaringiz yo'q.\n\n"
@@ -1739,12 +1741,25 @@ async def handle_student_input(update: Update, context: ContextTypes.DEFAULT_TYP
 
 async def handle_create_test(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Start test creation flow"""
+    user_id = update.effective_user.id
+    user_data = user_data_manager.get_user_data(user_id)
+    subject = user_data.get('subject')
+    
+    if not subject:
+        await update.message.reply_text(
+            "❌ Mutaxassislik fani tanlanmagan!\n\n"
+            "Avval 'Sozlamalar' → 'Mutaxassislik fanini tanlash' dan fanini tanlang.",
+            reply_markup=get_main_keyboard()
+        )
+        return
+    
     context.user_data['creating_test'] = WAITING_FOR_TEST_NAME
-    context.user_data['test_temp'] = {}
+    context.user_data['test_temp'] = {'subject': subject}
     
     await update.message.reply_text(
-        "➕ *Yangi test yaratish*\n\n"
-        "Test nomini kiriting:",
+        f"➕ *Yangi test yaratish*\n\n"
+        f"Fan: *{subject}*\n\n"
+        f"Test nomini kiriting:",
         parse_mode='Markdown'
     )
 
@@ -1773,12 +1788,13 @@ async def handle_view_tests(update: Update, context: ContextTypes.DEFAULT_TYPE):
         
         test_text = (
             f"📋 *{test['name']}*\n\n"
-            f"Fan: {test['subject']}\n"
-            f"Davomiyligi: {test['duration']} daqiqa\n"
-            f"Savollar soni: {len(test['questions'])} ta\n"
-            f"Status: {status}\n"
-            f"Ishtirokchilar: {len(test['participants'])} ta\n"
-            f"Yaratilgan: {test['created_at'][:10]}\n"
+            f"📚 Fan: {test['subject']}\n"
+            f"📅 Boshlanish: {test.get('start_date', 'Belgilanmagan')} {test.get('start_time', '')}\n"
+            f"⏱ Davomiyligi: {test['duration']} daqiqa\n"
+            f"📝 Savollar: {len(test['questions'])} ta\n"
+            f"📊 Status: {status}\n"
+            f"👥 Ishtirokchilar: {len(test['participants'])} ta\n"
+            f"🗓 Yaratilgan: {test['created_at'][:10]}\n"
         )
         
         if is_finalized:
@@ -1811,21 +1827,78 @@ async def handle_test_input(update: Update, context: ContextTypes.DEFAULT_TYPE, 
     
     if creating_state == WAITING_FOR_TEST_NAME:
         context.user_data['test_temp']['name'] = text
-        context.user_data['creating_test'] = WAITING_FOR_TEST_SUBJECT
+        context.user_data['creating_test'] = WAITING_FOR_TEST_START_DATE
         await update.message.reply_text(
-            "Fan nomini kiriting\n"
-            "(masalan: Matematika, Fizika, Ona tili):"
+            "Test boshlanish sanasini kiriting\n"
+            "(Format: KK.OO.YYYY, masalan: 25.10.2025):"
         )
         return True
     
-    elif creating_state == WAITING_FOR_TEST_SUBJECT:
-        context.user_data['test_temp']['subject'] = text
-        context.user_data['creating_test'] = WAITING_FOR_TEST_DURATION
-        await update.message.reply_text(
-            "Test davomiyligini daqiqalarda kiriting\n"
-            "(masalan: 60):"
-        )
-        return True
+    elif creating_state == WAITING_FOR_TEST_START_DATE:
+        try:
+            # Parse date
+            from datetime import datetime
+            date_parts = text.strip().split('.')
+            if len(date_parts) != 3:
+                await update.message.reply_text(
+                    "❌ Noto'g'ri format!\n\n"
+                    "Sanani to'g'ri formatda kiriting: KK.OO.YYYY\n"
+                    "(masalan: 25.10.2025)"
+                )
+                return True
+            
+            day, month, year = int(date_parts[0]), int(date_parts[1]), int(date_parts[2])
+            start_date = datetime(year, month, day)
+            
+            context.user_data['test_temp']['start_date'] = start_date.strftime('%Y-%m-%d')
+            context.user_data['creating_test'] = WAITING_FOR_TEST_START_TIME
+            await update.message.reply_text(
+                "Test boshlanish vaqtini kiriting\n"
+                "(Format: SS:DD, masalan: 09:00):"
+            )
+            return True
+        except ValueError:
+            await update.message.reply_text(
+                "❌ Noto'g'ri sana!\n\n"
+                "Sanani to'g'ri formatda kiriting: KK.OO.YYYY\n"
+                "(masalan: 25.10.2025)"
+            )
+            return True
+    
+    elif creating_state == WAITING_FOR_TEST_START_TIME:
+        try:
+            # Parse time
+            time_parts = text.strip().split(':')
+            if len(time_parts) != 2:
+                await update.message.reply_text(
+                    "❌ Noto'g'ri format!\n\n"
+                    "Vaqtni to'g'ri formatda kiriting: SS:DD\n"
+                    "(masalan: 09:00)"
+                )
+                return True
+            
+            hour, minute = int(time_parts[0]), int(time_parts[1])
+            if hour < 0 or hour > 23 or minute < 0 or minute > 59:
+                await update.message.reply_text(
+                    "❌ Noto'g'ri vaqt!\n\n"
+                    "Soat 00-23, daqiqa 00-59 oralig'ida bo'lishi kerak."
+                )
+                return True
+            
+            context.user_data['test_temp']['start_time'] = f"{hour:02d}:{minute:02d}"
+            context.user_data['creating_test'] = WAITING_FOR_TEST_DURATION
+            await update.message.reply_text(
+                "Test davomiyligini daqiqalarda kiriting\n"
+                "(masalan: 60):"
+            )
+            return True
+        except ValueError:
+            await update.message.reply_text(
+                "❌ Noto'g'ri vaqt!\n\n"
+                "Vaqtni to'g'ri formatda kiriting: SS:DD\n"
+                "(masalan: 09:00)"
+            )
+            return True
     
     elif creating_state == WAITING_FOR_TEST_DURATION:
         try:
@@ -1840,11 +1913,13 @@ async def handle_test_input(update: Update, context: ContextTypes.DEFAULT_TYPE, 
             test_id = test_manager.create_test(user_id, context.user_data['test_temp'])
             context.user_data['current_test_id'] = test_id
             
+            test_temp = context.user_data['test_temp']
             await update.message.reply_text(
                 f"✅ Test muvaffaqiyatli yaratildi!\n\n"
-                f"📋 *{context.user_data['test_temp']['name']}*\n"
-                f"Fan: {context.user_data['test_temp']['subject']}\n"
-                f"Davomiylik: {duration} daqiqa\n\n"
+                f"📋 *{test_temp['name']}*\n"
+                f"📚 Fan: {test_temp['subject']}\n"
+                f"📅 Boshlanish: {test_temp['start_date']} {test_temp['start_time']}\n"
+                f"⏱ Davomiylik: {duration} daqiqa\n\n"
                 "Endi savollar qo'shing.\n\n"
                 "Birinchi savol matnini kiriting:",
                 parse_mode='Markdown'
@@ -1969,6 +2044,7 @@ async def handle_finish_test(update: Update, context: ContextTypes.DEFAULT_TYPE)
         f"✅ *Test yaratish tugallandi!*\n\n"
         f"📋 {test['name']}\n"
         f"📚 Fan: {test['subject']}\n"
+        f"📅 Boshlanish: {test.get('start_date', 'Belgilanmagan')} {test.get('start_time', '')}\n"
         f"⏱ Davomiylik: {test['duration']} daqiqa\n"
         f"📝 Savollar: {len(test['questions'])} ta\n\n"
         f"Testni faollashtirish uchun '📋 Testlarimni ko'rish' dan testni tanlang.",

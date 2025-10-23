@@ -53,6 +53,8 @@ class TestManager:
             'teacher_id': teacher_id,
             'name': test_data.get('name', 'Nomsiz test'),
             'subject': test_data.get('subject', ''),
+            'start_date': test_data.get('start_date', ''),
+            'start_time': test_data.get('start_time', ''),
             'duration': test_data.get('duration', 60),  # minutes
             'questions': [],
             'created_at': datetime.now().isoformat(),
