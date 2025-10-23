@@ -8,6 +8,7 @@ from bot.utils.user_data import UserDataManager
 from bot.utils.student_data import StudentDataManager
 from bot.utils.subject_sections import get_sections, has_sections
 from bot.utils.data_cleaner import DataCleaner
+from bot.utils.test_manager import TestManager
 import logging
 
 logger = logging.getLogger(__name__)
@@ -15,6 +16,7 @@ logger = logging.getLogger(__name__)
 # Initialize user data manager
 user_data_manager = UserDataManager()
 student_data_manager = StudentDataManager()
+test_manager = TestManager()
 
 # Conversation states
 WAITING_FOR_FULL_NAME = 1
@@ -24,6 +26,12 @@ WAITING_FOR_STUDENT_NAME = 4
 WAITING_FOR_STUDENT_TELEGRAM = 5
 WAITING_FOR_PARENT_TELEGRAM = 6
 WAITING_FOR_SECTION_QUESTIONS = 7
+WAITING_FOR_TEST_NAME = 8
+WAITING_FOR_TEST_SUBJECT = 9
+WAITING_FOR_TEST_DURATION = 10
+WAITING_FOR_QUESTION_TEXT = 11
+WAITING_FOR_QUESTION_OPTIONS = 12
+WAITING_FOR_CORRECT_ANSWER = 13
 
 
 def get_main_keyboard():
@@ -546,6 +554,55 @@ async def handle_callback_query(update: Update, context: ContextTypes.DEFAULT_TY
         )
         await query.answer("❌ Fan bo'limlari bo'yicha natijalash o'chirildi!")
 
+    # Handle test management callbacks
+    elif query.data.startswith('activate_test_'):
+        test_id = query.data.replace('activate_test_', '')
+        if test_manager.activate_test(test_id):
+            await query.edit_message_text(
+                f"✅ Test faollashtirildi!\n\n"
+                f"Testni ulashish uchun quyidagi havoladan foydalaning:\n"
+                f"https://t.me/{context.bot.username}?start=test_{test_id}"
+            )
+        else:
+            await query.answer("❌ Xatolik yuz berdi!")
+    
+    elif query.data.startswith('deactivate_test_'):
+        test_id = query.data.replace('deactivate_test_', '')
+        if test_manager.deactivate_test(test_id):
+            await query.edit_message_text("⏸ Test faolsizlantirildi!")
+        else:
+            await query.answer("❌ Xatolik yuz berdi!")
+    
+    elif query.data.startswith('delete_test_'):
+        test_id = query.data.replace('delete_test_', '')
+        if test_manager.delete_test(test_id, user_id):
+            await query.edit_message_text("🗑 Test o'chirildi!")
+        else:
+            await query.answer("❌ Xatolik yuz berdi!")
+    
+    elif query.data.startswith('test_results_'):
+        test_id = query.data.replace('test_results_', '')
+        test = test_manager.get_test(test_id)
+        
+        if test:
+            results_text = f"📊 *{test['name']}* - Natijalar\n\n"
+            
+            if test['participants']:
+                results_text += f"Ishtirokchilar: {len(test['participants'])} ta\n\n"
+                
+                for p in test['participants']:
+                    results_text += (
+                        f"👤 Talabgor {p['student_id']}\n"
+                        f"   Ball: {p['score']}/{p['max_score']}\n"
+                        f"   Foiz: {p['percentage']:.1f}%\n\n"
+                    )
+            else:
+                results_text += "Hali natijalar yo'q."
+            
+            await query.edit_message_text(results_text, parse_mode='Markdown')
+        else:
+            await query.answer("❌ Test topilmadi!")
+    
     # Handle writing task toggle
     elif query.data == 'writing_task_on':
         user_data_manager.update_user_field(user_id, 'writing_task_enabled', True)
@@ -1196,15 +1253,37 @@ async def handle_other(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def handle_public_test(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Handle Public Test button"""
-    test_text = (
-        "📝 *Ommaviy test o'tkazish*\n\n"
-        "Bu bo'limda siz:\n"
-        "• Ommaviy testlar yaratishingiz\n"
-        "• Testlarni tarqatishingiz\n"
-        "• Natijalarni yig'ishingiz mumkin\n\n"
-        "🔜 Tez orada faollashitiriladi!"
-    )
-    await update.message.reply_text(test_text, parse_mode='Markdown')
+    user_id = update.effective_user.id
+    
+    # Get user's tests
+    user_tests = test_manager.get_teacher_tests(user_id)
+    
+    test_text = "📝 *Ommaviy test o'tkazish*\n\n"
+    
+    if user_tests:
+        test_text += f"Sizning testlaringiz ({len(user_tests)} ta):\n\n"
+        for test in user_tests:
+            status = "✅ Faol" if test.get('is_active') else "⏸ Faol emas"
+            test_text += (
+                f"📋 *{test['name']}*\n"
+                f"   Fan: {test['subject']}\n"
+                f"   Savollar: {len(test['questions'])} ta\n"
+                f"   Status: {status}\n"
+                f"   Ishtirokchilar: {len(test['participants'])} ta\n\n"
+            )
+    else:
+        test_text += "Hozircha testlaringiz yo'q.\n\n"
+    
+    test_text += "Yangi test yaratish uchun quyidagi tugmani bosing:"
+    
+    keyboard = [
+        [KeyboardButton("➕ Yangi test yaratish")],
+        [KeyboardButton("📋 Testlarimni ko'rish")],
+        [KeyboardButton("◀️ Ortga")]
+    ]
+    reply_markup = ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
+    
+    await update.message.reply_text(test_text, parse_mode='Markdown', reply_markup=reply_markup)
 
 
 async def handle_statistics(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -1511,6 +1590,238 @@ async def handle_student_input(update: Update, context: ContextTypes.DEFAULT_TYP
     return False
 
 
+async def handle_create_test(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Start test creation flow"""
+    context.user_data['creating_test'] = WAITING_FOR_TEST_NAME
+    context.user_data['test_temp'] = {}
+    
+    await update.message.reply_text(
+        "➕ *Yangi test yaratish*\n\n"
+        "Test nomini kiriting:",
+        parse_mode='Markdown'
+    )
+
+
+async def handle_view_tests(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """View all user's tests with management options"""
+    user_id = update.effective_user.id
+    user_tests = test_manager.get_teacher_tests(user_id)
+    
+    if not user_tests:
+        await update.message.reply_text(
+            "❌ Sizda testlar mavjud emas.\n\n"
+            "Yangi test yaratish uchun '➕ Yangi test yaratish' tugmasini bosing."
+        )
+        return
+    
+    for test in user_tests:
+        status = "✅ Faol" if test.get('is_active') else "⏸ Faol emas"
+        test_text = (
+            f"📋 *{test['name']}*\n\n"
+            f"Fan: {test['subject']}\n"
+            f"Davomiyligi: {test['duration']} daqiqa\n"
+            f"Savollar soni: {len(test['questions'])} ta\n"
+            f"Status: {status}\n"
+            f"Ishtirokchilar: {len(test['participants'])} ta\n"
+            f"Yaratilgan: {test['created_at'][:10]}\n\n"
+        )
+        
+        # Create inline keyboard for test management
+        keyboard = []
+        
+        if test.get('is_active'):
+            keyboard.append([InlineKeyboardButton("⏸ Faolsizlantirish", callback_data=f"deactivate_test_{test['id']}")])
+        else:
+            keyboard.append([InlineKeyboardButton("✅ Faollashtirish", callback_data=f"activate_test_{test['id']}")])
+        
+        keyboard.extend([
+            [InlineKeyboardButton("📊 Natijalar", callback_data=f"test_results_{test['id']}")],
+            [InlineKeyboardButton("🗑 O'chirish", callback_data=f"delete_test_{test['id']}")]
+        ])
+        
+        reply_markup = InlineKeyboardMarkup(keyboard)
+        await update.message.reply_text(test_text, parse_mode='Markdown', reply_markup=reply_markup)
+
+
+async def handle_test_input(update: Update, context: ContextTypes.DEFAULT_TYPE, text: str):
+    """Handle test creation text input"""
+    user_id = update.effective_user.id
+    creating_state = context.user_data.get('creating_test')
+    
+    if creating_state == WAITING_FOR_TEST_NAME:
+        context.user_data['test_temp']['name'] = text
+        context.user_data['creating_test'] = WAITING_FOR_TEST_SUBJECT
+        await update.message.reply_text(
+            "Fan nomini kiriting\n"
+            "(masalan: Matematika, Fizika, Ona tili):"
+        )
+        return True
+    
+    elif creating_state == WAITING_FOR_TEST_SUBJECT:
+        context.user_data['test_temp']['subject'] = text
+        context.user_data['creating_test'] = WAITING_FOR_TEST_DURATION
+        await update.message.reply_text(
+            "Test davomiyligini daqiqalarda kiriting\n"
+            "(masalan: 60):"
+        )
+        return True
+    
+    elif creating_state == WAITING_FOR_TEST_DURATION:
+        try:
+            duration = int(text)
+            if duration <= 0:
+                await update.message.reply_text("❌ Davomiylik musbat son bo'lishi kerak!")
+                return True
+            
+            context.user_data['test_temp']['duration'] = duration
+            
+            # Create test
+            test_id = test_manager.create_test(user_id, context.user_data['test_temp'])
+            context.user_data['current_test_id'] = test_id
+            
+            await update.message.reply_text(
+                f"✅ Test muvaffaqiyatli yaratildi!\n\n"
+                f"📋 *{context.user_data['test_temp']['name']}*\n"
+                f"Fan: {context.user_data['test_temp']['subject']}\n"
+                f"Davomiylik: {duration} daqiqa\n\n"
+                "Endi savollar qo'shing.\n\n"
+                "Birinchi savol matnini kiriting:",
+                parse_mode='Markdown'
+            )
+            
+            context.user_data['creating_test'] = WAITING_FOR_QUESTION_TEXT
+            return True
+            
+        except ValueError:
+            await update.message.reply_text("❌ Iltimos, raqam kiriting!")
+            return True
+    
+    elif creating_state == WAITING_FOR_QUESTION_TEXT:
+        context.user_data['question_temp'] = {'text': text}
+        context.user_data['creating_test'] = WAITING_FOR_QUESTION_OPTIONS
+        await update.message.reply_text(
+            "Javob variantlarini kiriting.\n\n"
+            "Har bir qatorda bitta variant:\n"
+            "A) Variant 1\n"
+            "B) Variant 2\n"
+            "C) Variant 3\n"
+            "D) Variant 4\n\n"
+            "Barcha variantlarni birgalikda yuboring:"
+        )
+        return True
+    
+    elif creating_state == WAITING_FOR_QUESTION_OPTIONS:
+        # Parse options
+        lines = text.strip().split('\n')
+        options = []
+        for line in lines:
+            line = line.strip()
+            if line:
+                # Remove A), B), etc. if present
+                if len(line) > 2 and line[1] == ')':
+                    line = line[2:].strip()
+                options.append(line)
+        
+        if len(options) < 2:
+            await update.message.reply_text("❌ Kamida 2 ta variant bo'lishi kerak!")
+            return True
+        
+        context.user_data['question_temp']['options'] = options
+        context.user_data['creating_test'] = WAITING_FOR_CORRECT_ANSWER
+        
+        # Show options
+        options_text = "Javob variantlari:\n\n"
+        for i, opt in enumerate(options):
+            options_text += f"{i + 1}. {opt}\n"
+        
+        options_text += "\nTo'g'ri javob raqamini kiriting (1, 2, 3, ...):"
+        await update.message.reply_text(options_text)
+        return True
+    
+    elif creating_state == WAITING_FOR_CORRECT_ANSWER:
+        try:
+            answer = int(text) - 1  # Convert to 0-indexed
+            options = context.user_data['question_temp']['options']
+            
+            if answer < 0 or answer >= len(options):
+                await update.message.reply_text(f"❌ Javob 1 dan {len(options)} gacha bo'lishi kerak!")
+                return True
+            
+            context.user_data['question_temp']['correct_answer'] = answer
+            
+            # Add question to test
+            test_id = context.user_data['current_test_id']
+            test_manager.add_question(test_id, context.user_data['question_temp'])
+            
+            test = test_manager.get_test(test_id)
+            question_count = len(test['questions'])
+            
+            keyboard = [
+                [KeyboardButton("➕ Yana savol qo'shish")],
+                [KeyboardButton("✅ Testni tugatish")],
+                [KeyboardButton("◀️ Ortga")]
+            ]
+            reply_markup = ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
+            
+            await update.message.reply_text(
+                f"✅ Savol #{question_count} qo'shildi!\n\n"
+                f"📋 Test: {test['name']}\n"
+                f"📝 Savollar soni: {question_count} ta\n\n"
+                "Yana savol qo'shishingiz yoki testni tugatishingiz mumkin:",
+                reply_markup=reply_markup
+            )
+            
+            context.user_data['creating_test'] = None
+            context.user_data['question_temp'] = {}
+            return True
+            
+        except ValueError:
+            await update.message.reply_text("❌ Iltimos, raqam kiriting!")
+            return True
+    
+    return False
+
+
+async def handle_add_more_questions(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Add more questions to current test"""
+    test_id = context.user_data.get('current_test_id')
+    
+    if not test_id:
+        await update.message.reply_text("❌ Faol test topilmadi!")
+        return
+    
+    context.user_data['creating_test'] = WAITING_FOR_QUESTION_TEXT
+    await update.message.reply_text("Keyingi savol matnini kiriting:")
+
+
+async def handle_finish_test(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Finish test creation"""
+    test_id = context.user_data.get('current_test_id')
+    
+    if not test_id:
+        await update.message.reply_text("❌ Faol test topilmadi!")
+        return
+    
+    test = test_manager.get_test(test_id)
+    
+    await update.message.reply_text(
+        f"✅ *Test yaratish tugallandi!*\n\n"
+        f"📋 {test['name']}\n"
+        f"📚 Fan: {test['subject']}\n"
+        f"⏱ Davomiylik: {test['duration']} daqiqa\n"
+        f"📝 Savollar: {len(test['questions'])} ta\n\n"
+        f"Testni faollashtirish uchun '📋 Testlarimni ko'rish' dan testni tanlang.",
+        parse_mode='Markdown',
+        reply_markup=get_main_keyboard()
+    )
+    
+    # Clear temp data
+    context.user_data['creating_test'] = None
+    context.user_data['current_test_id'] = None
+    context.user_data['test_temp'] = {}
+    context.user_data['question_temp'] = {}
+
+
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Handle regular text messages"""
     message_text = update.message.text
@@ -1568,6 +1879,12 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         handled = await handle_student_input(update, context, message_text)
         if handled:
             return
+    
+    # Check if user is creating a test
+    if context.user_data.get('creating_test'):
+        handled = await handle_test_input(update, context, message_text)
+        if handled:
+            return
 
     # Handle main keyboard button presses
     if message_text == "👤 Profil":
@@ -1605,6 +1922,15 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await handle_section_results(update, context)
     elif message_text == "✍️ Yozma ish funksiyasi":
         await handle_writing_task(update, context)
+    # Handle test creation buttons
+    elif message_text == "➕ Yangi test yaratish":
+        await handle_create_test(update, context)
+    elif message_text == "📋 Testlarimni ko'rish":
+        await handle_view_tests(update, context)
+    elif message_text == "➕ Yana savol qo'shish":
+        await handle_add_more_questions(update, context)
+    elif message_text == "✅ Testni tugatish":
+        await handle_finish_test(update, context)
     else:
         await update.message.reply_text(
             "📎 Ma'lumotlar faylini yuboring!\n\n"
