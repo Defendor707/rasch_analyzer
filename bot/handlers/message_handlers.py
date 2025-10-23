@@ -6,6 +6,7 @@ from bot.utils.rasch_analysis import RaschAnalyzer
 from bot.utils.pdf_generator import PDFReportGenerator
 from bot.utils.user_data import UserDataManager
 from bot.utils.student_data import StudentDataManager
+from bot.utils.subject_sections import get_sections, has_sections
 import logging
 
 logger = logging.getLogger(__name__)
@@ -21,6 +22,7 @@ WAITING_FOR_SUBJECT = 3
 WAITING_FOR_STUDENT_NAME = 4
 WAITING_FOR_STUDENT_TELEGRAM = 5
 WAITING_FOR_PARENT_TELEGRAM = 6
+WAITING_FOR_SECTION_QUESTIONS = 7
 
 
 def get_main_keyboard():
@@ -473,10 +475,211 @@ async def handle_callback_query(update: Update, context: ContextTypes.DEFAULT_TY
                 f"📚 *{selected_subject}*",
                 parse_mode='Markdown'
             )
-            await query.message.reply_text(
-                "Bosh menyuga qaytdingiz.",
-                reply_markup=get_main_keyboard()
+            
+            # Check if section results is enabled
+            user_data = user_data_manager.get_user_data(user_id)
+            section_results_enabled = user_data.get('section_results_enabled', False)
+            
+            if section_results_enabled and has_sections(selected_subject):
+                # Start collecting section questions
+                sections = get_sections(selected_subject)
+                context.user_data['configuring_sections'] = True
+                context.user_data['current_subject'] = selected_subject
+                context.user_data['sections_list'] = sections
+                context.user_data['current_section_index'] = 0
+                context.user_data['section_questions'] = {}
+                
+                await query.message.reply_text(
+                    f"📋 *{selected_subject}* fani uchun bo'limlar bo'yicha savol raqamlarini kiritish:\n\n"
+                    f"Jami {len(sections)} ta bo'lim mavjud.\n\n"
+                    f"*1-bo'lim: {sections[0]}*\n\n"
+                    f"Ushbu bo'limga tegishli savol raqamlarini kiriting.\n"
+                    f"Masalan: 1-10 yoki 1,2,3,4,5\n\n"
+                    f"Bo'limni o'tkazib yuborish uchun 'o'tkazib' deb yozing.",
+                    parse_mode='Markdown',
+                    reply_markup=get_main_keyboard()
+                )
+            else:
+                await query.message.reply_text(
+                    "Bosh menyuga qaytdingiz.",
+                    reply_markup=get_main_keyboard()
+                )
+
+
+async def handle_section_questions_input(update: Update, context: ContextTypes.DEFAULT_TYPE, text: str):
+    """Handle section question numbers input"""
+    user_id = update.effective_user.id
+    
+    # Skip if not configuring sections
+    if not context.user_data.get('configuring_sections'):
+        return False
+    
+    sections_list = context.user_data.get('sections_list', [])
+    current_index = context.user_data.get('current_section_index', 0)
+    section_questions = context.user_data.get('section_questions', {})
+    current_subject = context.user_data.get('current_subject', '')
+    
+    if current_index >= len(sections_list):
+        return False
+    
+    current_section = sections_list[current_index]
+    
+    # Parse question numbers
+    if text.lower().strip() in ['o\'tkazib', 'otkazib', 'skip']:
+        # Skip this section
+        question_numbers = []
+    else:
+        # Try to parse the input
+        try:
+            question_numbers = parse_question_numbers(text)
+            if not question_numbers:
+                await update.message.reply_text(
+                    "❌ Noto'g'ri format!\n\n"
+                    "Iltimos, savol raqamlarini to'g'ri formatda kiriting:\n"
+                    "Masalan: 1-10 yoki 1,2,3,4,5\n\n"
+                    "Bo'limni o'tkazib yuborish uchun 'o'tkazib' deb yozing."
+                )
+                return True
+        except Exception:
+            await update.message.reply_text(
+                "❌ Xatolik yuz berdi!\n\n"
+                "Iltimos, savol raqamlarini to'g'ri formatda kiriting:\n"
+                "Masalan: 1-10 yoki 1,2,3,4,5\n\n"
+                "Bo'limni o'tkazib yuborish uchun 'o'tkazib' deb yozing."
             )
+            return True
+    
+    # Save the question numbers for this section
+    section_questions[current_section] = question_numbers
+    context.user_data['section_questions'] = section_questions
+    
+    # Move to next section
+    current_index += 1
+    context.user_data['current_section_index'] = current_index
+    
+    if current_index < len(sections_list):
+        # Ask for next section
+        next_section = sections_list[current_index]
+        await update.message.reply_text(
+            f"✅ {current_section}: Saqlandi\n\n"
+            f"*{current_index + 1}-bo'lim: {next_section}*\n\n"
+            f"Ushbu bo'limga tegishli savol raqamlarini kiriting.\n"
+            f"Masalan: 1-10 yoki 1,2,3,4,5\n\n"
+            f"Bo'limni o'tkazib yuborish uchun 'o'tkazib' deb yozing.",
+            parse_mode='Markdown'
+        )
+    else:
+        # All sections completed
+        # Save to user data
+        user_data_manager.update_user_field(user_id, 'section_questions', section_questions)
+        
+        # Clear temporary data
+        context.user_data['configuring_sections'] = False
+        context.user_data['sections_list'] = None
+        context.user_data['current_section_index'] = 0
+        context.user_data['section_questions'] = {}
+        context.user_data['current_subject'] = None
+        
+        # Show summary
+        summary = f"✅ *{current_subject}* fani uchun bo'limlar konfiguratsiyasi tugallandi!\n\n"
+        summary += "📋 *Bo'limlar va savol raqamlari:*\n\n"
+        
+        for section_name, questions in section_questions.items():
+            if questions:
+                summary += f"• *{section_name}*: {format_question_list(questions)}\n"
+            else:
+                summary += f"• *{section_name}*: O'tkazib yuborildi\n"
+        
+        await update.message.reply_text(
+            summary,
+            parse_mode='Markdown',
+            reply_markup=get_main_keyboard()
+        )
+    
+    return True
+
+
+def parse_question_numbers(text: str) -> list:
+    """
+    Parse question numbers from text input
+    Supports formats like: 1-10, 1,2,3,4, or combinations
+    
+    Args:
+        text: Input text containing question numbers
+        
+    Returns:
+        List of question numbers
+    """
+    question_numbers = []
+    text = text.strip()
+    
+    # Split by comma
+    parts = text.split(',')
+    
+    for part in parts:
+        part = part.strip()
+        
+        # Check if it's a range (e.g., 1-10)
+        if '-' in part:
+            range_parts = part.split('-')
+            if len(range_parts) == 2:
+                try:
+                    start = int(range_parts[0].strip())
+                    end = int(range_parts[1].strip())
+                    question_numbers.extend(range(start, end + 1))
+                except ValueError:
+                    pass
+        else:
+            # Single number
+            try:
+                num = int(part)
+                question_numbers.append(num)
+            except ValueError:
+                pass
+    
+    # Remove duplicates and sort
+    question_numbers = sorted(list(set(question_numbers)))
+    
+    return question_numbers
+
+
+def format_question_list(questions: list) -> str:
+    """
+    Format a list of question numbers into a readable string
+    
+    Args:
+        questions: List of question numbers
+        
+    Returns:
+        Formatted string
+    """
+    if not questions:
+        return "Yo'q"
+    
+    # Group consecutive numbers into ranges
+    questions = sorted(questions)
+    ranges = []
+    start = questions[0]
+    end = questions[0]
+    
+    for i in range(1, len(questions)):
+        if questions[i] == end + 1:
+            end = questions[i]
+        else:
+            if start == end:
+                ranges.append(str(start))
+            else:
+                ranges.append(f"{start}-{end}")
+            start = questions[i]
+            end = questions[i]
+    
+    # Add the last range
+    if start == end:
+        ranges.append(str(start))
+    else:
+        ranges.append(f"{start}-{end}")
+    
+    return ", ".join(ranges)
 
 
 async def handle_profile_edit(update: Update, context: ContextTypes.DEFAULT_TYPE, text: str):
@@ -1009,7 +1212,8 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
             context.user_data.get('editing') or 
             context.user_data.get('adding_student') or 
             context.user_data.get('editing_student') or 
-            context.user_data.get('deleting_student')
+            context.user_data.get('deleting_student') or
+            context.user_data.get('configuring_sections')
         )
         
         # Clear all temporary states
@@ -1021,6 +1225,11 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         context.user_data['editing_student_id'] = None
         context.user_data['edit_error_count'] = 0
         context.user_data['delete_error_count'] = 0
+        context.user_data['configuring_sections'] = False
+        context.user_data['sections_list'] = None
+        context.user_data['current_section_index'] = 0
+        context.user_data['section_questions'] = {}
+        context.user_data['current_subject'] = None
         
         # Show cancellation message if there was an operation
         if was_operation:
@@ -1031,6 +1240,12 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         else:
             await handle_back(update, context)
         return
+    
+    # Check if user is configuring sections
+    if context.user_data.get('configuring_sections'):
+        handled = await handle_section_questions_input(update, context, message_text)
+        if handled:
+            return
     
     # Check if user is editing profile
     if context.user_data.get('editing'):
