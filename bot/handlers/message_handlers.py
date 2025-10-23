@@ -289,11 +289,11 @@ async def handle_document(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
 
         # Send general statistics PDF
-        if pending_general_pdf and os.path.exists(pending_general_pdf):
-            with open(pending_general_pdf, 'rb') as pdf_file:
+        if general_pdf_path and os.path.exists(general_pdf_path):
+            with open(general_pdf_path, 'rb') as pdf_file:
                 await update.message.reply_document(
                     document=pdf_file,
-                    filename=os.path.basename(pending_general_pdf),
+                    filename=os.path.basename(general_pdf_path),
                     caption="📊 Umumiy statistika va item parametrlari"
                 )
 
