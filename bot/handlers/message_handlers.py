@@ -486,34 +486,10 @@ async def handle_callback_query(update: Update, context: ContextTypes.DEFAULT_TY
                 parse_mode='Markdown'
             )
             
-            # Check if section results is enabled
-            user_data = user_data_manager.get_user_data(user_id)
-            section_results_enabled = user_data.get('section_results_enabled', False)
-            
-            if section_results_enabled and has_sections(selected_subject):
-                # Start collecting section questions
-                sections = get_sections(selected_subject)
-                context.user_data['configuring_sections'] = True
-                context.user_data['current_subject'] = selected_subject
-                context.user_data['sections_list'] = sections
-                context.user_data['current_section_index'] = 0
-                context.user_data['section_questions'] = {}
-                
-                await query.message.reply_text(
-                    f"📋 *{selected_subject}* fani uchun bo'limlar bo'yicha savol raqamlarini kiritish:\n\n"
-                    f"Jami {len(sections)} ta bo'lim mavjud.\n\n"
-                    f"*1-bo'lim: {sections[0]}*\n\n"
-                    f"Ushbu bo'limga tegishli savol raqamlarini kiriting.\n"
-                    f"Masalan: 1-10 yoki 1,2,3,4,5\n\n"
-                    f"Bo'limni o'tkazib yuborish uchun 'o'tkazib' deb yozing.",
-                    parse_mode='Markdown',
-                    reply_markup=get_main_keyboard()
-                )
-            else:
-                await query.message.reply_text(
-                    "Bosh menyuga qaytdingiz.",
-                    reply_markup=get_main_keyboard()
-                )
+            await query.message.reply_text(
+                "Bosh menyuga qaytdingiz.",
+                reply_markup=get_main_keyboard()
+            )
 
 
 async def handle_section_questions_input(update: Update, context: ContextTypes.DEFAULT_TYPE, text: str):
@@ -764,19 +740,9 @@ def get_settings_keyboard(user_id: int = None):
     keyboard = [
         [KeyboardButton("📚 Mutaxassislik fanini tanlash")],
         [KeyboardButton("📊 Fan bo'limlari bo'yicha natijalash")],
-        [KeyboardButton("✍️ Yozma ish funksiyasi")]
+        [KeyboardButton("✍️ Yozma ish funksiyasi")],
+        [KeyboardButton("◀️ Ortga")]
     ]
-    
-    # Add section configuration option if section_results is enabled and subject is selected
-    if user_id:
-        user_data = user_data_manager.get_user_data(user_id)
-        section_results_enabled = user_data.get('section_results_enabled', False)
-        subject = user_data.get('subject', '')
-        
-        if section_results_enabled and subject and has_sections(subject):
-            keyboard.insert(2, [KeyboardButton("🔧 Bo'limlarni sozlash")])
-    
-    keyboard.append([KeyboardButton("◀️ Ortga")])
     return ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
 
 
@@ -1402,8 +1368,6 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await handle_select_subject(update, context)
     elif message_text == "📊 Fan bo'limlari bo'yicha natijalash":
         await handle_section_results(update, context)
-    elif message_text == "🔧 Bo'limlarni sozlash":
-        await handle_configure_sections(update, context)
     elif message_text == "✍️ Yozma ish funksiyasi":
         await handle_writing_task(update, context)
     else:
