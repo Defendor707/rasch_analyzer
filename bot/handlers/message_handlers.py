@@ -394,6 +394,63 @@ async def handle_callback_query(update: Update, context: ContextTypes.DEFAULT_TY
         )
         await query.answer("❌ Fan bo'limlari bo'yicha natijalash o'chirildi!")
     
+    # Handle writing task toggle
+    elif query.data == 'writing_task_on':
+        user_data_manager.update_user_field(user_id, 'writing_task_enabled', True)
+        
+        writing_text = (
+            f"✍️ *Yozma ish funksiyasi*\n\n"
+            f"Hozirgi holat: ✅ *Yoqilgan*\n\n"
+            f"Bu funksiya quyidagilarni o'z ichiga oladi:\n"
+            f"• Yozma ishlarni yuklash\n"
+            f"• Avtomatik baholash\n"
+            f"• Tahlil va statistika\n\n"
+            f"Funksiyani yoqish yoki o'chirish uchun quyidagi tugmalardan birini tanlang:"
+        )
+        
+        keyboard = [
+            [
+                InlineKeyboardButton("✔️ Yoqilgan", callback_data='writing_task_on'),
+                InlineKeyboardButton("❌ O'chirish", callback_data='writing_task_off')
+            ]
+        ]
+        reply_markup = InlineKeyboardMarkup(keyboard)
+        
+        await query.edit_message_text(
+            writing_text,
+            parse_mode='Markdown',
+            reply_markup=reply_markup
+        )
+        await query.answer("✅ Yozma ish funksiyasi yoqildi!")
+    
+    elif query.data == 'writing_task_off':
+        user_data_manager.update_user_field(user_id, 'writing_task_enabled', False)
+        
+        writing_text = (
+            f"✍️ *Yozma ish funksiyasi*\n\n"
+            f"Hozirgi holat: ❌ *O'chirilgan*\n\n"
+            f"Bu funksiya quyidagilarni o'z ichiga oladi:\n"
+            f"• Yozma ishlarni yuklash\n"
+            f"• Avtomatik baholash\n"
+            f"• Tahlil va statistika\n\n"
+            f"Funksiyani yoqish yoki o'chirish uchun quyidagi tugmalardan birini tanlang:"
+        )
+        
+        keyboard = [
+            [
+                InlineKeyboardButton("✅ Yoqish", callback_data='writing_task_on'),
+                InlineKeyboardButton("✖️ O'chirilgan", callback_data='writing_task_off')
+            ]
+        ]
+        reply_markup = InlineKeyboardMarkup(keyboard)
+        
+        await query.edit_message_text(
+            writing_text,
+            parse_mode='Markdown',
+            reply_markup=reply_markup
+        )
+        await query.answer("❌ Yozma ish funksiyasi o'chirildi!")
+    
     # Handle subject selection
     elif query.data.startswith('subject_'):
         subject_mapping = {
@@ -551,15 +608,45 @@ async def handle_section_results(update: Update, context: ContextTypes.DEFAULT_T
 
 async def handle_writing_task(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Handle Writing Task button"""
+    user_id = update.effective_user.id
+    user_data = user_data_manager.get_user_data(user_id)
+    
+    # Get current state (default is off)
+    writing_task_enabled = user_data.get('writing_task_enabled', False)
+    
+    status_icon = "✅" if writing_task_enabled else "❌"
+    status_text = "Yoqilgan" if writing_task_enabled else "O'chirilgan"
+    
     writing_text = (
-        "✍️ *Yozma ish funksiyasi*\n\n"
-        "Bu funksiya quyidagilarni o'z ichiga oladi:\n"
-        "• Yozma ishlarni yuklash\n"
-        "• Avtomatik baholash\n"
-        "• Tahlil va statistika\n\n"
-        "🔜 Tez orada faollashtiriladi!"
+        f"✍️ *Yozma ish funksiyasi*\n\n"
+        f"Hozirgi holat: {status_icon} *{status_text}*\n\n"
+        f"Bu funksiya quyidagilarni o'z ichiga oladi:\n"
+        f"• Yozma ishlarni yuklash\n"
+        f"• Avtomatik baholash\n"
+        f"• Tahlil va statistika\n\n"
+        f"Funksiyani yoqish yoki o'chirish uchun quyidagi tugmalardan birini tanlang:"
     )
-    await update.message.reply_text(writing_text, parse_mode='Markdown')
+    
+    # Create inline keyboard
+    keyboard = [
+        [
+            InlineKeyboardButton(
+                "✅ Yoqish" if not writing_task_enabled else "✔️ Yoqilgan",
+                callback_data='writing_task_on'
+            ),
+            InlineKeyboardButton(
+                "❌ O'chirish" if writing_task_enabled else "✖️ O'chirilgan",
+                callback_data='writing_task_off'
+            )
+        ]
+    ]
+    reply_markup = InlineKeyboardMarkup(keyboard)
+    
+    await update.message.reply_text(
+        writing_text,
+        parse_mode='Markdown',
+        reply_markup=reply_markup
+    )
 
 
 async def handle_students(update: Update, context: ContextTypes.DEFAULT_TYPE):
