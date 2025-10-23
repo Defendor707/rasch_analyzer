@@ -239,9 +239,9 @@ async def handle_document(update: Update, context: ContextTypes.DEFAULT_TYPE):
         cleaner = DataCleaner()
         numeric_data, cleaning_metadata = cleaner.clean_data(data)
         
-        # Send cleaning report to user
+        # Send cleaning report to user (without Markdown to avoid parsing errors)
         cleaning_report = cleaner.get_cleaning_report(cleaning_metadata)
-        await update.message.reply_text(cleaning_report, parse_mode='Markdown')
+        await update.message.reply_text(cleaning_report)
         
         # Additional validation
         if not all(numeric_data.isin([0, 1]).all()):

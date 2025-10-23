@@ -11,7 +11,12 @@ Telegram bot for performing Rasch model analysis on dichotomous test data. The b
 - **Reports:** ReportLab PDF generation
 
 ## Recent Changes
-- **October 23, 2025 (Latest)**: Fixed critical bugs in PDF generation and `/namuna` command
+- **October 23, 2025 (Latest)**: Fixed Markdown parsing error in DataCleaner reports
+  - Fixed "Can't parse entities" error in cleaning report
+  - Removed Markdown formatting from cleaning reports to prevent special character issues
+  - DataCleaner now works seamlessly with Evalbee exports
+  - Reports show removed rows/columns in plain text format
+- **October 23, 2025**: Fixed critical bugs in PDF generation and `/namuna` command
   - Fixed undefined variable error: `pending_general_pdf` → `general_pdf_path`
   - Added proper null safety checks for Optional type parameters
   - Fixed section results generation in `/namuna` command

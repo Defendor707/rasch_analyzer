@@ -201,12 +201,12 @@ class DataCleaner:
     def get_cleaning_report(self, metadata: Dict) -> str:
         """Generate a human-readable cleaning report"""
         report = []
-        report.append("📋 *Fayl tozalash hisoboti*\n")
-        report.append(f"*Asl o'lcham:* {metadata['original_shape'][0]} qator × {metadata['original_shape'][1]} ustun")
-        report.append(f"*Yakuniy o'lcham:* {metadata['final_shape'][0]} talabgor × {metadata['final_shape'][1]} savol\n")
+        report.append("📋 Fayl tozalash hisoboti\n")
+        report.append(f"Asl o'lcham: {metadata['original_shape'][0]} qator × {metadata['original_shape'][1]} ustun")
+        report.append(f"Yakuniy o'lcham: {metadata['final_shape'][0]} talabgor × {metadata['final_shape'][1]} savol\n")
         
         if metadata['removed_rows']:
-            report.append(f"*O'chirilgan qatorlar:* {len(metadata['removed_rows'])} ta")
+            report.append(f"O'chirilgan qatorlar: {len(metadata['removed_rows'])} ta")
             for row in metadata['removed_rows'][:3]:  # Show first 3
                 report.append(f"  • Qator {row['index']}: {row['reason']}")
             if len(metadata['removed_rows']) > 3:
@@ -214,7 +214,7 @@ class DataCleaner:
             report.append("")
         
         if metadata['removed_columns']:
-            report.append(f"*O'chirilgan ustunlar:* {len(metadata['removed_columns'])} ta")
+            report.append(f"O'chirilgan ustunlar: {len(metadata['removed_columns'])} ta")
             for col in metadata['removed_columns'][:3]:  # Show first 3
                 report.append(f"  • {col['name']}: {col['reason']}")
             if len(metadata['removed_columns']) > 3:
@@ -222,7 +222,7 @@ class DataCleaner:
             report.append("")
         
         if metadata['warnings']:
-            report.append("⚠️ *Ogohlantirishlar:*")
+            report.append("⚠️ Ogohlantirishlar:")
             for warning in metadata['warnings']:
                 report.append(f"  • {warning}")
         
