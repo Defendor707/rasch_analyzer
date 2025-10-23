@@ -20,6 +20,7 @@ class PDFReportGenerator:
     def _calculate_section_scores(self, results: Dict[str, Any], section_questions: Dict[str, List[int]]) -> Dict[str, List[Dict]]:
         """
         Calculate T-scores for each section based on question numbers
+        Section T-scores are normalized so their sum equals the overall T-score
         
         Args:
             results: Analysis results dictionary
@@ -32,7 +33,6 @@ class PDFReportGenerator:
             return {}
         
         # Get the original response data from results
-        # We need to reconstruct this from person statistics
         person_stats = results.get('person_statistics', {})
         individual_data = person_stats.get('individual', [])
         
@@ -42,13 +42,14 @@ class PDFReportGenerator:
         n_persons = len(individual_data)
         n_items = results.get('n_items', 0)
         
-        # We need the raw response matrix, but it's not in results
-        # So we'll pass it separately through results
+        # Get response matrix
         response_matrix = results.get('response_matrix')
         if response_matrix is None:
             return {}
         
-        section_scores = {}
+        # First pass: collect all section raw scores for each person
+        section_names = list(section_questions.keys())
+        all_section_data = {section_name: [] for section_name in section_names}
         
         for section_name, question_nums in section_questions.items():
             if not question_nums:
@@ -60,36 +61,47 @@ class PDFReportGenerator:
             if not question_indices:
                 continue
             
-            # Calculate raw scores for this section for each person
-            person_section_data = []
+            # Calculate raw scores for this section for all persons
             for person_idx in range(n_persons):
                 section_responses = response_matrix[person_idx, question_indices]
-                raw_score = np.sum(section_responses)
-                person_section_data.append({
+                section_raw_score = int(np.sum(section_responses))
+                
+                all_section_data[section_name].append({
                     'person_id': person_idx + 1,
-                    'raw_score': int(raw_score),
-                    'max_score': len(question_indices)
+                    'raw_score': section_raw_score,
+                    'max_score': len(question_indices),
+                    't_score': 0.0  # Will be calculated in second pass
                 })
-            
-            # Calculate T-scores for this section
-            raw_scores = np.array([p['raw_score'] for p in person_section_data])
-            mean_score = np.mean(raw_scores)
-            sd_score = np.std(raw_scores)
-            
-            if sd_score > 0:
-                z_scores = (raw_scores - mean_score) / sd_score
-                t_scores = 50 + (z_scores * 10)
-            else:
-                # All same score, assign mean T-score
-                t_scores = np.full(n_persons, 50.0)
-            
-            # Add T-scores to person data
-            for i, person_data in enumerate(person_section_data):
-                person_data['t_score'] = float(t_scores[i])
-            
-            section_scores[section_name] = person_section_data
         
-        return section_scores
+        # Second pass: normalize T-scores so they sum to overall T-score
+        for person_idx in range(n_persons):
+            overall_t_score = individual_data[person_idx]['t_score']
+            
+            # Collect raw scores from all VALID sections for this person
+            valid_sections = []
+            section_raw_scores = []
+            for section_name in section_names:
+                if section_name in all_section_data and person_idx < len(all_section_data[section_name]):
+                    valid_sections.append(section_name)
+                    section_raw_scores.append(all_section_data[section_name][person_idx]['raw_score'])
+            
+            # Calculate sum of raw scores
+            sum_section_raw = sum(section_raw_scores)
+            
+            # Normalize: distribute overall T-score proportionally
+            if sum_section_raw > 0:
+                # Proportional distribution
+                for i, section_name in enumerate(valid_sections):
+                    section_t = overall_t_score * (section_raw_scores[i] / sum_section_raw)
+                    all_section_data[section_name][person_idx]['t_score'] = float(section_t)
+            else:
+                # All section scores are 0, distribute equally among VALID sections only
+                n_valid_sections = len(valid_sections)
+                equal_t = overall_t_score / n_valid_sections if n_valid_sections > 0 else 0.0
+                for section_name in valid_sections:
+                    all_section_data[section_name][person_idx]['t_score'] = float(equal_t)
+        
+        return all_section_data
 
     def generate_report(self, results: Dict[str, Any], filename: str = None) -> str:
         """

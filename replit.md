@@ -12,7 +12,10 @@ Telegram bot for performing Rasch model analysis on dichotomous test data. The b
 
 ## Recent Changes
 - **October 23, 2025 (Latest)**: Implemented section-based T-score reporting in PDF
-  - Added section T-score calculation in PDF generator (_calculate_section_scores method)
+  - Added normalized section T-score calculation: Section T-scores sum to overall T-score
+  - Formula: section_t = overall_t × (section_raw / sum_section_raw) when raw > 0
+  - Equal distribution when all section raw scores are 0
+  - Handles edge cases: empty sections, zero scores, invalid question indices
   - Modified PDF person results table to dynamically include section T-score columns
   - Added response_matrix to Rasch analysis results for section-based calculations
   - Integrated section_questions from user_data into PDF generation pipeline
