@@ -152,7 +152,7 @@ class PDFReportGenerator:
         person_names = [f"P{i+1}" for i in range(len(person_ability))]
         item_names = results.get('item_names', [])
 
-        if not person_ability or not item_difficulty:
+        if len(person_ability) == 0 or len(item_difficulty) == 0:
             raise ValueError("Missing data for Wright Map.")
 
         # Filter out NaNs
@@ -210,7 +210,7 @@ class PDFReportGenerator:
         person_stats = results.get('person_statistics', {})
         individual_data = person_stats.get('individual', [])
 
-        if not individual_data:
+        if len(individual_data) == 0:
             raise ValueError("Missing person statistics for T-score distribution.")
 
         t_scores = [p['t_score'] for p in individual_data if not np.isnan(p['t_score'])]
@@ -372,13 +372,14 @@ class PDFReportGenerator:
 
         # Add Wright Map (Item-Person Map)
         story.append(Paragraph("Wright Map (Item-Person Map)", heading_style))
+        chart_files_to_cleanup = []
         try:
             chart_path = self._create_item_person_map(results)
             if chart_path and os.path.exists(chart_path):
                 img = Image(chart_path, width=6.5*inch, height=5.2*inch)
                 story.append(img)
                 story.append(Spacer(1, 0.2 * inch))
-                os.unlink(chart_path)
+                chart_files_to_cleanup.append(chart_path)
         except Exception as e:
             logger.error(f"Error creating Wright map: {e}")
             story.append(Paragraph("Wright Map yaratishda xatolik yuz berdi.", styles['Normal']))
@@ -399,6 +400,14 @@ class PDFReportGenerator:
         ))
 
         doc.build(story)
+        
+        # Clean up temporary chart files after PDF is built
+        for chart_file in chart_files_to_cleanup:
+            try:
+                if os.path.exists(chart_file):
+                    os.unlink(chart_file)
+            except Exception as e:
+                logger.warning(f"Failed to cleanup chart file {chart_file}: {e}")
 
         return filepath
 
@@ -487,13 +496,14 @@ class PDFReportGenerator:
 
         # Add T-Score distribution chart
         story.append(Paragraph("T-Score Taqsimoti", heading_style))
+        chart_files_to_cleanup = []
         try:
             chart_path = self._create_t_score_distribution(results)
             if chart_path and os.path.exists(chart_path):
                 img = Image(chart_path, width=6*inch, height=3.6*inch)
                 story.append(img)
                 story.append(Spacer(1, 0.2 * inch))
-                os.unlink(chart_path)
+                chart_files_to_cleanup.append(chart_path)
         except Exception as e:
             logger.error(f"Error creating T-score chart: {e}")
             story.append(Paragraph("T-Score grafigini yaratishda xatolik yuz berdi.", styles['Normal']))
@@ -663,6 +673,14 @@ class PDFReportGenerator:
         ))
 
         doc.build(story)
+        
+        # Clean up temporary chart files after PDF is built
+        for chart_file in chart_files_to_cleanup:
+            try:
+                if os.path.exists(chart_file):
+                    os.unlink(chart_file)
+            except Exception as e:
+                logger.warning(f"Failed to cleanup chart file {chart_file}: {e}")
 
         return filepath
 

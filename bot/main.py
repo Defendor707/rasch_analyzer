@@ -28,11 +28,11 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 
-async def error_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
+async def error_handler(update: object, context: ContextTypes.DEFAULT_TYPE):
     """Log errors caused by updates"""
     logger.error(f"Update {update} caused error {context.error}")
     
-    if update and update.effective_message:
+    if update and isinstance(update, Update) and update.effective_message:
         await update.effective_message.reply_text(
             "❌ Uzr, xatolik yuz berdi. Iltimos, qayta urinib ko'ring."
         )

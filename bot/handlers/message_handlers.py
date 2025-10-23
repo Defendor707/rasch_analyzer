@@ -169,29 +169,6 @@ async def perform_test_rasch_analysis(message, context, test_id: str):
         )
 
 
-    
-    # Disable file analyzer mode when starting
-    user_data_manager.update_user_field(user_id, 'file_analyzer_mode', False)
-
-    full_name = user_data.get('full_name')
-    if not full_name:
-        full_name = update.effective_user.first_name or "foydalanuvchi"
-
-    welcome_message = (
-        f"👋 Assalomu alaykum, {full_name}!\n\n"
-        "🎓 Rasch analiyzer botga xush kelibsiz!\n\n"
-        "📝 Matritsani yuboring yoki /namuna buyrug'i bilan namuna tahlilni ko'ring\n\n"
-        "/help commandasini yuborib foydalanish yo'riqnomasi bilan tanishing."
-    )
-
-    file_info_message = (
-        "📊 Excel (.xls, .xlsx, .csv) faylni yuborishingiz mumkin!"
-    )
-
-    await update.message.reply_text(welcome_message, reply_markup=get_main_keyboard())
-    await update.message.reply_text(file_info_message)
-
-
 async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Send help message when the command /help is issued"""
     help_message = (
@@ -377,6 +354,7 @@ async def handle_document(update: Update, context: ContextTypes.DEFAULT_TYPE):
             processed_data, metadata = cleaner.clean_data(data)
             report = cleaner.get_cleaning_report(metadata)
             output_prefix = "cleaned"
+            operation = "cleaning"
             success_message = "✅ Tozalangan va standartlashtirilgan fayl tayyor!\n\n" \
                             "Fayl to'liq tozalandi va standartlashtirildi.\n" \
                             "Endi uni tahlil qilish uchun qayta yuboring yoki /start orqali chiqing."
