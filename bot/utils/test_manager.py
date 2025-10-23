@@ -205,3 +205,71 @@ class TestManager:
             'percentage': participant_data['percentage'],
             'results': question_results
         }
+    
+    def get_test_results_matrix(self, test_id: str) -> Optional[Dict]:
+        """
+        Get test results as a dichotomous response matrix for Rasch analysis
+        
+        Args:
+            test_id: Test identifier
+            
+        Returns:
+            Dict with response matrix and metadata
+        """
+        tests = self._load_tests()
+        
+        if test_id not in tests:
+            return None
+        
+        test = tests[test_id]
+        participants = test.get('participants', [])
+        
+        if not participants:
+            return None
+        
+        # Create response matrix (persons x items)
+        n_questions = len(test['questions'])
+        response_matrix = []
+        student_ids = []
+        
+        for participant in participants:
+            student_ids.append(participant['student_id'])
+            row = []
+            
+            for i, result in enumerate(participant['results']):
+                row.append(1 if result['correct'] else 0)
+            
+            response_matrix.append(row)
+        
+        # Create item names
+        item_names = [f"Savol_{i+1}" for i in range(n_questions)]
+        
+        return {
+            'matrix': response_matrix,
+            'student_ids': student_ids,
+            'item_names': item_names,
+            'test_name': test['name'],
+            'test_subject': test['subject'],
+            'n_questions': n_questions,
+            'n_participants': len(participants)
+        }
+    
+    def finalize_test(self, test_id: str) -> bool:
+        """
+        Mark test as finalized (no more submissions allowed)
+        
+        Args:
+            test_id: Test identifier
+            
+        Returns:
+            Success status
+        """
+        tests = self._load_tests()
+        
+        if test_id not in tests:
+            return False
+        
+        tests[test_id]['is_active'] = False
+        tests[test_id]['finalized_at'] = datetime.now().isoformat()
+        self._save_tests(tests)
+        return True

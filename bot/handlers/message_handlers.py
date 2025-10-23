@@ -47,6 +47,106 @@ async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Send welcome message when the command /start is issued"""
     user_id = update.effective_user.id
     user_data = user_data_manager.get_user_data(user_id)
+
+
+async def perform_test_rasch_analysis(message, context, test_id: str):
+    """Perform Rasch analysis on test results and send PDF report"""
+    try:
+        # Get test results matrix
+        test_results = test_manager.get_test_results_matrix(test_id)
+        
+        if not test_results:
+            await message.reply_text("❌ Test natijalarini olishda xatolik yuz berdi!")
+            return
+        
+        if test_results['n_participants'] < 3:
+            await message.reply_text(
+                "❌ Rasch tahlili uchun kamida 3 ta ishtirokchi kerak!\n\n"
+                f"Hozirgi ishtirokchilar: {test_results['n_participants']} ta"
+            )
+            return
+        
+        await message.reply_text(
+            f"📊 Test: {test_results['test_name']}\n"
+            f"👥 Ishtirokchilar: {test_results['n_participants']} ta\n"
+            f"📝 Savollar: {test_results['n_questions']} ta\n\n"
+            "⏳ Rasch tahlili amalga oshirilmoqda..."
+        )
+        
+        # Create DataFrame from response matrix
+        import pandas as pd
+        data = pd.DataFrame(
+            test_results['matrix'],
+            columns=test_results['item_names']
+        )
+        
+        # Perform Rasch analysis
+        analyzer = RaschAnalyzer()
+        results = analyzer.fit(data)
+        
+        # Generate PDF reports
+        pdf_generator = PDFReportGenerator()
+        user_id = message.chat.id
+        
+        # General statistics report
+        general_pdf_path = pdf_generator.generate_report(
+            results,
+            filename=f"test_{test_id}_umumiy_{user_id}"
+        )
+        
+        # Person results report
+        person_pdf_path = pdf_generator.generate_person_results_report(
+            results,
+            filename=f"test_{test_id}_talabgorlar_{user_id}"
+        )
+        
+        # Send summary
+        await message.reply_text(
+            f"✅ *Rasch tahlili tugallandi!*\n\n"
+            f"📋 Test: {test_results['test_name']}\n"
+            f"📚 Fan: {test_results['test_subject']}\n"
+            f"👥 Talabgorlar: {results['n_persons']}\n"
+            f"📝 Savollar: {results['n_items']}\n"
+            f"📈 Reliability: {results['reliability']:.3f}\n\n"
+            f"PDF hisobotlar yuborilmoqda...",
+            parse_mode='Markdown'
+        )
+        
+        # Send general statistics PDF
+        if general_pdf_path and os.path.exists(general_pdf_path):
+            with open(general_pdf_path, 'rb') as pdf_file:
+                await message.reply_document(
+                    document=pdf_file,
+                    filename=os.path.basename(general_pdf_path),
+                    caption=f"📊 {test_results['test_name']} - Umumiy statistika"
+                )
+        
+        # Send person results PDF
+        with open(person_pdf_path, 'rb') as pdf_file:
+            await message.reply_document(
+                document=pdf_file,
+                filename=os.path.basename(person_pdf_path),
+                caption=f"👥 {test_results['test_name']} - Talabgorlar natijalari"
+            )
+        
+        await message.reply_text(
+            "✅ Barcha hisobotlar yuborildi!\n\n"
+            "Natijalarni tahlil qilishingiz mumkin.",
+            reply_markup=get_main_keyboard()
+        )
+        
+        logger.info(f"Test {test_id} Rasch analysis completed successfully")
+        
+    except Exception as e:
+        import traceback
+        logger.error(f"Error in test Rasch analysis: {str(e)}")
+        logger.error(f"Traceback: {traceback.format_exc()}")
+        await message.reply_text(
+            f"❌ Tahlilda xatolik yuz berdi: {str(e)}\n\n"
+            "Iltimos, testda kamida 3 ta ishtirokchi va to'g'ri javoblar mavjudligini tekshiring."
+        )
+
+
     
     # Disable file analyzer mode when starting
     user_data_manager.update_user_field(user_id, 'file_analyzer_mode', False)
@@ -596,12 +696,38 @@ async def handle_callback_query(update: Update, context: ContextTypes.DEFAULT_TY
                         f"   Ball: {p['score']}/{p['max_score']}\n"
                         f"   Foiz: {p['percentage']:.1f}%\n\n"
                     )
+                
+                # Add Rasch analysis button
+                keyboard = [
+                    [InlineKeyboardButton("📈 Rasch tahlili", callback_data=f"rasch_analysis_{test_id}")],
+                    [InlineKeyboardButton("🔚 Testni yakunlash", callback_data=f"finalize_test_{test_id}")]
+                ]
+                reply_markup = InlineKeyboardMarkup(keyboard)
+                
+                await query.edit_message_text(results_text, parse_mode='Markdown', reply_markup=reply_markup)
             else:
                 results_text += "Hali natijalar yo'q."
-            
-            await query.edit_message_text(results_text, parse_mode='Markdown')
+                await query.edit_message_text(results_text, parse_mode='Markdown')
         else:
             await query.answer("❌ Test topilmadi!")
+    
+    elif query.data.startswith('rasch_analysis_'):
+        test_id = query.data.replace('rasch_analysis_', '')
+        await query.answer("⏳ Rasch tahlili boshlanmoqda...")
+        
+        await perform_test_rasch_analysis(query.message, context, test_id)
+    
+    elif query.data.startswith('finalize_test_'):
+        test_id = query.data.replace('finalize_test_', '')
+        
+        if test_manager.finalize_test(test_id):
+            await query.edit_message_text(
+                "✅ Test yakunlandi!\n\n"
+                "Test endi yangi ishtirokchilarni qabul qilmaydi.\n"
+                "Rasch tahlili uchun test natijalarini ko'ring."
+            )
+        else:
+            await query.answer("❌ Xatolik yuz berdi!")
     
     # Handle writing task toggle
     elif query.data == 'writing_task_on':
@@ -1615,7 +1741,15 @@ async def handle_view_tests(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
     
     for test in user_tests:
-        status = "✅ Faol" if test.get('is_active') else "⏸ Faol emas"
+        is_finalized = test.get('finalized_at') is not None
+        
+        if is_finalized:
+            status = "🔚 Yakunlangan"
+        elif test.get('is_active'):
+            status = "✅ Faol"
+        else:
+            status = "⏸ Faol emas"
+        
         test_text = (
             f"📋 *{test['name']}*\n\n"
             f"Fan: {test['subject']}\n"
@@ -1623,16 +1757,22 @@ async def handle_view_tests(update: Update, context: ContextTypes.DEFAULT_TYPE):
             f"Savollar soni: {len(test['questions'])} ta\n"
             f"Status: {status}\n"
             f"Ishtirokchilar: {len(test['participants'])} ta\n"
-            f"Yaratilgan: {test['created_at'][:10]}\n\n"
+            f"Yaratilgan: {test['created_at'][:10]}\n"
         )
+        
+        if is_finalized:
+            test_text += f"Yakunlangan: {test['finalized_at'][:10]}\n"
+        
+        test_text += "\n"
         
         # Create inline keyboard for test management
         keyboard = []
         
-        if test.get('is_active'):
-            keyboard.append([InlineKeyboardButton("⏸ Faolsizlantirish", callback_data=f"deactivate_test_{test['id']}")])
-        else:
-            keyboard.append([InlineKeyboardButton("✅ Faollashtirish", callback_data=f"activate_test_{test['id']}")])
+        if not is_finalized:
+            if test.get('is_active'):
+                keyboard.append([InlineKeyboardButton("⏸ Faolsizlantirish", callback_data=f"deactivate_test_{test['id']}")])
+            else:
+                keyboard.append([InlineKeyboardButton("✅ Faollashtirish", callback_data=f"activate_test_{test['id']}")])
         
         keyboard.extend([
             [InlineKeyboardButton("📊 Natijalar", callback_data=f"test_results_{test['id']}")],
