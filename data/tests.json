@@ -20,6 +20,71 @@
     ],
     "created_at": "2025-10-23T15:15:01.553877",
     "is_active": true,
-    "participants": []
+    "participants": [
+      {
+        "student_id": 7537966029,
+        "submitted_at": "2025-10-23T15:25:44.439169",
+        "score": 1,
+        "max_score": 1,
+        "percentage": 100.0,
+        "answers": [
+          3
+        ],
+        "results": [
+          {
+            "question_id": 1,
+            "correct": true
+          }
+        ]
+      },
+      {
+        "student_id": 7537966029,
+        "submitted_at": "2025-10-23T15:27:27.847905",
+        "score": 1,
+        "max_score": 1,
+        "percentage": 100.0,
+        "answers": [
+          3
+        ],
+        "results": [
+          {
+            "question_id": 1,
+            "correct": true
+          }
+        ]
+      },
+      {
+        "student_id": 7537966029,
+        "submitted_at": "2025-10-23T15:28:10.318866",
+        "score": 1,
+        "max_score": 1,
+        "percentage": 100.0,
+        "answers": [
+          3
+        ],
+        "results": [
+          {
+            "question_id": 1,
+            "correct": true
+          }
+        ]
+      },
+      {
+        "student_id": 7537966029,
+        "submitted_at": "2025-10-23T15:28:25.373105",
+        "score": 0,
+        "max_score": 1,
+        "percentage": 0.0,
+        "answers": [
+          0
+        ],
+        "results": [
+          {
+            "question_id": 1,
+            "correct": false
+          }
+        ]
+      }
+    ]
   }
 }
