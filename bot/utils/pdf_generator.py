@@ -4,7 +4,7 @@ from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib.units import inch
 from reportlab.lib import colors
 from reportlab.lib.enums import TA_CENTER, TA_LEFT
-from typing import Dict, Any, List
+from typing import Dict, Any, List, Optional
 import os
 from datetime import datetime
 import numpy as np
@@ -142,7 +142,7 @@ class PDFReportGenerator:
         
         return all_section_data
 
-    def generate_report(self, results: Dict[str, Any], filename: str = None) -> str:
+    def generate_report(self, results: Dict[str, Any], filename: Optional[str] = None) -> str:
         """
         Generate PDF report from Rasch analysis results
 
@@ -293,7 +293,7 @@ class PDFReportGenerator:
 
         return filepath
 
-    def generate_person_results_report(self, results: Dict[str, Any], filename: str = None, section_questions: Dict[str, list] = None) -> str:
+    def generate_person_results_report(self, results: Dict[str, Any], filename: Optional[str] = None, section_questions: Optional[Dict[str, list]] = None) -> str:
         """
         Generate separate PDF report for individual person results only
 
@@ -370,8 +370,11 @@ class PDFReportGenerator:
 
         # Calculate section scores if provided
         section_scores = {}
+        section_names: List[str] = []
         if section_questions:
             section_scores = self._calculate_section_scores(results, section_questions)
+            if section_scores:
+                section_names = list(section_scores.keys())
         
         # Individual person statistics table
         if section_scores:
@@ -391,9 +394,8 @@ class PDFReportGenerator:
             )
 
             # Create table header dynamically based on whether we have sections
-            if section_scores:
+            if section_scores and section_names:
                 # Create header with section columns
-                section_names = list(section_scores.keys())
                 header = ['Rank', 'Talabgor', 'Raw Score', 'T-Score Umumiy']
                 for section_name in section_names:
                     # Truncate long section names
@@ -539,7 +541,7 @@ class PDFReportGenerator:
 
         return filepath
 
-    def generate_section_results_report(self, results: Dict[str, Any], filename: str = None, section_questions: Dict[str, list] = None) -> str:
+    def generate_section_results_report(self, results: Dict[str, Any], filename: Optional[str] = None, section_questions: Optional[Dict[str, list]] = None) -> str:
         """
         Generate separate PDF report for section-based results only
 
@@ -692,14 +694,15 @@ class PDFReportGenerator:
                 story.append(Paragraph("Bo'limlar ma'lumotlari", heading_style))
                 
                 section_info_data = [['Bo\'lim', 'Savol raqamlari', 'Savollar soni']]
-                for section_name, question_nums in section_questions.items():
-                    if question_nums:
-                        formatted_questions = format_question_list(question_nums)
-                        section_info_data.append([
-                            section_name,
-                            formatted_questions,
-                            str(len(question_nums))
-                        ])
+                if section_questions:
+                    for section_name, question_nums in section_questions.items():
+                        if question_nums:
+                            formatted_questions = format_question_list(question_nums)
+                            section_info_data.append([
+                                section_name,
+                                formatted_questions,
+                                str(len(question_nums))
+                            ])
                 
                 section_info_table = Table(section_info_data, colWidths=[2.5*inch, 2.5*inch, 1.0*inch])
                 section_info_table.setStyle(TableStyle([
