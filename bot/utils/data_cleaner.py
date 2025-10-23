@@ -45,7 +45,7 @@ class DataCleaner:
         df = self._convert_to_numeric(df, metadata)
         
         # Step 5: Validate that we have binary data
-        is_valid, validation_msg = self._validate_binary_data(df)
+        is_valid, validation_msg = self._validate_binary_data(df, metadata)
         if not is_valid:
             metadata['warnings'].append(validation_msg)
         
@@ -104,11 +104,36 @@ class DataCleaner:
         return df
     
     def _remove_metadata_columns(self, df: pd.DataFrame, metadata: Dict) -> pd.DataFrame:
-        """Remove columns that contain metadata (names, IDs, timestamps) not responses"""
-        columns_to_remove = []
+        """Remove columns that contain metadata (names, IDs, timestamps) not responses
         
-        for col in df.columns:
+        IMPORTANT: Preserves the first column and any column with participant/student names
+        """
+        columns_to_remove = []
+        preserved_participant_columns = []  # Track which columns contain participant names
+        first_column = df.columns[0] if len(df.columns) > 0 else None
+        
+        # Keywords that indicate this is a participant name column (KEEP these)
+        participant_name_keywords = [
+            'talabgor', 'f.i.o', 'fio', 'student', 'participant', 
+            'o\'quvchi', 'oquvchi', 'abituriyent', 'ism-familiya',
+            'full name', 'fullname', 'name surname', 'ism', 'name'
+        ]
+        
+        for col_idx, col in enumerate(df.columns):
             col_data = df[col]
+            col_name_lower = str(col).lower()
+            
+            # ALWAYS keep the first column (usually participant names)
+            if col_idx == 0:
+                preserved_participant_columns.append(col)
+                logger.info(f"Keeping first column as participant names: {col}")
+                continue
+            
+            # ALWAYS keep columns with participant name keywords in column name
+            if any(keyword in col_name_lower for keyword in participant_name_keywords):
+                preserved_participant_columns.append(col)
+                logger.info(f"Keeping participant name column: {col}")
+                continue
             
             # Skip if already numeric and looks like response data
             try:
@@ -128,54 +153,90 @@ class DataCleaner:
                 # Check if it's mostly text (names, emails, etc.)
                 non_null = col_data.dropna()
                 if len(non_null) > 0:
-                    # Check for common metadata patterns
+                    # Check for OTHER metadata patterns (NOT participant names)
+                    # Remove keywords like email, telegram, timestamp, ID
                     sample = str(non_null.iloc[0]).lower()
-                    metadata_keywords = ['name', 'email', 'id', 'time', 'date', 'user', 
-                                       'ism', 'familiya', 'telegram', '@']
+                    removable_metadata_keywords = ['email', 'time', 'date', 'telegram', '@', 
+                                                   'timestamp', 'created', 'updated', 'phone']
                     
-                    if any(keyword in sample for keyword in metadata_keywords) or \
-                       any(keyword in str(col).lower() for keyword in metadata_keywords):
+                    if any(keyword in sample for keyword in removable_metadata_keywords) or \
+                       any(keyword in col_name_lower for keyword in removable_metadata_keywords):
                         columns_to_remove.append(col)
                         metadata['removed_columns'].append({
                             'name': str(col),
-                            'reason': 'Metadata column (text/names)',
+                            'reason': 'Metadata column (email/time/ID)',
                             'sample': str(non_null.iloc[0])[:50]
                         })
                         continue
                     
-                    # If mostly unique values (like names), it's probably metadata
+                    # If mostly unique values AND not participant names, likely an identifier to remove
                     unique_ratio = len(non_null.unique()) / len(non_null)
-                    if unique_ratio > 0.8:  # More than 80% unique
-                        columns_to_remove.append(col)
-                        metadata['removed_columns'].append({
-                            'name': str(col),
-                            'reason': 'High unique ratio (likely identifiers)',
-                            'unique_ratio': unique_ratio
-                        })
+                    if unique_ratio > 0.95:  # Increased threshold - very high uniqueness
+                        # Check if this looks like an ID column
+                        if any(id_keyword in col_name_lower for id_keyword in ['id', 'uuid', 'guid', 'code']):
+                            columns_to_remove.append(col)
+                            metadata['removed_columns'].append({
+                                'name': str(col),
+                                'reason': 'ID column (high unique ratio + ID keyword)',
+                                'unique_ratio': unique_ratio
+                            })
         
         if columns_to_remove:
             df = df.drop(columns=columns_to_remove)
             logger.info(f"Removed {len(columns_to_remove)} metadata columns")
         
+        # Store preserved participant columns in metadata for later use
+        metadata['preserved_participant_columns'] = preserved_participant_columns
+        logger.info(f"Preserved {len(preserved_participant_columns)} participant columns: {preserved_participant_columns}")
+        
         return df
     
     def _convert_to_numeric(self, df: pd.DataFrame, metadata: Dict) -> pd.DataFrame:
-        """Convert all columns to numeric, handling errors"""
+        """Convert response columns to numeric, but preserve ALL participant name columns"""
+        # Get list of preserved participant columns from metadata
+        preserved_columns = metadata.get('preserved_participant_columns', [])
+        
+        # Save original data for preserved columns
+        preserved_data = {}
+        for col in preserved_columns:
+            if col in df.columns and df[col].dtype == 'object':
+                preserved_data[col] = df[col].copy()
+                logger.info(f"Saving participant column data: {col}")
+        
+        # Convert all columns to numeric
         for col in df.columns:
             df[col] = pd.to_numeric(df[col], errors='coerce')
         
-        # Fill NaN with 0 (assuming unanswered = incorrect)
-        nan_count = df.isna().sum().sum()
-        if nan_count > 0:
-            metadata['warnings'].append(f"{nan_count} ta bo'sh qiymat 0 ga almashtirildi")
-            df = df.fillna(0)
+        # Restore all preserved participant columns
+        for col, data in preserved_data.items():
+            df[col] = data
+            logger.info(f"Restored participant column: {col}")
+        
+        # Fill NaN with 0 in RESPONSE columns only (skip preserved participant columns)
+        response_columns = [col for col in df.columns if col not in preserved_columns]
+        if response_columns:
+            nan_count = df[response_columns].isna().sum().sum()
+            if nan_count > 0:
+                metadata['warnings'].append(f"{nan_count} ta bo'sh qiymat 0 ga almashtirildi")
+                df[response_columns] = df[response_columns].fillna(0)
         
         return df
     
-    def _validate_binary_data(self, df: pd.DataFrame) -> Tuple[bool, str]:
-        """Check if data is mostly binary (0 and 1)"""
-        total_values = df.size
-        binary_values = np.isin(df.values, [0, 1, 0.0, 1.0]).sum()
+    def _validate_binary_data(self, df: pd.DataFrame, metadata: Dict) -> Tuple[bool, str]:
+        """Check if response data is mostly binary (0 and 1), excluding participant columns"""
+        # Get preserved participant columns from metadata
+        preserved_columns = metadata.get('preserved_participant_columns', [])
+        
+        # Validate only response columns (exclude preserved participant columns)
+        response_columns = [col for col in df.columns if col not in preserved_columns]
+        
+        if not response_columns:
+            return False, "Xatolik: Javob ustunlari topilmadi"
+        
+        response_data = df[response_columns]
+        
+        total_values = response_data.size
+        binary_values = np.isin(response_data.values, [0, 1, 0.0, 1.0]).sum()
         binary_ratio = binary_values / total_values if total_values > 0 else 0
         
         if binary_ratio < self.min_binary_ratio:
@@ -187,21 +248,47 @@ class DataCleaner:
         return True, f"Ma'lumotlar to'g'ri: {binary_ratio*100:.1f}% dikotomik qiymatlar"
     
     def _standardize_column_names(self, df: pd.DataFrame, metadata: Dict) -> pd.DataFrame:
-        """Rename columns to standard format (Savol_1, Savol_2, etc.)"""
-        n_items = len(df.columns)
-        new_columns = [f"Savol_{i+1}" for i in range(n_items)]
+        """Rename columns to standard format: Preserved participant columns first, then Savol_1, Savol_2, etc."""
+        n_cols = len(df.columns)
         
+        if n_cols == 0:
+            return df
+        
+        # Get list of preserved participant columns
+        preserved_columns = metadata.get('preserved_participant_columns', [])
         old_columns = list(df.columns)
-        df.columns = new_columns
         
+        # Create mapping for new column names
+        new_columns = []
+        savol_counter = 1
+        participant_counter = 1
+        
+        for col in old_columns:
+            if col in preserved_columns:
+                # This is a participant name column
+                if participant_counter == 1:
+                    new_columns.append('Talabgor')
+                else:
+                    new_columns.append(f'Talabgor_{participant_counter}')
+                participant_counter += 1
+            else:
+                # This is a response column
+                new_columns.append(f'Savol_{savol_counter}')
+                savol_counter += 1
+        
+        df.columns = new_columns
         metadata['column_mapping'] = dict(zip(new_columns, old_columns))
+        
+        logger.info(f"Standardized column names: {len(preserved_columns)} participant columns, {savol_counter-1} response columns")
+        for new_name, old_name in zip(new_columns[:5], old_columns[:5]):
+            logger.info(f"  {old_name} → {new_name}")
         
         return df
     
     def standardize_data(self, df: pd.DataFrame) -> Tuple[pd.DataFrame, Dict[str, Any]]:
         """
-        Standartlashtirish - faqat ustun nomlarini Savol_1, Savol_2, ... formatiga o'zgartiradi
-        Hech qanday tozalash yoki o'zgartirish qilmaydi
+        Standartlashtirish - faqat ustun nomlarini o'zgartiradi
+        Birinchi ustunni Talabgor deb nomlaydi, qolganlarini Savol_1, Savol_2, ... formatiga keltiradi
         
         Args:
             df: DataFrame (har qanday shaklda)
@@ -212,10 +299,19 @@ class DataCleaner:
         metadata = {
             'original_shape': df.shape,
             'original_columns': list(df.columns),
-            'operation': 'standardization_only'
+            'operation': 'standardization_only',
+            'removed_columns': [],
+            'removed_rows': [],
+            'warnings': []
         }
         
         logger.info(f"Starting data standardization. Shape: {df.shape}")
+        
+        # Mark first column as participant column (always preserve it)
+        if len(df.columns) > 0:
+            metadata['preserved_participant_columns'] = [df.columns[0]]
+        else:
+            metadata['preserved_participant_columns'] = []
         
         # Faqat ustun nomlarini o'zgartirish
         df = self._standardize_column_names(df, metadata)
@@ -231,7 +327,22 @@ class DataCleaner:
         report = []
         report.append("📋 Fayl tozalash hisoboti\n")
         report.append(f"Asl o'lcham: {metadata['original_shape'][0]} qator × {metadata['original_shape'][1]} ustun")
-        report.append(f"Yakuniy o'lcham: {metadata['final_shape'][0]} talabgor × {metadata['final_shape'][1]} savol\n")
+        
+        # Calculate columns: participant columns + response columns
+        final_shape = metadata['final_shape']
+        preserved_columns = metadata.get('preserved_participant_columns', [])
+        participant_cols = len(preserved_columns)
+        response_cols = final_shape[1] - participant_cols if final_shape[1] > 0 else 0
+        
+        report.append(f"Yakuniy o'lcham: {final_shape[0]} talabgor × {final_shape[1]} ustun")
+        if participant_cols == 1:
+            report.append(f"  • 1 ta talabgorlar ustuni (Talabgor)")
+        elif participant_cols > 1:
+            report.append(f"  • {participant_cols} ta talabgorlar ustuni (Talabgor, Talabgor_2, ...)")
+        if response_cols > 0:
+            report.append(f"  • {response_cols} ta javob ustuni (Savol_1 ... Savol_{response_cols})\n")
+        else:
+            report.append("")
         
         if metadata['removed_rows']:
             report.append(f"O'chirilgan qatorlar: {len(metadata['removed_rows'])} ta")
@@ -249,6 +360,10 @@ class DataCleaner:
                 report.append(f"  • ... va yana {len(metadata['removed_columns']) - 3} ta")
             report.append("")
         
+        report.append("✅ Saqlanganlar:")
+        report.append("  • Talabgorlar ism-familyasi (birinchi ustun)")
+        report.append("  • Barcha javob ustunlari (0/1 matritsasi)\n")
+        
         if metadata['warnings']:
             report.append("⚠️ Ogohlantirishlar:")
             for warning in metadata['warnings']:
@@ -260,16 +375,22 @@ class DataCleaner:
         """Generate a report for standardization-only operation"""
         report = []
         report.append("📋 Standartlashtirish hisoboti\n")
-        report.append(f"O'lcham: {metadata['final_shape'][0]} qator × {metadata['final_shape'][1]} ustun")
+        
+        final_shape = metadata['final_shape']
+        response_cols = final_shape[1] - 1 if final_shape[1] > 0 else 0
+        
+        report.append(f"O'lcham: {final_shape[0]} qator × {final_shape[1]} ustun")
         report.append(f"\n✅ Ustun nomlari standart shaklga keltirildi:")
-        report.append(f"   Savol_1, Savol_2, ... Savol_{metadata['final_shape'][1]}")
+        report.append(f"   • Talabgor (birinchi ustun - ism-familya)")
+        if response_cols > 0:
+            report.append(f"   • Savol_1, Savol_2, ... Savol_{response_cols}")
         
         if 'column_mapping' in metadata and len(metadata['column_mapping']) > 0:
             report.append(f"\n📝 Eski ustun nomlari:")
-            old_names = list(metadata['column_mapping'].values())
-            for i, old_name in enumerate(old_names[:5], 1):
-                report.append(f"   Savol_{i} ← {old_name}")
-            if len(old_names) > 5:
-                report.append(f"   ... va yana {len(old_names) - 5} ta ustun")
+            mapping_items = list(metadata['column_mapping'].items())
+            for new_name, old_name in mapping_items[:5]:
+                report.append(f"   {new_name} ← {old_name}")
+            if len(mapping_items) > 5:
+                report.append(f"   ... va yana {len(mapping_items) - 5} ta ustun")
         
         return "\n".join(report)
