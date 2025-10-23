@@ -248,11 +248,46 @@ async def handle_document(update: Update, context: ContextTypes.DEFAULT_TYPE):
         user_data = user_data_manager.get_user_data(user_id)
         section_questions = user_data.get('section_questions')
         
-        # Generate person results report
+        # Check if section results is enabled
+        user_data = user_data_manager.get_user_data(user_id)
+        section_results_enabled = user_data.get('section_results_enabled', False)
+        selected_subject = user_data.get('subject', '')
+        
+        # If section results is enabled and subject has sections, ask for configuration
+        if section_results_enabled and selected_subject and has_sections(selected_subject):
+            # Save results temporarily
+            context.user_data['pending_results'] = results
+            context.user_data['pending_general_pdf'] = general_pdf_path
+            
+            # Start section configuration
+            sections = get_sections(selected_subject)
+            context.user_data['configuring_sections'] = True
+            context.user_data['current_subject'] = selected_subject
+            context.user_data['sections_list'] = sections
+            context.user_data['current_section_index'] = 0
+            context.user_data['section_questions'] = {}
+            
+            await update.message.reply_text(
+                f"📋 *{selected_subject}* fani uchun bo'limlar bo'yicha savol raqamlarini kiritish:\n\n"
+                f"Jami {len(sections)} ta bo'lim mavjud.\n\n"
+                f"*1-bo'lim: {sections[0]}*\n\n"
+                f"Ushbu bo'limga tegishli savol raqamlarini kiriting.\n\n"
+                f"Formatlar:\n"
+                f"• Bitta raqam: 5\n"
+                f"• Vergul bilan ajratilgan: 1,2,3,4,5\n"
+                f"• Diapazon: 1-10\n"
+                f"• Aralash: 1-5,7,9,11-15\n\n"
+                f"Bo'limni o'tkazib yuborish uchun 'o'tkazib' deb yozing.",
+                parse_mode='Markdown',
+                reply_markup=get_main_keyboard()
+            )
+            return
+        
+        # If section results is disabled, generate normal report
         person_pdf_path = pdf_generator.generate_person_results_report(
             results,
             filename=f"talabgorlar_natijalari_{user_id}",
-            section_questions=section_questions
+            section_questions=None  # No sections
         )
         
         await update.message.reply_text(
@@ -567,12 +602,9 @@ async def handle_section_questions_input(update: Update, context: ContextTypes.D
         # Save to user data
         user_data_manager.update_user_field(user_id, 'section_questions', section_questions)
         
-        # Clear temporary data
-        context.user_data['configuring_sections'] = False
-        context.user_data['sections_list'] = None
-        context.user_data['current_section_index'] = 0
-        context.user_data['section_questions'] = {}
-        context.user_data['current_subject'] = None
+        # Get pending results if available
+        pending_results = context.user_data.get('pending_results')
+        pending_general_pdf = context.user_data.get('pending_general_pdf')
         
         # Show summary
         summary = f"✅ *{current_subject}* fani uchun bo'limlar konfiguratsiyasi tugallandi!\n\n"
@@ -589,6 +621,52 @@ async def handle_section_questions_input(update: Update, context: ContextTypes.D
             parse_mode='Markdown',
             reply_markup=get_main_keyboard()
         )
+        
+        # Generate person results with sections if we have pending results
+        if pending_results:
+            await update.message.reply_text("📊 Bo'limlar bo'yicha natijalar tayyorlanmoqda...")
+            
+            pdf_generator = PDFReportGenerator()
+            person_pdf_path = pdf_generator.generate_person_results_report(
+                pending_results,
+                filename=f"talabgorlar_natijalari_{user_id}",
+                section_questions=section_questions
+            )
+            
+            await update.message.reply_text(
+                f"✅ *Tahlil tugallandi!*\n\n"
+                f"📊 Ishtirokchilar soni: {pending_results['n_persons']}\n"
+                f"📝 Itemlar soni: {pending_results['n_items']}\n"
+                f"📈 Reliability: {pending_results['reliability']:.3f}\n\n"
+                f"PDF hisobotlar yuborilmoqda...",
+                parse_mode='Markdown'
+            )
+            
+            # Send general statistics PDF
+            if pending_general_pdf and os.path.exists(pending_general_pdf):
+                with open(pending_general_pdf, 'rb') as pdf_file:
+                    await update.message.reply_document(
+                        document=pdf_file,
+                        filename=os.path.basename(pending_general_pdf),
+                        caption="📊 Umumiy statistika va item parametrlari"
+                    )
+            
+            # Send person results PDF with sections
+            with open(person_pdf_path, 'rb') as pdf_file:
+                await update.message.reply_document(
+                    document=pdf_file,
+                    filename=os.path.basename(person_pdf_path),
+                    caption="👥 Talabgorlar natijalari - Bo'limlar bo'yicha (T-Score)"
+                )
+        
+        # Clear temporary data
+        context.user_data['configuring_sections'] = False
+        context.user_data['sections_list'] = None
+        context.user_data['current_section_index'] = 0
+        context.user_data['section_questions'] = {}
+        context.user_data['current_subject'] = None
+        context.user_data['pending_results'] = None
+        context.user_data['pending_general_pdf'] = None
     
     return True
 
