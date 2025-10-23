@@ -135,10 +135,15 @@ async def sample_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
             filename=f"namuna_umumiy_{user_id}"
         )
         
+        # Get section questions if configured
+        user_data = user_data_manager.get_user_data(user_id)
+        section_questions = user_data.get('section_questions')
+        
         # Generate person results report
         person_pdf_path = pdf_generator.generate_person_results_report(
             results,
-            filename=f"namuna_talabgorlar_{user_id}"
+            filename=f"namuna_talabgorlar_{user_id}",
+            section_questions=section_questions
         )
         
         await update.message.reply_text(
@@ -239,10 +244,15 @@ async def handle_document(update: Update, context: ContextTypes.DEFAULT_TYPE):
             filename=f"umumiy_statistika_{user_id}"
         )
         
+        # Get section questions if configured
+        user_data = user_data_manager.get_user_data(user_id)
+        section_questions = user_data.get('section_questions')
+        
         # Generate person results report
         person_pdf_path = pdf_generator.generate_person_results_report(
             results,
-            filename=f"talabgorlar_natijalari_{user_id}"
+            filename=f"talabgorlar_natijalari_{user_id}",
+            section_questions=section_questions
         )
         
         await update.message.reply_text(

@@ -44,7 +44,8 @@ class RaschAnalyzer:
             'n_persons': response_matrix.shape[0],
             'item_names': list(data.columns),
             'descriptive_stats': self._get_descriptive_stats(data),
-            'reliability': self._estimate_reliability(response_matrix, self.difficulty)
+            'reliability': self._estimate_reliability(response_matrix, self.difficulty),
+            'response_matrix': response_matrix  # Add for section-based analysis
         }
         
         return results

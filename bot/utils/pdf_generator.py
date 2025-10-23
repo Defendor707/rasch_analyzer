@@ -4,9 +4,10 @@ from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib.units import inch
 from reportlab.lib import colors
 from reportlab.lib.enums import TA_CENTER, TA_LEFT
-from typing import Dict, Any
+from typing import Dict, Any, List
 import os
 from datetime import datetime
+import numpy as np
 
 
 class PDFReportGenerator:
@@ -15,6 +16,80 @@ class PDFReportGenerator:
     def __init__(self, output_dir: str = "data/results"):
         self.output_dir = output_dir
         os.makedirs(output_dir, exist_ok=True)
+    
+    def _calculate_section_scores(self, results: Dict[str, Any], section_questions: Dict[str, List[int]]) -> Dict[str, List[Dict]]:
+        """
+        Calculate T-scores for each section based on question numbers
+        
+        Args:
+            results: Analysis results dictionary
+            section_questions: Dict mapping section names to question numbers (1-indexed)
+            
+        Returns:
+            Dict mapping section names to list of person scores
+        """
+        if not section_questions:
+            return {}
+        
+        # Get the original response data from results
+        # We need to reconstruct this from person statistics
+        person_stats = results.get('person_statistics', {})
+        individual_data = person_stats.get('individual', [])
+        
+        if not individual_data:
+            return {}
+        
+        n_persons = len(individual_data)
+        n_items = results.get('n_items', 0)
+        
+        # We need the raw response matrix, but it's not in results
+        # So we'll pass it separately through results
+        response_matrix = results.get('response_matrix')
+        if response_matrix is None:
+            return {}
+        
+        section_scores = {}
+        
+        for section_name, question_nums in section_questions.items():
+            if not question_nums:
+                continue
+            
+            # Convert 1-indexed to 0-indexed
+            question_indices = [q - 1 for q in question_nums if 0 < q <= n_items]
+            
+            if not question_indices:
+                continue
+            
+            # Calculate raw scores for this section for each person
+            person_section_data = []
+            for person_idx in range(n_persons):
+                section_responses = response_matrix[person_idx, question_indices]
+                raw_score = np.sum(section_responses)
+                person_section_data.append({
+                    'person_id': person_idx + 1,
+                    'raw_score': int(raw_score),
+                    'max_score': len(question_indices)
+                })
+            
+            # Calculate T-scores for this section
+            raw_scores = np.array([p['raw_score'] for p in person_section_data])
+            mean_score = np.mean(raw_scores)
+            sd_score = np.std(raw_scores)
+            
+            if sd_score > 0:
+                z_scores = (raw_scores - mean_score) / sd_score
+                t_scores = 50 + (z_scores * 10)
+            else:
+                # All same score, assign mean T-score
+                t_scores = np.full(n_persons, 50.0)
+            
+            # Add T-scores to person data
+            for i, person_data in enumerate(person_section_data):
+                person_data['t_score'] = float(t_scores[i])
+            
+            section_scores[section_name] = person_section_data
+        
+        return section_scores
 
     def generate_report(self, results: Dict[str, Any], filename: str = None) -> str:
         """
@@ -167,13 +242,14 @@ class PDFReportGenerator:
 
         return filepath
 
-    def generate_person_results_report(self, results: Dict[str, Any], filename: str = None) -> str:
+    def generate_person_results_report(self, results: Dict[str, Any], filename: str = None, section_questions: Dict[str, list] = None) -> str:
         """
         Generate separate PDF report for individual person results only
 
         Args:
             results: Dictionary containing analysis results
             filename: Optional filename (without extension)
+            section_questions: Optional dict mapping section names to question numbers
 
         Returns:
             Path to generated PDF file
@@ -241,10 +317,17 @@ class PDFReportGenerator:
         story.append(info_table)
         story.append(Spacer(1, 0.4 * inch))
 
+        # Calculate section scores if provided
+        section_scores = {}
+        if section_questions:
+            section_scores = self._calculate_section_scores(results, section_questions)
+        
         # Individual person statistics table
-        story.append(Paragraph("Talabgorlar Natijalari (T-Score bo'yicha tartiblangan)", heading_style))
+        if section_scores:
+            story.append(Paragraph("Talabgorlar Natijalari - Bo'limlar bo'yicha (T-Score bo'yicha tartiblangan)", heading_style))
+        else:
+            story.append(Paragraph("Talabgorlar Natijalari (T-Score bo'yicha tartiblangan)", heading_style))
 
-        import numpy as np
         person_stats = results.get('person_statistics', {})
         individual_data = person_stats.get('individual', [])
 
@@ -256,8 +339,28 @@ class PDFReportGenerator:
                 reverse=True
             )
 
-            # Create table header with rank and grade
-            person_table_data = [['Rank', 'Talabgor', 'Raw Score', 'Ability (θ)', 'T-Score', 'Foiz', 'Daraja']]
+            # Create table header dynamically based on whether we have sections
+            if section_scores:
+                # Create header with section columns
+                section_names = list(section_scores.keys())
+                header = ['Rank', 'Talabgor', 'Raw Score', 'T-Score Umumiy']
+                for section_name in section_names:
+                    # Truncate long section names
+                    short_name = section_name[:15] + '...' if len(section_name) > 15 else section_name
+                    header.append(f"{short_name}\n(T-Score)")
+                header.extend(['Foiz', 'Daraja'])
+                
+                person_table_data = [header]
+                
+                # Calculate column widths dynamically
+                n_sections = len(section_names)
+                base_width = 6.5 * inch  # Total available width
+                section_col_width = min(0.9*inch, (base_width - 3.5*inch) / (n_sections + 2))
+                col_widths = [0.4*inch, 0.9*inch, 0.7*inch, 0.8*inch] + [section_col_width] * n_sections + [0.6*inch, 0.5*inch]
+            else:
+                # Original header without sections
+                person_table_data = [['Rank', 'Talabgor', 'Raw Score', 'Ability (θ)', 'T-Score', 'Foiz', 'Daraja']]
+                col_widths = [0.6*inch, 1.1*inch, 0.9*inch, 0.9*inch, 0.9*inch, 0.8*inch, 0.7*inch]
 
             # Add data for each person with rank
             for rank, person in enumerate(individual_data_sorted, start=1):
@@ -291,43 +394,80 @@ class PDFReportGenerator:
                     percentage_str = "N/A"
                     grade = "N/A"
                 
-                person_table_data.append([
-                    str(rank),
-                    f"Talabgor {person['person_id']}",
-                    str(person['raw_score']),
-                    f"{person['ability']:.3f}" if not np.isnan(person['ability']) else "N/A",
-                    f"{person['t_score']:.1f}" if not np.isnan(person['t_score']) else "N/A",
-                    percentage_str,
-                    grade
-                ])
+                if section_scores:
+                    # Row with section T-scores
+                    row = [
+                        str(rank),
+                        f"Talabgor {person['person_id']}",
+                        str(person['raw_score']),
+                        f"{person['t_score']:.1f}" if not np.isnan(person['t_score']) else "N/A"
+                    ]
+                    
+                    # Add section T-scores for this person
+                    person_id = person['person_id']
+                    for section_name in section_names:
+                        section_data = section_scores[section_name]
+                        # Find this person's data in the section
+                        person_section = next((p for p in section_data if p['person_id'] == person_id), None)
+                        if person_section:
+                            row.append(f"{person_section['t_score']:.1f}")
+                        else:
+                            row.append("N/A")
+                    
+                    row.extend([percentage_str, grade])
+                else:
+                    # Original row format
+                    row = [
+                        str(rank),
+                        f"Talabgor {person['person_id']}",
+                        str(person['raw_score']),
+                        f"{person['ability']:.3f}" if not np.isnan(person['ability']) else "N/A",
+                        f"{person['t_score']:.1f}" if not np.isnan(person['t_score']) else "N/A",
+                        percentage_str,
+                        grade
+                    ]
+                
+                person_table_data.append(row)
 
-            person_table = Table(person_table_data, colWidths=[0.6*inch, 1.1*inch, 0.9*inch, 0.9*inch, 0.9*inch, 0.8*inch, 0.7*inch])
+            person_table = Table(person_table_data, colWidths=col_widths)
             person_table.setStyle(TableStyle([
                 ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#E74C3C')),
                 ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
                 ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
                 ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
-                ('FONTSIZE', (0, 0), (-1, 0), 10),
+                ('FONTSIZE', (0, 0), (-1, 0), 8),
                 ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
                 ('BACKGROUND', (0, 1), (-1, -1), colors.HexColor('#ECF0F1')),
                 ('GRID', (0, 0), (-1, -1), 0.5, colors.grey),
-                ('FONTSIZE', (0, 1), (-1, -1), 8),
+                ('FONTSIZE', (0, 1), (-1, -1), 7),
                 ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, colors.HexColor('#F8F9FA')])
             ]))
             story.append(person_table)
 
             # Add legend/explanation
             story.append(Spacer(1, 0.2 * inch))
-            legend_text = (
-                "<b>Tushuntirish:</b><br/>"
-                "• <b>Rank:</b> O'rin (T-Score bo'yicha tartiblangan, eng yuqoridan boshlab)<br/>"
-                "• <b>Talabgor:</b> Talabgor identifikatori<br/>"
-                "• <b>Raw Score:</b> To'g'ri javoblar soni<br/>"
-                "• <b>Ability (θ):</b> Qobiliyat darajasi (logit o'lchovi)<br/>"
-                "• <b>T-Score:</b> T-ball (o'rtacha=50, standart og'ish=10)<br/>"
-                "• <b>Foiz:</b> Natija foizda (T-Score/65 × 100)<br/>"
-                "• <b>Daraja:</b> UZBMB standarti (A+≥70, A≥65, B+≥60, B≥55, C+≥50, C≥46, NC&lt;46)"
-            )
+            if section_scores:
+                legend_text = (
+                    "<b>Tushuntirish:</b><br/>"
+                    "• <b>Rank:</b> O'rin (T-Score umumiy bo'yicha tartiblangan)<br/>"
+                    "• <b>Talabgor:</b> Talabgor identifikatori<br/>"
+                    "• <b>Raw Score:</b> Umumiy to'g'ri javoblar soni<br/>"
+                    "• <b>T-Score Umumiy:</b> Umumiy T-ball (o'rtacha=50, standart og'ish=10)<br/>"
+                    "• <b>Bo'lim T-Score:</b> Har bir bo'lim uchun T-ball<br/>"
+                    "• <b>Foiz:</b> Natija foizda (T-Score/65 × 100)<br/>"
+                    "• <b>Daraja:</b> UZBMB standarti (A+≥70, A≥65, B+≥60, B≥55, C+≥50, C≥46, NC&lt;46)"
+                )
+            else:
+                legend_text = (
+                    "<b>Tushuntirish:</b><br/>"
+                    "• <b>Rank:</b> O'rin (T-Score bo'yicha tartiblangan, eng yuqoridan boshlab)<br/>"
+                    "• <b>Talabgor:</b> Talabgor identifikatori<br/>"
+                    "• <b>Raw Score:</b> To'g'ri javoblar soni<br/>"
+                    "• <b>Ability (θ):</b> Qobiliyat darajasi (logit o'lchovi)<br/>"
+                    "• <b>T-Score:</b> T-ball (o'rtacha=50, standart og'ish=10)<br/>"
+                    "• <b>Foiz:</b> Natija foizda (T-Score/65 × 100)<br/>"
+                    "• <b>Daraja:</b> UZBMB standarti (A+≥70, A≥65, B+≥60, B≥55, C+≥50, C≥46, NC&lt;46)"
+                )
             story.append(Paragraph(legend_text, styles['Normal']))
 
         story.append(Spacer(1, 0.4 * inch))

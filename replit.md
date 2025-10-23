@@ -11,7 +11,14 @@ Telegram bot for performing Rasch model analysis on dichotomous test data. The b
 - **Reports:** ReportLab PDF generation
 
 ## Recent Changes
-- **October 23, 2025 (Latest)**: Added subject sections configuration feature
+- **October 23, 2025 (Latest)**: Implemented section-based T-score reporting in PDF
+  - Added section T-score calculation in PDF generator (_calculate_section_scores method)
+  - Modified PDF person results table to dynamically include section T-score columns
+  - Added response_matrix to Rasch analysis results for section-based calculations
+  - Integrated section_questions from user_data into PDF generation pipeline
+  - Dynamic column layout adjusts to variable number of sections
+  - Backward compatible: legacy format preserved when no sections configured
+- **October 23, 2025**: Added subject sections configuration feature
   - Created subject_sections.py with all 9 subjects and their sections
   - Added section question number collection when section_results is enabled
   - Implemented question number parsing with validation (supports ranges, comma-separated, mixed)
