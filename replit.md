@@ -11,7 +11,14 @@ Telegram bot for performing Rasch model analysis on dichotomous test data. The b
 - **Reports:** ReportLab PDF generation
 
 ## Recent Changes
-- **October 23, 2025 (Latest)**: Implemented section-based T-score reporting in PDF
+- **October 23, 2025 (Latest)**: Fixed critical bugs in PDF generation and `/namuna` command
+  - Fixed undefined variable error: `pending_general_pdf` → `general_pdf_path`
+  - Added proper null safety checks for Optional type parameters
+  - Fixed section results generation in `/namuna` command
+  - Added section-based PDF generation to sample data analysis
+  - Fixed indentation error in section results loop
+  - All type annotations now properly use Optional for nullable parameters
+- **October 23, 2025**: Implemented section-based T-score reporting in PDF
   - Added normalized section T-score calculation: Section T-scores sum to overall T-score
   - Formula: section_t = overall_t × (section_raw / sum_section_raw) when raw > 0
   - Equal distribution when all section raw scores are 0

@@ -138,12 +138,13 @@ async def sample_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         # Get section questions if configured
         user_data = user_data_manager.get_user_data(user_id)
         section_questions = user_data.get('section_questions')
+        section_results_enabled = user_data.get('section_results_enabled', False)
 
         # Generate person results report
         person_pdf_path = pdf_generator.generate_person_results_report(
             results,
             filename=f"namuna_talabgorlar_{user_id}",
-            section_questions=section_questions
+            section_questions=section_questions if section_results_enabled else None
         )
 
         await update.message.reply_text(
@@ -156,12 +157,13 @@ async def sample_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
 
         # Send general statistics PDF
-        with open(general_pdf_path, 'rb') as pdf_file:
-            await update.message.reply_document(
-                document=pdf_file,
-                filename=os.path.basename(general_pdf_path),
-                caption="📊 Namunaviy tahlil - Umumiy statistika"
-            )
+        if general_pdf_path and os.path.exists(general_pdf_path):
+            with open(general_pdf_path, 'rb') as pdf_file:
+                await update.message.reply_document(
+                    document=pdf_file,
+                    filename=os.path.basename(general_pdf_path),
+                    caption="📊 Namunaviy tahlil - Umumiy statistika"
+                )
 
         # Send person results PDF
         with open(person_pdf_path, 'rb') as pdf_file:
@@ -170,6 +172,21 @@ async def sample_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 filename=os.path.basename(person_pdf_path),
                 caption="👥 Namunaviy tahlil - Talabgorlar natijalari"
             )
+
+        # Generate and send section results if enabled and configured
+        if section_results_enabled and section_questions:
+            section_pdf_path = pdf_generator.generate_section_results_report(
+                results,
+                filename=f"namuna_bulimlar_{user_id}",
+                section_questions=section_questions
+            )
+
+            with open(section_pdf_path, 'rb') as pdf_file:
+                await update.message.reply_document(
+                    document=pdf_file,
+                    filename=os.path.basename(section_pdf_path),
+                    caption="📋 Namunaviy tahlil - Bo'limlar bo'yicha natijalar"
+                )
 
         logger.info(f"Sample analysis completed for user {user_id}")
 
