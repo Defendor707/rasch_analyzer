@@ -7,6 +7,7 @@ from bot.utils.pdf_generator import PDFReportGenerator
 from bot.utils.user_data import UserDataManager
 from bot.utils.student_data import StudentDataManager
 from bot.utils.subject_sections import get_sections, has_sections
+from bot.utils.data_cleaner import DataCleaner
 import logging
 
 logger = logging.getLogger(__name__)
@@ -232,18 +233,24 @@ async def handle_document(update: Update, context: ContextTypes.DEFAULT_TYPE):
         else:
             data = pd.read_excel(file_path)
 
-        numeric_data = data.select_dtypes(include=['number'])
-        if numeric_data.empty:
-            numeric_data = data.iloc[:, :].apply(pd.to_numeric, errors='coerce')
-
-        numeric_data = numeric_data.fillna(0)
-
+        # Use DataCleaner to automatically clean the data
+        await update.message.reply_text("🧹 Fayl tozalanmoqda va tayyorlanmoqda...")
+        
+        cleaner = DataCleaner()
+        numeric_data, cleaning_metadata = cleaner.clean_data(data)
+        
+        # Send cleaning report to user
+        cleaning_report = cleaner.get_cleaning_report(cleaning_metadata)
+        await update.message.reply_text(cleaning_report, parse_mode='Markdown')
+        
+        # Additional validation
         if not all(numeric_data.isin([0, 1]).all()):
             await update.message.reply_text(
-                "⚠️ Ogohlantirish: Ma'lumotlar 0 va 1 dan boshqa qiymatlarni o'z ichiga oladi.\n"
-                "Rasch modeli uchun faqat dikotomik ma'lumotlar (0/1) talab qilinadi.\n"
-                "Davom etmoqdamiz, lekin natijalar noto'g'ri bo'lishi mumkin."
+                "⚠️ Ogohlantirish: Ba'zi qiymatlar 0 va 1 dan farq qiladi.\n"
+                "Ular eng yaqin qiymatga yaxlitlanadi."
             )
+            # Round to nearest integer and clip to 0-1
+            numeric_data = numeric_data.round().clip(0, 1)
 
         # Convert to integer type for girth library
         numeric_data = numeric_data.astype(int)
