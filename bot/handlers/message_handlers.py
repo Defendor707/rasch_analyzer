@@ -319,28 +319,8 @@ async def handle_document(update: Update, context: ContextTypes.DEFAULT_TYPE):
         else:
             data = pd.read_excel(file_path)
 
-        # In normal mode, use data as-is (no auto-cleaning)
+        # Normal mode: use data as-is, no automatic cleaning/fixing
         numeric_data = data
-        
-        # Validate that data is numeric and binary
-        if not all(numeric_data.apply(pd.to_numeric, errors='coerce').notna().all()):
-            await update.message.reply_text(
-                "⚠️ Ogohlantirish: Faylda raqamiy bo'lmagan ma'lumotlar bor.\n"
-                "Ular 0 ga aylantiriladi."
-            )
-            numeric_data = numeric_data.apply(pd.to_numeric, errors='coerce').fillna(0)
-        
-        # Additional validation
-        if not all(numeric_data.isin([0, 1]).all()):
-            await update.message.reply_text(
-                "⚠️ Ogohlantirish: Ba'zi qiymatlar 0 va 1 dan farq qiladi.\n"
-                "Ular eng yaqin qiymatga yaxlitlanadi."
-            )
-            # Round to nearest integer and clip to 0-1
-            numeric_data = numeric_data.round().clip(0, 1)
-
-        # Convert to integer type for girth library
-        numeric_data = numeric_data.astype(int)
 
         analyzer = RaschAnalyzer()
         results = analyzer.fit(numeric_data)
@@ -443,16 +423,32 @@ async def handle_document(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     except pd.errors.EmptyDataError:
         await update.message.reply_text(
-            "❌ Fayl bo'sh yoki noto'g'ri formatda!\n"
+            "❌ Fayl bo'sh yoki noto'g'ri formatda!\n\n"
             "Iltimos, to'g'ri ma'lumotlar bilan qayta urinib ko'ring."
         )
     except Exception as e:
         logger.error(f"Error processing file for user {user_id}: {str(e)}")
-        await update.message.reply_text(
-            f"❌ Xatolik yuz berdi: {str(e)}\n\n"
-            "Iltimos, faylingizni tekshiring va qayta urinib ko'ring.\n"
-            "Yordam kerak bo'lsa, /help buyrug'ini yuboring."
-        )
+        error_message = str(e).lower()
+        
+        # Check if error is related to data format issues
+        if any(keyword in error_message for keyword in ['string', 'text', 'object', 'cannot convert', 'invalid literal']):
+            await update.message.reply_text(
+                f"❌ Ma'lumot formati noto'g'ri!\n\n"
+                f"Sabab: Faylda matn yoki noto'g'ri formatdagi ma'lumotlar mavjud.\n\n"
+                f"💡 Yechim:\n"
+                f"1. 'Boshqa' menyusidan 'File Analyzer' ni tanlang\n"
+                f"2. 'To'liq tozalash' yoki 'Faqat standartlashtirish' ni tanlang\n"
+                f"3. Faylni qayta yuboring\n\n"
+                f"File Analyzer faylingizni tahlil uchun tayyorlaydi."
+            )
+        else:
+            await update.message.reply_text(
+                f"❌ Xatolik yuz berdi: {str(e)}\n\n"
+                f"Iltimos, faylingizni tekshiring va qayta urinib ko'ring.\n\n"
+                f"💡 Agar faylda ortiqcha ustunlar yoki qatorlar bo'lsa,\n"
+                f"'Boshqa' → 'File Analyzer' orqali faylni tozalang.\n\n"
+                f"Yordam: /help"
+            )
 
 
 async def handle_profile(update: Update, context: ContextTypes.DEFAULT_TYPE):

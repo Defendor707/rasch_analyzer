@@ -11,7 +11,13 @@ Telegram bot for performing Rasch model analysis on dichotomous test data. The b
 - **Reports:** ReportLab PDF generation
 
 ## Recent Changes
-- **October 23, 2025 (Latest)**: Separated file standardization from cleaning functionality
+- **October 23, 2025 (Latest)**: Removed automatic data fixing from normal analysis mode
+  - Normal mode now passes data as-is to RaschAnalyzer without any automatic conversion/fixing
+  - No automatic conversion to numeric, no fillna, no rounding
+  - Enhanced error handling to detect data format issues
+  - Clear error messages guide users to File Analyzer when data needs cleaning
+  - Maintains strict separation: File Analyzer for cleaning, Normal mode for pure analysis
+- **October 23, 2025**: Separated file standardization from cleaning functionality
   - Added standalone `standardize_data()` method in DataCleaner class
   - Created `get_standardization_report()` for standardization-only reporting
   - File Analyzer now offers two options via inline keyboard:
