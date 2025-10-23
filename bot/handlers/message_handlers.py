@@ -627,9 +627,18 @@ async def handle_section_questions_input(update: Update, context: ContextTypes.D
             await update.message.reply_text("📊 Bo'limlar bo'yicha natijalar tayyorlanmoqda...")
             
             pdf_generator = PDFReportGenerator()
+            
+            # Generate general person results (without sections)
             person_pdf_path = pdf_generator.generate_person_results_report(
                 pending_results,
                 filename=f"talabgorlar_natijalari_{user_id}",
+                section_questions=None
+            )
+            
+            # Generate section results in separate PDF
+            section_pdf_path = pdf_generator.generate_section_results_report(
+                pending_results,
+                filename=f"bulimlar_natijalari_{user_id}",
                 section_questions=section_questions
             )
             
@@ -651,12 +660,20 @@ async def handle_section_questions_input(update: Update, context: ContextTypes.D
                         caption="📊 Umumiy statistika va item parametrlari"
                     )
             
-            # Send person results PDF with sections
+            # Send general person results PDF
             with open(person_pdf_path, 'rb') as pdf_file:
                 await update.message.reply_document(
                     document=pdf_file,
                     filename=os.path.basename(person_pdf_path),
-                    caption="👥 Talabgorlar natijalari - Bo'limlar bo'yicha (T-Score)"
+                    caption="👥 Talabgorlar natijalari (Umumiy)"
+                )
+            
+            # Send section results PDF
+            with open(section_pdf_path, 'rb') as pdf_file:
+                await update.message.reply_document(
+                    document=pdf_file,
+                    filename=os.path.basename(section_pdf_path),
+                    caption="📋 Bo'limlar bo'yicha natijalar (T-Score)"
                 )
         
         # Clear temporary data

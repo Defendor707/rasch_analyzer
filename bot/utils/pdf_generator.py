@@ -447,6 +447,216 @@ class PDFReportGenerator:
                 ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
                 ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
                 ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+
+
+    def generate_section_results_report(self, results: Dict[str, Any], filename: str = None, section_questions: Dict[str, list] = None) -> str:
+        """
+        Generate separate PDF report for section-based results only
+
+        Args:
+            results: Dictionary containing analysis results
+            filename: Optional filename (without extension)
+            section_questions: Dict mapping section names to question numbers
+
+        Returns:
+            Path to generated PDF file
+        """
+        if filename is None:
+            filename = f"section_results_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
+
+        if not filename.endswith('.pdf'):
+            filename = filename + '.pdf'
+
+        filepath = os.path.join(self.output_dir, filename)
+
+        doc = SimpleDocTemplate(
+            filepath,
+            pagesize=A4,
+            rightMargin=72,
+            leftMargin=72,
+            topMargin=72,
+            bottomMargin=18,
+        )
+
+        story = []
+
+        styles = getSampleStyleSheet()
+        title_style = ParagraphStyle(
+            'CustomTitle',
+            parent=styles['Heading1'],
+            fontSize=24,
+            textColor=colors.HexColor('#2C3E50'),
+            spaceAfter=30,
+            alignment=TA_CENTER
+        )
+
+        heading_style = ParagraphStyle(
+            'CustomHeading',
+            parent=styles['Heading2'],
+            fontSize=14,
+            textColor=colors.HexColor('#34495E'),
+            spaceAfter=12,
+            spaceBefore=12
+        )
+
+        story.append(Paragraph("Bo'limlar bo'yicha natijalar", title_style))
+        story.append(Spacer(1, 0.2 * inch))
+
+        story.append(Paragraph(f"Yaratilgan: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}", styles['Normal']))
+        story.append(Spacer(1, 0.3 * inch))
+
+        # Add person count info
+        story.append(Paragraph("Ma'lumotlar", heading_style))
+        info_data = [
+            ["Talabgorlar soni:", str(results['n_persons'])],
+            ["Savollar soni:", str(results['n_items'])]
+        ]
+        info_table = Table(info_data, colWidths=[3*inch, 2*inch])
+        info_table.setStyle(TableStyle([
+            ('BACKGROUND', (0, 0), (0, -1), colors.HexColor('#ECF0F1')),
+            ('TEXTCOLOR', (0, 0), (-1, -1), colors.HexColor('#2C3E50')),
+            ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
+            ('FONTNAME', (0, 0), (0, -1), 'Helvetica-Bold'),
+            ('FONTSIZE', (0, 0), (-1, -1), 10),
+            ('BOTTOMPADDING', (0, 0), (-1, -1), 12),
+            ('GRID', (0, 0), (-1, -1), 0.5, colors.grey)
+        ]))
+        story.append(info_table)
+        story.append(Spacer(1, 0.4 * inch))
+
+        # Calculate section scores
+        section_scores = {}
+        if section_questions:
+            section_scores = self._calculate_section_scores(results, section_questions)
+        
+        if not section_scores:
+            story.append(Paragraph("Bo'limlar ma'lumotlari topilmadi.", styles['Normal']))
+        else:
+            story.append(Paragraph("Bo'limlar bo'yicha natijalar (T-Score bo'yicha tartiblangan)", heading_style))
+
+            person_stats = results.get('person_statistics', {})
+            individual_data = person_stats.get('individual', [])
+
+            if individual_data:
+                # Sort by overall T-Score in descending order
+                individual_data_sorted = sorted(
+                    individual_data,
+                    key=lambda x: x['t_score'] if not np.isnan(x['t_score']) else -999,
+                    reverse=True
+                )
+
+                # Create header with section columns
+                section_names = list(section_scores.keys())
+                header = ['Rank', 'Talabgor', 'T-Score Umumiy']
+                for section_name in section_names:
+                    # Truncate long section names
+                    short_name = section_name[:20] + '...' if len(section_name) > 20 else section_name
+                    header.append(f"{short_name}\n(T-Score)")
+                
+                person_table_data = [header]
+                
+                # Calculate column widths dynamically
+                n_sections = len(section_names)
+                base_width = 6.5 * inch  # Total available width
+                section_col_width = min(1.2*inch, (base_width - 2.5*inch) / n_sections)
+                col_widths = [0.5*inch, 1.0*inch, 1.0*inch] + [section_col_width] * n_sections
+
+                # Add data for each person
+                for rank, person in enumerate(individual_data_sorted, start=1):
+                    row = [
+                        str(rank),
+                        f"Talabgor {person['person_id']}",
+                        f"{person['t_score']:.1f}" if not np.isnan(person['t_score']) else "N/A"
+                    ]
+                    
+                    # Add section T-scores for this person
+                    person_id = person['person_id']
+                    for section_name in section_names:
+                        section_data = section_scores[section_name]
+                        # Find this person's data in the section
+                        person_section = next((p for p in section_data if p['person_id'] == person_id), None)
+                        if person_section:
+                            row.append(f"{person_section['t_score']:.1f}")
+                        else:
+                            row.append("N/A")
+                    
+                    person_table_data.append(row)
+
+                person_table = Table(person_table_data, colWidths=col_widths)
+                person_table.setStyle(TableStyle([
+                    ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#3498DB')),
+                    ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+                    ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+                    ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+                    ('FONTSIZE', (0, 0), (-1, 0), 8),
+                    ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
+                    ('BACKGROUND', (0, 1), (-1, -1), colors.HexColor('#ECF0F1')),
+                    ('GRID', (0, 0), (-1, -1), 0.5, colors.grey),
+                    ('FONTSIZE', (0, 1), (-1, -1), 7),
+                    ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, colors.HexColor('#F8F9FA')])
+                ]))
+                story.append(person_table)
+
+                # Add section information summary
+                story.append(Spacer(1, 0.3 * inch))
+                story.append(Paragraph("Bo'limlar ma'lumotlari", heading_style))
+                
+                section_info_data = [['Bo\'lim', 'Savol raqamlari', 'Savollar soni']]
+                for section_name, question_nums in section_questions.items():
+                    if question_nums:
+                        formatted_questions = format_question_list(question_nums)
+                        section_info_data.append([
+                            section_name,
+                            formatted_questions,
+                            str(len(question_nums))
+                        ])
+                
+                section_info_table = Table(section_info_data, colWidths=[2.5*inch, 2.5*inch, 1.0*inch])
+                section_info_table.setStyle(TableStyle([
+                    ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#2ECC71')),
+                    ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+                    ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
+                    ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+                    ('FONTSIZE', (0, 0), (-1, 0), 9),
+                    ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
+                    ('BACKGROUND', (0, 1), (-1, -1), colors.HexColor('#ECF0F1')),
+                    ('GRID', (0, 0), (-1, -1), 0.5, colors.grey),
+                    ('FONTSIZE', (0, 1), (-1, -1), 8),
+                    ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, colors.HexColor('#F8F9FA')])
+                ]))
+                story.append(section_info_table)
+
+                # Add legend/explanation
+                story.append(Spacer(1, 0.2 * inch))
+                legend_text = (
+                    "<b>Tushuntirish:</b><br/>"
+                    "• <b>Rank:</b> O'rin (Umumiy T-Score bo'yicha tartiblangan)<br/>"
+                    "• <b>Talabgor:</b> Talabgor identifikatori<br/>"
+                    "• <b>T-Score Umumiy:</b> Umumiy T-ball (o'rtacha=50, standart og'ish=10)<br/>"
+                    "• <b>Bo'lim T-Score:</b> Har bir bo'lim uchun T-ball<br/>"
+                    "• Bo'lim T-balllari yig'indisi umumiy T-ballga teng<br/>"
+                    "• T-ball formulasi: section_t = overall_t × (section_raw / sum_section_raw)"
+                )
+                story.append(Paragraph(legend_text, styles['Normal']))
+
+        story.append(Spacer(1, 0.4 * inch))
+
+        footer_style = ParagraphStyle(
+            'Footer',
+            parent=styles['Normal'],
+            fontSize=8,
+            textColor=colors.grey,
+            alignment=TA_CENTER
+        )
+        story.append(Paragraph(
+            "Rasch Model Tahlili - Bo'limlar bo'yicha natijalar",
+            footer_style
+        ))
+
+        doc.build(story)
+
+        return filepath
+
                 ('FONTSIZE', (0, 0), (-1, 0), 8),
                 ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
                 ('BACKGROUND', (0, 1), (-1, -1), colors.HexColor('#ECF0F1')),
