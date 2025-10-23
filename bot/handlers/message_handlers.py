@@ -38,22 +38,22 @@ async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Send welcome message when the command /start is issued"""
     user_id = update.effective_user.id
     user_data = user_data_manager.get_user_data(user_id)
-    
+
     full_name = user_data.get('full_name')
     if not full_name:
         full_name = update.effective_user.first_name or "foydalanuvchi"
-    
+
     welcome_message = (
         f"👋 Assalomu alaykum, {full_name}!\n\n"
         "🎓 Rasch analiyzer botga xush kelibsiz!\n\n"
         "📝 Matritsani yuboring yoki /namuna buyrug'i bilan namuna tahlilni ko'ring\n\n"
         "/help commandasini yuborib foydalanish yo'riqnomasi bilan tanishing."
     )
-    
+
     file_info_message = (
         "📊 Excel (.xls, .xlsx, .csv) faylni yuborishingiz mumkin!"
     )
-    
+
     await update.message.reply_text(welcome_message, reply_markup=get_main_keyboard())
     await update.message.reply_text(file_info_message)
 
@@ -88,26 +88,26 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def sample_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Generate and analyze sample data with 50 persons and 55 items"""
     user_id = update.effective_user.id
-    
+
     await update.message.reply_text(
         "🔬 Namunaviy ma'lumotlar yaratilmoqda...\n"
         "📊 50 talabgor va 55 savol"
     )
-    
+
     try:
         import numpy as np
-        
+
         # Generate sample data: 50 persons × 55 items
         np.random.seed(42)  # For reproducibility
         n_persons = 50
         n_items = 55
-        
+
         # Generate abilities for persons (mean=0, sd=1)
         person_abilities = np.random.normal(0, 1, n_persons)
-        
+
         # Generate item difficulties (mean=0, sd=1.2)
         item_difficulties = np.random.normal(0, 1.2, n_items)
-        
+
         # Generate responses using Rasch model
         sample_data = np.zeros((n_persons, n_items))
         for i in range(n_persons):
@@ -116,36 +116,36 @@ async def sample_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 prob = 1 / (1 + np.exp(-(person_abilities[i] - item_difficulties[j])))
                 # Generate response
                 sample_data[i, j] = 1 if np.random.random() < prob else 0
-        
+
         # Create DataFrame with item names
         item_names = [f"Savol_{i+1}" for i in range(n_items)]
         data = pd.DataFrame(sample_data, columns=item_names)
-        
+
         await update.message.reply_text("⏳ Tahlil boshlanmoqda...")
-        
+
         # Perform Rasch analysis
         analyzer = RaschAnalyzer()
         results = analyzer.fit(data.astype(int))
-        
+
         pdf_generator = PDFReportGenerator()
-        
+
         # Generate general statistics report
         general_pdf_path = pdf_generator.generate_report(
             results,
             filename=f"namuna_umumiy_{user_id}"
         )
-        
+
         # Get section questions if configured
         user_data = user_data_manager.get_user_data(user_id)
         section_questions = user_data.get('section_questions')
-        
+
         # Generate person results report
         person_pdf_path = pdf_generator.generate_person_results_report(
             results,
             filename=f"namuna_talabgorlar_{user_id}",
             section_questions=section_questions
         )
-        
+
         await update.message.reply_text(
             f"✅ *Namunaviy tahlil tugallandi!*\n\n"
             f"📊 Talabgorlar: {results['n_persons']}\n"
@@ -154,7 +154,7 @@ async def sample_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
             f"PDF hisobotlar yuborilmoqda...",
             parse_mode='Markdown'
         )
-        
+
         # Send general statistics PDF
         with open(general_pdf_path, 'rb') as pdf_file:
             await update.message.reply_document(
@@ -162,7 +162,7 @@ async def sample_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 filename=os.path.basename(general_pdf_path),
                 caption="📊 Namunaviy tahlil - Umumiy statistika"
             )
-        
+
         # Send person results PDF
         with open(person_pdf_path, 'rb') as pdf_file:
             await update.message.reply_document(
@@ -170,9 +170,9 @@ async def sample_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 filename=os.path.basename(person_pdf_path),
                 caption="👥 Namunaviy tahlil - Talabgorlar natijalari"
             )
-        
+
         logger.info(f"Sample analysis completed for user {user_id}")
-        
+
     except Exception as e:
         import traceback
         logger.error(f"Error in sample analysis for user {user_id}: {str(e)}")
@@ -187,7 +187,7 @@ async def handle_document(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Handle uploaded document files"""
     document = update.message.document
     user_id = update.effective_user.id
-    
+
     file_extension = os.path.splitext(document.file_name)[1].lower()
     if file_extension not in ['.csv', '.xlsx', '.xls']:
         await update.message.reply_text(
@@ -195,18 +195,18 @@ async def handle_document(update: Update, context: ContextTypes.DEFAULT_TYPE):
             "Iltimos, CSV (.csv) yoki Excel (.xlsx, .xls) formatdagi fayl yuboring."
         )
         return
-    
+
     await update.message.reply_text("⏳ Fayl qabul qilindi. Tahlil boshlanmoqda...")
-    
+
     try:
         file = await context.bot.get_file(document.file_id)
-        
+
         upload_dir = "data/uploads"
         os.makedirs(upload_dir, exist_ok=True)
-        
+
         file_path = os.path.join(upload_dir, f"{user_id}_{document.file_name}")
         await file.download_to_drive(file_path)
-        
+
         if file_extension == '.csv':
             try:
                 data = pd.read_csv(file_path)
@@ -214,51 +214,49 @@ async def handle_document(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 data = pd.read_csv(file_path, encoding='latin-1')
         else:
             data = pd.read_excel(file_path)
-        
+
         numeric_data = data.select_dtypes(include=['number'])
         if numeric_data.empty:
             numeric_data = data.iloc[:, :].apply(pd.to_numeric, errors='coerce')
-        
+
         numeric_data = numeric_data.fillna(0)
-        
+
         if not all(numeric_data.isin([0, 1]).all()):
             await update.message.reply_text(
                 "⚠️ Ogohlantirish: Ma'lumotlar 0 va 1 dan boshqa qiymatlarni o'z ichiga oladi.\n"
                 "Rasch modeli uchun faqat dikotomik ma'lumotlar (0/1) talab qilinadi.\n"
                 "Davom etmoqdamiz, lekin natijalar noto'g'ri bo'lishi mumkin."
             )
-        
+
         # Convert to integer type for girth library
         numeric_data = numeric_data.astype(int)
-        
+
         analyzer = RaschAnalyzer()
         results = analyzer.fit(numeric_data)
-        
+
         summary_text = analyzer.get_summary(results)
-        
+
         pdf_generator = PDFReportGenerator()
-        
+
         # Generate general statistics report
         general_pdf_path = pdf_generator.generate_report(
             results,
             filename=f"umumiy_statistika_{user_id}"
         )
-        
+
         # Get section questions if configured
         user_data = user_data_manager.get_user_data(user_id)
         section_questions = user_data.get('section_questions')
-        
-        # Check if section results is enabled
-        user_data = user_data_manager.get_user_data(user_id)
-        section_results_enabled = user_data.get('section_results_enabled', False)
         selected_subject = user_data.get('subject', '')
-        
-        # If section results is enabled and subject has sections, ask for configuration
-        if section_results_enabled and selected_subject and has_sections(selected_subject):
-            # Save results temporarily
+
+        # Check if section results is enabled and section_questions are configured
+        section_results_enabled = user_data.get('section_results_enabled', False)
+
+        if section_results_enabled and not section_questions and selected_subject and has_sections(selected_subject):
+            # Store results temporarily
             context.user_data['pending_results'] = results
             context.user_data['pending_general_pdf'] = general_pdf_path
-            
+
             # Start section configuration
             sections = get_sections(selected_subject)
             context.user_data['configuring_sections'] = True
@@ -266,7 +264,7 @@ async def handle_document(update: Update, context: ContextTypes.DEFAULT_TYPE):
             context.user_data['sections_list'] = sections
             context.user_data['current_section_index'] = 0
             context.user_data['section_questions'] = {}
-            
+
             await update.message.reply_text(
                 f"📋 *{selected_subject}* fani uchun bo'limlar bo'yicha savol raqamlarini kiritish:\n\n"
                 f"Jami {len(sections)} ta bo'lim mavjud.\n\n"
@@ -282,43 +280,56 @@ async def handle_document(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 reply_markup=get_main_keyboard()
             )
             return
-        
-        # If section results is disabled, generate normal report
+
+        # Generate person results report
         person_pdf_path = pdf_generator.generate_person_results_report(
             results,
             filename=f"talabgorlar_natijalari_{user_id}",
-            section_questions=None  # No sections
+            section_questions=section_questions if section_results_enabled else None
         )
-        
-        await update.message.reply_text(
-            f"✅ *Tahlil tugallandi!*\n\n"
-            f"📊 Ishtirokchilar soni: {results['n_persons']}\n"
-            f"📝 Itemlar soni: {results['n_items']}\n"
-            f"📈 Reliability: {results['reliability']:.3f}\n\n"
-            f"Ikkita PDF hisobot yuborilmoqda...",
-            parse_mode='Markdown'
-        )
-        
+
         # Send general statistics PDF
-        with open(general_pdf_path, 'rb') as pdf_file:
-            await update.message.reply_document(
-                document=pdf_file,
-                filename=os.path.basename(general_pdf_path),
-                caption="📊 Umumiy statistika va item parametrlari"
-            )
-        
+        if pending_general_pdf and os.path.exists(pending_general_pdf):
+            with open(pending_general_pdf, 'rb') as pdf_file:
+                await update.message.reply_document(
+                    document=pdf_file,
+                    filename=os.path.basename(pending_general_pdf),
+                    caption="📊 Umumiy statistika va item parametrlari"
+                )
+
         # Send person results PDF
         with open(person_pdf_path, 'rb') as pdf_file:
             await update.message.reply_document(
                 document=pdf_file,
                 filename=os.path.basename(person_pdf_path),
-                caption="👥 Talabgorlar natijalari (T-Score bo'yicha tartiblangan)"
+                caption="👥 Talabgorlar natijalari (Umumiy)"
             )
-        
+
+        # Generate and send section results if enabled and configured
+        if section_results_enabled and section_questions:
+            section_pdf_path = pdf_generator.generate_section_results_report(
+                results,
+                filename=f"bulimlar_natijalari_{user_id}",
+                section_questions=section_questions
+            )
+
+            with open(section_pdf_path, 'rb') as pdf_file:
+                await update.message.reply_document(
+                    document=pdf_file,
+                    filename=os.path.basename(section_pdf_path),
+                    caption="📋 Bo'limlar bo'yicha natijalar (T-Score)"
+                )
+
+        await update.message.reply_text(
+            "✅ Barcha hisobotlar yuborildi!",
+            parse_mode='Markdown',
+            reply_markup=get_main_keyboard()
+        )
+
         os.remove(file_path)
-        
+
         logger.info(f"Successfully processed file for user {user_id}")
-        
+
     except pd.errors.EmptyDataError:
         await update.message.reply_text(
             "❌ Fayl bo'sh yoki noto'g'ri formatda!\n"
@@ -337,7 +348,7 @@ async def handle_profile(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Handle Profile button"""
     user = update.effective_user
     user_data = user_data_manager.get_user_data(user.id)
-    
+
     # Display profile information
     profile_text = (
         f"👤 *Profil ma'lumotlari*\n\n"
@@ -347,14 +358,14 @@ async def handle_profile(update: Update, context: ContextTypes.DEFAULT_TYPE):
         f"*Telegram:* @{user.username or 'N/A'}\n"
         f"*ID:* {user.id}"
     )
-    
+
     # Inline keyboard for editing
     keyboard = [
         [InlineKeyboardButton("✏️ Ism va Familiyani o'zgartirish", callback_data='edit_full_name')],
         [InlineKeyboardButton("✏️ Bio qo'shish/o'zgartirish", callback_data='edit_bio')]
     ]
     reply_markup = InlineKeyboardMarkup(keyboard)
-    
+
     await update.message.reply_text(
         profile_text,
         parse_mode='Markdown',
@@ -367,27 +378,28 @@ async def handle_callback_query(update: Update, context: ContextTypes.DEFAULT_TY
     """Handle inline keyboard button callbacks"""
     query = update.callback_query
     await query.answer()
-    
+
     user_id = update.effective_user.id
-    
+
     if query.data == 'edit_full_name':
         context.user_data['editing'] = WAITING_FOR_FULL_NAME
         await query.message.reply_text(
             "✏️ Ism va familiyangizni kiriting (masalan: Akmal Rahimov):",
             reply_markup=get_main_keyboard()
         )
-    
+
     elif query.data == 'edit_bio':
         context.user_data['editing'] = WAITING_FOR_BIO
         await query.message.reply_text(
             "✏️ O'zingiz haqida qisqacha ma'lumot kiriting:",
             reply_markup=get_main_keyboard()
         )
-    
+
     # Handle section results toggle
     elif query.data == 'section_results_on':
         user_data_manager.update_user_field(user_id, 'section_results_enabled', True)
-        
+        user_data_manager.update_user_field(user_id, 'section_questions', {}) # Clear existing questions
+
         section_text = (
             f"📊 *Fan bo'limlari bo'yicha natijalash*\n\n"
             f"Hozirgi holat: ✅ *Yoqilgan*\n\n"
@@ -397,7 +409,7 @@ async def handle_callback_query(update: Update, context: ContextTypes.DEFAULT_TY
             f"• Talabgorlar yutuqlari tahlili\n\n"
             f"Funksiyani yoqish yoki o'chirish uchun quyidagi tugmalardan birini tanlang:"
         )
-        
+
         keyboard = [
             [
                 InlineKeyboardButton("✔️ Yoqilgan", callback_data='section_results_on'),
@@ -405,17 +417,18 @@ async def handle_callback_query(update: Update, context: ContextTypes.DEFAULT_TY
             ]
         ]
         reply_markup = InlineKeyboardMarkup(keyboard)
-        
+
         await query.edit_message_text(
             section_text,
             parse_mode='Markdown',
             reply_markup=reply_markup
         )
         await query.answer("✅ Fan bo'limlari bo'yicha natijalash yoqildi!")
-    
+
     elif query.data == 'section_results_off':
         user_data_manager.update_user_field(user_id, 'section_results_enabled', False)
-        
+        user_data_manager.update_user_field(user_id, 'section_questions', {}) # Clear existing questions
+
         section_text = (
             f"📊 *Fan bo'limlari bo'yicha natijalash*\n\n"
             f"Hozirgi holat: ❌ *O'chirilgan*\n\n"
@@ -425,7 +438,7 @@ async def handle_callback_query(update: Update, context: ContextTypes.DEFAULT_TY
             f"• Talabgorlar yutuqlari tahlili\n\n"
             f"Funksiyani yoqish yoki o'chirish uchun quyidagi tugmalardan birini tanlang:"
         )
-        
+
         keyboard = [
             [
                 InlineKeyboardButton("✅ Yoqish", callback_data='section_results_on'),
@@ -433,18 +446,18 @@ async def handle_callback_query(update: Update, context: ContextTypes.DEFAULT_TY
             ]
         ]
         reply_markup = InlineKeyboardMarkup(keyboard)
-        
+
         await query.edit_message_text(
             section_text,
             parse_mode='Markdown',
             reply_markup=reply_markup
         )
         await query.answer("❌ Fan bo'limlari bo'yicha natijalash o'chirildi!")
-    
+
     # Handle writing task toggle
     elif query.data == 'writing_task_on':
         user_data_manager.update_user_field(user_id, 'writing_task_enabled', True)
-        
+
         writing_text = (
             f"✍️ *Yozma ish funksiyasi*\n\n"
             f"Hozirgi holat: ✅ *Yoqilgan*\n\n"
@@ -454,7 +467,7 @@ async def handle_callback_query(update: Update, context: ContextTypes.DEFAULT_TY
             f"• Tahlil va statistika\n\n"
             f"Funksiyani yoqish yoki o'chirish uchun quyidagi tugmalardan birini tanlang:"
         )
-        
+
         keyboard = [
             [
                 InlineKeyboardButton("✔️ Yoqilgan", callback_data='writing_task_on'),
@@ -462,17 +475,17 @@ async def handle_callback_query(update: Update, context: ContextTypes.DEFAULT_TY
             ]
         ]
         reply_markup = InlineKeyboardMarkup(keyboard)
-        
+
         await query.edit_message_text(
             writing_text,
             parse_mode='Markdown',
             reply_markup=reply_markup
         )
         await query.answer("✅ Yozma ish funksiyasi yoqildi!")
-    
+
     elif query.data == 'writing_task_off':
         user_data_manager.update_user_field(user_id, 'writing_task_enabled', False)
-        
+
         writing_text = (
             f"✍️ *Yozma ish funksiyasi*\n\n"
             f"Hozirgi holat: ❌ *O'chirilgan*\n\n"
@@ -482,7 +495,7 @@ async def handle_callback_query(update: Update, context: ContextTypes.DEFAULT_TY
             f"• Tahlil va statistika\n\n"
             f"Funksiyani yoqish yoki o'chirish uchun quyidagi tugmalardan birini tanlang:"
         )
-        
+
         keyboard = [
             [
                 InlineKeyboardButton("✅ Yoqish", callback_data='writing_task_on'),
@@ -490,14 +503,14 @@ async def handle_callback_query(update: Update, context: ContextTypes.DEFAULT_TY
             ]
         ]
         reply_markup = InlineKeyboardMarkup(keyboard)
-        
+
         await query.edit_message_text(
             writing_text,
             parse_mode='Markdown',
             reply_markup=reply_markup
         )
         await query.answer("❌ Yozma ish funksiyasi o'chirildi!")
-    
+
     # Handle subject selection
     elif query.data.startswith('subject_'):
         subject_mapping = {
@@ -511,7 +524,7 @@ async def handle_callback_query(update: Update, context: ContextTypes.DEFAULT_TY
             'subject_biologiya': 'Biologiya',
             'subject_geografiya': 'Geografiya'
         }
-        
+
         selected_subject = subject_mapping.get(query.data)
         if selected_subject:
             user_data_manager.update_user_field(user_id, 'subject', selected_subject)
@@ -520,7 +533,7 @@ async def handle_callback_query(update: Update, context: ContextTypes.DEFAULT_TY
                 f"📚 *{selected_subject}*",
                 parse_mode='Markdown'
             )
-            
+
             await query.message.reply_text(
                 "Bosh menyuga qaytdingiz.",
                 reply_markup=get_main_keyboard()
@@ -530,21 +543,21 @@ async def handle_callback_query(update: Update, context: ContextTypes.DEFAULT_TY
 async def handle_section_questions_input(update: Update, context: ContextTypes.DEFAULT_TYPE, text: str):
     """Handle section question numbers input"""
     user_id = update.effective_user.id
-    
+
     # Skip if not configuring sections
     if not context.user_data.get('configuring_sections'):
         return False
-    
+
     sections_list = context.user_data.get('sections_list', [])
     current_index = context.user_data.get('current_section_index', 0)
     section_questions = context.user_data.get('section_questions', {})
     current_subject = context.user_data.get('current_subject', '')
-    
+
     if current_index >= len(sections_list):
         return False
-    
+
     current_section = sections_list[current_index]
-    
+
     # Parse question numbers
     if text.lower().strip() in ['o\'tkazib', 'otkazib', 'skip']:
         # Skip this section
@@ -552,7 +565,7 @@ async def handle_section_questions_input(update: Update, context: ContextTypes.D
     else:
         # Try to parse the input
         question_numbers, error_msg = parse_question_numbers(text)
-        
+
         if error_msg:
             # Show specific error
             await update.message.reply_text(
@@ -565,7 +578,7 @@ async def handle_section_questions_input(update: Update, context: ContextTypes.D
                 "Bo'limni o'tkazib yuborish uchun 'o'tkazib' deb yozing."
             )
             return True
-        
+
         if not question_numbers and text.lower().strip() not in ['o\'tkazib', 'otkazib', 'skip']:
             await update.message.reply_text(
                 "❌ Hech qanday to'g'ri raqam topilmadi!\n\n"
@@ -577,15 +590,15 @@ async def handle_section_questions_input(update: Update, context: ContextTypes.D
                 "Bo'limni o'tkazib yuborish uchun 'o'tkazib' deb yozing."
             )
             return True
-    
+
     # Save the question numbers for this section
     section_questions[current_section] = question_numbers
     context.user_data['section_questions'] = section_questions
-    
+
     # Move to next section
     current_index += 1
     context.user_data['current_section_index'] = current_index
-    
+
     if current_index < len(sections_list):
         # Ask for next section
         next_section = sections_list[current_index]
@@ -601,47 +614,47 @@ async def handle_section_questions_input(update: Update, context: ContextTypes.D
         # All sections completed
         # Save to user data
         user_data_manager.update_user_field(user_id, 'section_questions', section_questions)
-        
+
         # Get pending results if available
         pending_results = context.user_data.get('pending_results')
         pending_general_pdf = context.user_data.get('pending_general_pdf')
-        
+
         # Show summary
         summary = f"✅ *{current_subject}* fani uchun bo'limlar konfiguratsiyasi tugallandi!\n\n"
         summary += "📋 *Bo'limlar va savol raqamlari:*\n\n"
-        
+
         for section_name, questions in section_questions.items():
             if questions:
                 summary += f"• *{section_name}*: {format_question_list(questions)}\n"
             else:
                 summary += f"• *{section_name}*: O'tkazib yuborildi\n"
-        
+
         await update.message.reply_text(
             summary,
             parse_mode='Markdown',
             reply_markup=get_main_keyboard()
         )
-        
+
         # Generate person results with sections if we have pending results
         if pending_results:
             await update.message.reply_text("📊 Bo'limlar bo'yicha natijalar tayyorlanmoqda...")
-            
+
             pdf_generator = PDFReportGenerator()
-            
+
             # Generate general person results (without sections)
             person_pdf_path = pdf_generator.generate_person_results_report(
                 pending_results,
                 filename=f"talabgorlar_natijalari_{user_id}",
                 section_questions=None
             )
-            
+
             # Generate section results in separate PDF
             section_pdf_path = pdf_generator.generate_section_results_report(
                 pending_results,
                 filename=f"bulimlar_natijalari_{user_id}",
                 section_questions=section_questions
             )
-            
+
             await update.message.reply_text(
                 f"✅ *Tahlil tugallandi!*\n\n"
                 f"📊 Ishtirokchilar soni: {pending_results['n_persons']}\n"
@@ -650,7 +663,7 @@ async def handle_section_questions_input(update: Update, context: ContextTypes.D
                 f"PDF hisobotlar yuborilmoqda...",
                 parse_mode='Markdown'
             )
-            
+
             # Send general statistics PDF
             if pending_general_pdf and os.path.exists(pending_general_pdf):
                 with open(pending_general_pdf, 'rb') as pdf_file:
@@ -659,7 +672,7 @@ async def handle_section_questions_input(update: Update, context: ContextTypes.D
                         filename=os.path.basename(pending_general_pdf),
                         caption="📊 Umumiy statistika va item parametrlari"
                     )
-            
+
             # Send general person results PDF
             with open(person_pdf_path, 'rb') as pdf_file:
                 await update.message.reply_document(
@@ -667,7 +680,7 @@ async def handle_section_questions_input(update: Update, context: ContextTypes.D
                     filename=os.path.basename(person_pdf_path),
                     caption="👥 Talabgorlar natijalari (Umumiy)"
                 )
-            
+
             # Send section results PDF
             with open(section_pdf_path, 'rb') as pdf_file:
                 await update.message.reply_document(
@@ -675,7 +688,7 @@ async def handle_section_questions_input(update: Update, context: ContextTypes.D
                     filename=os.path.basename(section_pdf_path),
                     caption="📋 Bo'limlar bo'yicha natijalar (T-Score)"
                 )
-        
+
         # Clear temporary data
         context.user_data['configuring_sections'] = False
         context.user_data['sections_list'] = None
@@ -684,7 +697,7 @@ async def handle_section_questions_input(update: Update, context: ContextTypes.D
         context.user_data['current_subject'] = None
         context.user_data['pending_results'] = None
         context.user_data['pending_general_pdf'] = None
-    
+
     return True
 
 
@@ -692,48 +705,48 @@ def parse_question_numbers(text: str) -> tuple[list, str]:
     """
     Parse question numbers from text input
     Supports formats like: 1-10, 1,2,3,4, or combinations
-    
+
     Args:
         text: Input text containing question numbers
-        
+
     Returns:
         Tuple of (list of question numbers, error message if any)
     """
     question_numbers = []
     text = text.strip()
-    
+
     if not text:
         return ([], "Bo'sh qiymat kiritildi")
-    
+
     # Split by comma
     parts = text.split(',')
     invalid_parts = []
-    
+
     for part in parts:
         part = part.strip()
-        
+
         if not part:
             continue
-        
+
         # Check if it's a range (e.g., 1-10)
         if '-' in part:
             range_parts = part.split('-')
             if len(range_parts) != 2:
                 invalid_parts.append(part)
                 continue
-            
+
             try:
                 start = int(range_parts[0].strip())
                 end = int(range_parts[1].strip())
-                
+
                 if start < 1 or end < 1:
                     invalid_parts.append(part)
                     continue
-                
+
                 if start > end:
                     invalid_parts.append(f"{part} (boshlanish oxirishdan katta)")
                     continue
-                
+
                 question_numbers.extend(range(start, end + 1))
             except ValueError:
                 invalid_parts.append(part)
@@ -747,37 +760,37 @@ def parse_question_numbers(text: str) -> tuple[list, str]:
                 question_numbers.append(num)
             except ValueError:
                 invalid_parts.append(part)
-    
+
     # Remove duplicates and sort
     question_numbers = sorted(list(set(question_numbers)))
-    
+
     # Generate error message if there were invalid parts
     error_msg = ""
     if invalid_parts:
         error_msg = f"Noto'g'ri formatdagi qiymatlar: {', '.join(invalid_parts)}"
-    
+
     return (question_numbers, error_msg)
 
 
 def format_question_list(questions: list) -> str:
     """
     Format a list of question numbers into a readable string
-    
+
     Args:
         questions: List of question numbers
-        
+
     Returns:
         Formatted string
     """
     if not questions:
         return "Yo'q"
-    
+
     # Group consecutive numbers into ranges
     questions = sorted(questions)
     ranges = []
     start = questions[0]
     end = questions[0]
-    
+
     for i in range(1, len(questions)):
         if questions[i] == end + 1:
             end = questions[i]
@@ -788,13 +801,13 @@ def format_question_list(questions: list) -> str:
                 ranges.append(f"{start}-{end}")
             start = questions[i]
             end = questions[i]
-    
+
     # Add the last range
     if start == end:
         ranges.append(str(start))
     else:
         ranges.append(f"{start}-{end}")
-    
+
     return ", ".join(ranges)
 
 
@@ -802,7 +815,7 @@ async def handle_profile_edit(update: Update, context: ContextTypes.DEFAULT_TYPE
     """Handle profile editing text input"""
     user_id = update.effective_user.id
     editing_state = context.user_data.get('editing')
-    
+
     if editing_state == WAITING_FOR_FULL_NAME:
         user_data_manager.update_user_field(user_id, 'full_name', text)
         await update.message.reply_text(
@@ -810,7 +823,7 @@ async def handle_profile_edit(update: Update, context: ContextTypes.DEFAULT_TYPE
             parse_mode='Markdown'
         )
         context.user_data['editing'] = None
-    
+
     elif editing_state == WAITING_FOR_SUBJECT:
         user_data_manager.update_user_field(user_id, 'subject', text)
         await update.message.reply_text(
@@ -818,7 +831,7 @@ async def handle_profile_edit(update: Update, context: ContextTypes.DEFAULT_TYPE
             parse_mode='Markdown'
         )
         context.user_data['editing'] = None
-    
+
     elif editing_state == WAITING_FOR_BIO:
         user_data_manager.update_user_field(user_id, 'bio', text)
         await update.message.reply_text(
@@ -826,7 +839,7 @@ async def handle_profile_edit(update: Update, context: ContextTypes.DEFAULT_TYPE
             parse_mode='Markdown'
         )
         context.user_data['editing'] = None
-    
+
     return editing_state is not None
 
 
@@ -861,7 +874,7 @@ async def handle_select_subject(update: Update, context: ContextTypes.DEFAULT_TY
         "📚 *Mutaxassislik fanini tanlash*\n\n"
         "Quyidagi fanlardan birini tanlang:"
     )
-    
+
     # Create inline keyboard with 9 subjects
     keyboard = [
         [InlineKeyboardButton("📐 Matematika", callback_data='subject_matematika'),
@@ -875,7 +888,7 @@ async def handle_select_subject(update: Update, context: ContextTypes.DEFAULT_TY
         [InlineKeyboardButton("🌍 Geografiya", callback_data='subject_geografiya')]
     ]
     reply_markup = InlineKeyboardMarkup(keyboard)
-    
+
     await update.message.reply_text(
         subject_text,
         parse_mode='Markdown',
@@ -887,13 +900,13 @@ async def handle_section_results(update: Update, context: ContextTypes.DEFAULT_T
     """Handle Section Results button"""
     user_id = update.effective_user.id
     user_data = user_data_manager.get_user_data(user_id)
-    
+
     # Get current state (default is off)
     section_results_enabled = user_data.get('section_results_enabled', False)
-    
+
     status_icon = "✅" if section_results_enabled else "❌"
     status_text = "Yoqilgan" if section_results_enabled else "O'chirilgan"
-    
+
     section_text = (
         f"📊 *Fan bo'limlari bo'yicha natijalash*\n\n"
         f"Hozirgi holat: {status_icon} *{status_text}*\n\n"
@@ -903,7 +916,7 @@ async def handle_section_results(update: Update, context: ContextTypes.DEFAULT_T
         f"• Talabgorlar yutuqlari tahlili\n\n"
         f"Funksiyani yoqish yoki o'chirish uchun quyidagi tugmalardan birini tanlang:"
     )
-    
+
     # Create inline keyboard
     keyboard = [
         [
@@ -918,7 +931,7 @@ async def handle_section_results(update: Update, context: ContextTypes.DEFAULT_T
         ]
     ]
     reply_markup = InlineKeyboardMarkup(keyboard)
-    
+
     await update.message.reply_text(
         section_text,
         parse_mode='Markdown',
@@ -930,10 +943,10 @@ async def handle_configure_sections(update: Update, context: ContextTypes.DEFAUL
     """Handle Configure Sections button"""
     user_id = update.effective_user.id
     user_data = user_data_manager.get_user_data(user_id)
-    
+
     subject = user_data.get('subject', '')
     section_results_enabled = user_data.get('section_results_enabled', False)
-    
+
     if not section_results_enabled:
         await update.message.reply_text(
             "❌ Bo'limlar bo'yicha natijalash funksiyasi o'chirilgan!\n\n"
@@ -941,7 +954,7 @@ async def handle_configure_sections(update: Update, context: ContextTypes.DEFAUL
             reply_markup=get_settings_keyboard(user_id)
         )
         return
-    
+
     if not subject:
         await update.message.reply_text(
             "❌ Mutaxassislik fani tanlanmagan!\n\n"
@@ -949,14 +962,14 @@ async def handle_configure_sections(update: Update, context: ContextTypes.DEFAUL
             reply_markup=get_settings_keyboard(user_id)
         )
         return
-    
+
     if not has_sections(subject):
         await update.message.reply_text(
             f"❌ {subject} fani uchun bo'limlar ma'lumotlari mavjud emas!",
             reply_markup=get_settings_keyboard(user_id)
         )
         return
-    
+
     # Start section configuration
     sections = get_sections(subject)
     context.user_data['configuring_sections'] = True
@@ -964,7 +977,7 @@ async def handle_configure_sections(update: Update, context: ContextTypes.DEFAUL
     context.user_data['sections_list'] = sections
     context.user_data['current_section_index'] = 0
     context.user_data['section_questions'] = {}
-    
+
     await update.message.reply_text(
         f"🔧 *{subject}* fani uchun bo'limlarni sozlash:\n\n"
         f"Jami {len(sections)} ta bo'lim mavjud.\n\n"
@@ -985,13 +998,13 @@ async def handle_writing_task(update: Update, context: ContextTypes.DEFAULT_TYPE
     """Handle Writing Task button"""
     user_id = update.effective_user.id
     user_data = user_data_manager.get_user_data(user_id)
-    
+
     # Get current state (default is off)
     writing_task_enabled = user_data.get('writing_task_enabled', False)
-    
+
     status_icon = "✅" if writing_task_enabled else "❌"
     status_text = "Yoqilgan" if writing_task_enabled else "O'chirilgan"
-    
+
     writing_text = (
         f"✍️ *Yozma ish funksiyasi*\n\n"
         f"Hozirgi holat: {status_icon} *{status_text}*\n\n"
@@ -1001,7 +1014,7 @@ async def handle_writing_task(update: Update, context: ContextTypes.DEFAULT_TYPE
         f"• Tahlil va statistika\n\n"
         f"Funksiyani yoqish yoki o'chirish uchun quyidagi tugmalardan birini tanlang:"
     )
-    
+
     # Create inline keyboard
     keyboard = [
         [
@@ -1016,7 +1029,7 @@ async def handle_writing_task(update: Update, context: ContextTypes.DEFAULT_TYPE
         ]
     ]
     reply_markup = InlineKeyboardMarkup(keyboard)
-    
+
     await update.message.reply_text(
         writing_text,
         parse_mode='Markdown',
@@ -1028,7 +1041,7 @@ async def handle_students(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Handle Students button - show list of students"""
     user_id = update.effective_user.id
     students = student_data_manager.get_all_students(user_id)
-    
+
     if not students:
         students_text = (
             "👥 <b>O'quvchilar ro'yxati</b>\n\n"
@@ -1041,7 +1054,7 @@ async def handle_students(update: Update, context: ContextTypes.DEFAULT_TYPE):
         ]
     else:
         students_text = f"👥 <b>O'quvchilar ro'yxati</b> ({len(students)} ta)\n\n"
-        
+
         for student in students:
             full_name = student.get('full_name', "Noma'lum")
             students_text += f"👤 <b>{full_name}</b>\n"
@@ -1050,13 +1063,13 @@ async def handle_students(update: Update, context: ContextTypes.DEFAULT_TYPE):
             if student.get('parent_telegram'):
                 students_text += f"   👨‍👩‍👦 Ota-ona: @{student.get('parent_telegram')}\n"
             students_text += "\n"
-        
+
         keyboard = [
             [KeyboardButton("➕ Yangi o'quvchi qo'shish")],
             [KeyboardButton("✏️ O'quvchini tahrirlash"), KeyboardButton("🗑 O'quvchini o'chirish")],
             [KeyboardButton("◀️ Ortga")]
         ]
-    
+
     reply_markup = ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
     await update.message.reply_text(students_text, parse_mode='HTML', reply_markup=reply_markup)
 
@@ -1094,7 +1107,7 @@ async def handle_public_test(update: Update, context: ContextTypes.DEFAULT_TYPE)
         "• Ommaviy testlar yaratishingiz\n"
         "• Testlarni tarqatishingiz\n"
         "• Natijalarni yig'ishingiz mumkin\n\n"
-        "🔜 Tez orada faollashtiriladi!"
+        "🔜 Tez orada faollashitiriladi!"
     )
     await update.message.reply_text(test_text, parse_mode='Markdown')
 
@@ -1144,7 +1157,7 @@ async def handle_back(update: Update, context: ContextTypes.DEFAULT_TYPE):
     context.user_data['editing'] = None
     context.user_data['adding_student'] = None
     context.user_data['student_temp'] = None
-    
+
     welcome_text = (
         "🏠 *Bosh menyu*\n\n"
         "Kerakli bo'limni tanlang:"
@@ -1160,7 +1173,7 @@ async def handle_add_student(update: Update, context: ContextTypes.DEFAULT_TYPE)
     """Start adding new student"""
     context.user_data['adding_student'] = WAITING_FOR_STUDENT_NAME
     context.user_data['student_temp'] = {}
-    
+
     await update.message.reply_text(
         "➕ *Yangi o'quvchi qo'shish*\n\n"
         "O'quvchining ism va familiyasini kiriting:",
@@ -1172,16 +1185,16 @@ async def handle_edit_student(update: Update, context: ContextTypes.DEFAULT_TYPE
     """Start editing student"""
     user_id = update.effective_user.id
     students = student_data_manager.get_all_students(user_id)
-    
+
     if not students:
         await update.message.reply_text("❌ O'quvchilar ro'yxati bo'sh!")
         return
-    
+
     text = "✏️ *Tahrirlash uchun o'quvchi ID raqamini kiriting:*\n\n"
     for student in students:
         full_name = student.get('full_name', "Noma'lum")
         text += f"{student['id']}. {full_name}\n"
-    
+
     context.user_data['editing_student'] = True
     await update.message.reply_text(text, parse_mode='Markdown')
 
@@ -1190,16 +1203,16 @@ async def handle_delete_student(update: Update, context: ContextTypes.DEFAULT_TY
     """Start deleting student"""
     user_id = update.effective_user.id
     students = student_data_manager.get_all_students(user_id)
-    
+
     if not students:
         await update.message.reply_text("❌ O'quvchilar ro'yxati bo'sh!")
         return
-    
+
     text = "🗑 *O'chirish uchun o'quvchi ID raqamini kiriting:*\n\n"
     for student in students:
         full_name = student.get('full_name', "Noma'lum")
         text += f"{student['id']}. {full_name}\n"
-    
+
     context.user_data['deleting_student'] = True
     await update.message.reply_text(text, parse_mode='Markdown')
 
@@ -1207,7 +1220,7 @@ async def handle_delete_student(update: Update, context: ContextTypes.DEFAULT_TY
 async def handle_student_input(update: Update, context: ContextTypes.DEFAULT_TYPE, text: str):
     """Handle student data input"""
     user_id = update.effective_user.id
-    
+
     # Handle adding new student
     if context.user_data.get('adding_student') == WAITING_FOR_STUDENT_NAME:
         context.user_data['student_temp']['full_name'] = text
@@ -1218,7 +1231,7 @@ async def handle_student_input(update: Update, context: ContextTypes.DEFAULT_TYP
             "Agar yo'q bo'lsa, 'yo'q' deb yozing:"
         )
         return True
-    
+
     elif context.user_data.get('adding_student') == WAITING_FOR_STUDENT_TELEGRAM:
         if text.lower() != "yo'q" and text.lower() != "yoq":
             context.user_data['student_temp']['telegram_username'] = text.replace('@', '')
@@ -1229,41 +1242,41 @@ async def handle_student_input(update: Update, context: ContextTypes.DEFAULT_TYP
             "Agar yo'q bo'lsa, 'yo'q' deb yozing:"
         )
         return True
-    
+
     elif context.user_data.get('adding_student') == WAITING_FOR_PARENT_TELEGRAM:
         if text.lower() != "yo'q" and text.lower() != "yoq":
             context.user_data['student_temp']['parent_telegram'] = text.replace('@', '')
-        
+
         # Save student
         student_data = context.user_data['student_temp']
         student_id = student_data_manager.add_student(user_id, student_data)
-        
+
         await update.message.reply_text(
             f"✅ O'quvchi muvaffaqiyatli qo'shildi!\n\n"
             f"👤 *{student_data.get('full_name')}*\n"
             f"ID: {student_id}",
             parse_mode='Markdown'
         )
-        
+
         # Clear temp data
         context.user_data['adding_student'] = None
         context.user_data['student_temp'] = None
-        
+
         # Show updated list
         await handle_students(update, context)
         return True
-    
+
     # Handle editing student
     elif context.user_data.get('editing_student'):
         try:
             student_id = int(text)
             student = student_data_manager.get_student(user_id, student_id)
-            
+
             if not student:
                 # Increment error count
                 error_count = context.user_data.get('edit_error_count', 0) + 1
                 context.user_data['edit_error_count'] = error_count
-                
+
                 if error_count >= 3:
                     await update.message.reply_text(
                         "❌ 3 marta noto'g'ri urinish. Jarayon bekor qilindi.",
@@ -1272,20 +1285,20 @@ async def handle_student_input(update: Update, context: ContextTypes.DEFAULT_TYP
                     context.user_data['editing_student'] = None
                     context.user_data['edit_error_count'] = 0
                     return True
-                
+
                 await update.message.reply_text(
                     f"❌ Bunday ID'li o'quvchi topilmadi!\n"
                     f"Urinish: {error_count}/3"
                 )
                 return True
-            
+
             # Reset error count on success
             context.user_data['edit_error_count'] = 0
             context.user_data['editing_student_id'] = student_id
             context.user_data['student_temp'] = student.copy()
             context.user_data['editing_student'] = None
             context.user_data['adding_student'] = WAITING_FOR_STUDENT_NAME
-            
+
             await update.message.reply_text(
                 f"✏️ O'quvchini tahrirlash: *{student.get('full_name')}*\n\n"
                 f"Yangi ism va familiyani kiriting\n"
@@ -1297,7 +1310,7 @@ async def handle_student_input(update: Update, context: ContextTypes.DEFAULT_TYP
             # Increment error count
             error_count = context.user_data.get('edit_error_count', 0) + 1
             context.user_data['edit_error_count'] = error_count
-            
+
             if error_count >= 3:
                 await update.message.reply_text(
                     "❌ 3 marta noto'g'ri urinish. Jarayon bekor qilindi.",
@@ -1306,24 +1319,24 @@ async def handle_student_input(update: Update, context: ContextTypes.DEFAULT_TYP
                 context.user_data['editing_student'] = None
                 context.user_data['edit_error_count'] = 0
                 return True
-            
+
             await update.message.reply_text(
                 f"❌ Iltimos, raqam kiriting!\n"
                 f"Urinish: {error_count}/3"
             )
             return True
-    
+
     # Handle deleting student
     elif context.user_data.get('deleting_student'):
         try:
             student_id = int(text)
             student = student_data_manager.get_student(user_id, student_id)
-            
+
             if not student:
                 # Increment error count
                 error_count = context.user_data.get('delete_error_count', 0) + 1
                 context.user_data['delete_error_count'] = error_count
-                
+
                 if error_count >= 3:
                     await update.message.reply_text(
                         "❌ 3 marta noto'g'ri urinish. Jarayon bekor qilindi.",
@@ -1332,13 +1345,13 @@ async def handle_student_input(update: Update, context: ContextTypes.DEFAULT_TYP
                     context.user_data['deleting_student'] = None
                     context.user_data['delete_error_count'] = 0
                     return True
-                
+
                 await update.message.reply_text(
                     f"❌ Bunday ID'li o'quvchi topilmadi!\n"
                     f"Urinish: {error_count}/3"
                 )
                 return True
-            
+
             # Reset error count on success
             context.user_data['delete_error_count'] = 0
             student_data_manager.delete_student(user_id, student_id)
@@ -1346,7 +1359,7 @@ async def handle_student_input(update: Update, context: ContextTypes.DEFAULT_TYP
                 f"✅ O'quvchi o'chirildi: *{student.get('full_name')}*",
                 parse_mode='Markdown'
             )
-            
+
             context.user_data['deleting_student'] = None
             await handle_students(update, context)
             return True
@@ -1354,7 +1367,7 @@ async def handle_student_input(update: Update, context: ContextTypes.DEFAULT_TYP
             # Increment error count
             error_count = context.user_data.get('delete_error_count', 0) + 1
             context.user_data['delete_error_count'] = error_count
-            
+
             if error_count >= 3:
                 await update.message.reply_text(
                     "❌ 3 marta noto'g'ri urinish. Jarayon bekor qilindi.",
@@ -1363,20 +1376,20 @@ async def handle_student_input(update: Update, context: ContextTypes.DEFAULT_TYP
                 context.user_data['deleting_student'] = None
                 context.user_data['delete_error_count'] = 0
                 return True
-            
+
             await update.message.reply_text(
                 f"❌ Iltimos, raqam kiriting!\n"
                 f"Urinish: {error_count}/3"
             )
             return True
-    
+
     return False
 
 
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Handle regular text messages"""
     message_text = update.message.text
-    
+
     # Handle "Ortga" button - cancel any ongoing operations
     if message_text == "◀️ Ortga":
         # Check if there was an ongoing operation
@@ -1387,7 +1400,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
             context.user_data.get('deleting_student') or
             context.user_data.get('configuring_sections')
         )
-        
+
         # Clear all temporary states
         context.user_data['editing'] = None
         context.user_data['adding_student'] = None
@@ -1402,7 +1415,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         context.user_data['current_section_index'] = 0
         context.user_data['section_questions'] = {}
         context.user_data['current_subject'] = None
-        
+
         # Show cancellation message if there was an operation
         if was_operation:
             await update.message.reply_text(
@@ -1412,25 +1425,25 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         else:
             await handle_back(update, context)
         return
-    
+
     # Check if user is configuring sections
     if context.user_data.get('configuring_sections'):
         handled = await handle_section_questions_input(update, context, message_text)
         if handled:
             return
-    
+
     # Check if user is editing profile
     if context.user_data.get('editing'):
         handled = await handle_profile_edit(update, context, message_text)
         if handled:
             return
-    
+
     # Check if user is managing students
     if context.user_data.get('adding_student') or context.user_data.get('editing_student') or context.user_data.get('deleting_student'):
         handled = await handle_student_input(update, context, message_text)
         if handled:
             return
-    
+
     # Handle main keyboard button presses
     if message_text == "👤 Profil":
         await handle_profile(update, context)
