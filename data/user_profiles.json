@@ -8,6 +8,7 @@
     "full_name": "sanjar oktamov",
     "section_results_enabled": false,
     "writing_task_enabled": true,
-    "section_questions": {}
+    "section_questions": {},
+    "file_analyzer_mode": false
   }
 }
