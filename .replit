@@ -4,40 +4,4 @@ expertMode = true
 
 [nix]
 channel = "stable-25_05"
-packages = ["R", "cairo", "ffmpeg-full", "freetype", "ghostscript", "glibcLocales", "gobject-introspection", "gtk3", "pkg-config", "qhull", "tcl", "tk", "nano"]
-
-[workflows]
-runButton = "Start Both Bots"
-
-[[workflows.workflow]]
-name = "Project"
-mode = "parallel"
-author = "agent"
-
-[[workflows.workflow.tasks]]
-task = "workflow.run"
-args = "Rasch Bot"
-
-[[workflows.workflow]]
-name = "Rasch Bot"
-author = "agent"
-
-[workflows.workflow.metadata]
-outputType = "console"
-
-[[workflows.workflow.tasks]]
-task = "shell.exec"
-args = "PYTHONPATH=/home/runner/workspace:$PYTHONPATH python bot/main.py"
-
-[[workflows.workflow]]
-name = "Start Both Bots"
-author = 41824677
-mode = "parallel"
-
-[[workflows.workflow.tasks]]
-task = "shell.exec"
-args = "PYTHONPATH=/home/runner/workspace:$PYTHONPATH python bot/main.py"
-
-[[workflows.workflow.tasks]]
-task = "shell.exec"
-args = "PYTHONPATH=/home/runner/workspace:$PYTHONPATH python student_bot/main.py"
+packages = ["freetype", "glibcLocales"]
