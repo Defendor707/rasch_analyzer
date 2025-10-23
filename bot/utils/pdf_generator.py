@@ -169,8 +169,8 @@ class PDFReportGenerator:
 
         # Combine and sort for plotting
         all_measures = np.concatenate([valid_person_ability, valid_item_difficulty])
-        min_measure = np.min(all_measures) - 1
-        max_measure = np.max(all_measures) + 1
+        min_measure = float(np.min(all_measures)) - 1
+        max_measure = float(np.max(all_measures)) + 1
 
         plt.figure(figsize=(8, 10))
 
@@ -194,10 +194,15 @@ class PDFReportGenerator:
         plt.grid(True, linestyle='--', alpha=0.6)
         plt.legend(loc='upper right')
 
-        chart_filename = os.path.join(self.output_dir, "wright_map.png")
-        plt.savefig(chart_filename, bbox_inches='tight', dpi=300)
-        plt.close()
-        return chart_filename
+        try:
+            chart_filename = os.path.join(self.output_dir, "wright_map.png")
+            plt.savefig(chart_filename, bbox_inches='tight', dpi=300)
+            plt.close()
+            return chart_filename
+        except Exception as e:
+            logger.error(f"Error saving Wright map: {e}")
+            plt.close()
+            return None
 
     def _create_t_score_distribution(self, results: Dict[str, Any]) -> str:
         """Creates and saves the T-score distribution histogram as an image."""
@@ -219,10 +224,15 @@ class PDFReportGenerator:
         plt.ylabel("Frequency")
         plt.grid(True, linestyle='--', alpha=0.6)
 
-        chart_filename = os.path.join(self.output_dir, "t_score_distribution.png")
-        plt.savefig(chart_filename, bbox_inches='tight', dpi=150)
-        plt.close()
-        return chart_filename
+        try:
+            chart_filename = os.path.join(self.output_dir, "t_score_distribution.png")
+            plt.savefig(chart_filename, bbox_inches='tight', dpi=150)
+            plt.close()
+            return chart_filename
+        except Exception as e:
+            logger.error(f"Error saving T-score distribution: {e}")
+            plt.close()
+            return None
 
     def generate_report(self, results: Dict[str, Any], filename: Optional[str] = None) -> str:
         """
@@ -362,12 +372,15 @@ class PDFReportGenerator:
         story.append(Paragraph("Wright Map (Item-Person Map)", heading_style))
         try:
             chart_path = self._create_item_person_map(results)
-            img = Image(chart_path, width=6.5*inch, height=5.2*inch)
-            story.append(img)
-            story.append(Spacer(1, 0.2 * inch))
-            os.unlink(chart_path)
+            if chart_path and os.path.exists(chart_path):
+                img = Image(chart_path, width=6.5*inch, height=5.2*inch)
+                story.append(img)
+                story.append(Spacer(1, 0.2 * inch))
+                os.unlink(chart_path)
         except Exception as e:
             logger.error(f"Error creating Wright map: {e}")
+            story.append(Paragraph("Wright Map yaratishda xatolik yuz berdi.", styles['Normal']))
+            story.append(Spacer(1, 0.2 * inch))
 
         story.append(Spacer(1, 0.4 * inch))
 
@@ -474,12 +487,15 @@ class PDFReportGenerator:
         story.append(Paragraph("T-Score Taqsimoti", heading_style))
         try:
             chart_path = self._create_t_score_distribution(results)
-            img = Image(chart_path, width=6*inch, height=3.6*inch)
-            story.append(img)
-            story.append(Spacer(1, 0.2 * inch))
-            os.unlink(chart_path)
+            if chart_path and os.path.exists(chart_path):
+                img = Image(chart_path, width=6*inch, height=3.6*inch)
+                story.append(img)
+                story.append(Spacer(1, 0.2 * inch))
+                os.unlink(chart_path)
         except Exception as e:
             logger.error(f"Error creating T-score chart: {e}")
+            story.append(Paragraph("T-Score grafigini yaratishda xatolik yuz berdi.", styles['Normal']))
+            story.append(Spacer(1, 0.2 * inch))
 
         story.append(Spacer(1, 0.3 * inch))
 
