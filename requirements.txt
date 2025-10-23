@@ -10,3 +10,7 @@ pandas
 python-dotenv
 python-telegram-bot
 reportlab
+matplotlib
+seaborn
+matplotlib
+seaborn
