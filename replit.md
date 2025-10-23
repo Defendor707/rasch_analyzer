@@ -11,7 +11,16 @@ Telegram bot for performing Rasch model analysis on dichotomous test data. The b
 - **Reports:** ReportLab PDF generation
 
 ## Recent Changes
-- **October 23, 2025 (Latest)**: Implemented File Analyzer as optional separate feature
+- **October 23, 2025 (Latest)**: Separated file standardization from cleaning functionality
+  - Added standalone `standardize_data()` method in DataCleaner class
+  - Created `get_standardization_report()` for standardization-only reporting
+  - File Analyzer now offers two options via inline keyboard:
+    * "To'liq tozalash" (Full Cleaning) - cleans and standardizes data
+    * "Faqat standartlashtirish" (Standardization Only) - only renames columns to Savol_1, Savol_2, etc.
+  - Updated callback handlers to support both operations
+  - Document handler now branches based on user-selected operation
+  - Enhanced user experience with clear operation descriptions
+- **October 23, 2025**: Implemented File Analyzer as optional separate feature
   - DataCleaner moved from automatic to optional File Analyzer mode
   - Added "File Analyzer" button in "Boshqa" menu
   - File Analyzer mode: Clean files and return cleaned version
