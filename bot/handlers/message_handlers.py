@@ -337,6 +337,63 @@ async def handle_callback_query(update: Update, context: ContextTypes.DEFAULT_TY
             reply_markup=get_main_keyboard()
         )
     
+    # Handle section results toggle
+    elif query.data == 'section_results_on':
+        user_data_manager.update_user_field(user_id, 'section_results_enabled', True)
+        
+        section_text = (
+            f"📊 *Fan bo'limlari bo'yicha natijalash*\n\n"
+            f"Hozirgi holat: ✅ *Yoqilgan*\n\n"
+            f"Bu funksiya sizga quyidagilarni beradi:\n"
+            f"• Har bir bo'lim bo'yicha natijalar\n"
+            f"• Bo'limlar qiyoslash\n"
+            f"• Talabgorlar yutuqlari tahlili\n\n"
+            f"Funksiyani yoqish yoki o'chirish uchun quyidagi tugmalardan birini tanlang:"
+        )
+        
+        keyboard = [
+            [
+                InlineKeyboardButton("✔️ Yoqilgan", callback_data='section_results_on'),
+                InlineKeyboardButton("❌ O'chirish", callback_data='section_results_off')
+            ]
+        ]
+        reply_markup = InlineKeyboardMarkup(keyboard)
+        
+        await query.edit_message_text(
+            section_text,
+            parse_mode='Markdown',
+            reply_markup=reply_markup
+        )
+        await query.answer("✅ Fan bo'limlari bo'yicha natijalash yoqildi!")
+    
+    elif query.data == 'section_results_off':
+        user_data_manager.update_user_field(user_id, 'section_results_enabled', False)
+        
+        section_text = (
+            f"📊 *Fan bo'limlari bo'yicha natijalash*\n\n"
+            f"Hozirgi holat: ❌ *O'chirilgan*\n\n"
+            f"Bu funksiya sizga quyidagilarni beradi:\n"
+            f"• Har bir bo'lim bo'yicha natijalar\n"
+            f"• Bo'limlar qiyoslash\n"
+            f"• Talabgorlar yutuqlari tahlili\n\n"
+            f"Funksiyani yoqish yoki o'chirish uchun quyidagi tugmalardan birini tanlang:"
+        )
+        
+        keyboard = [
+            [
+                InlineKeyboardButton("✅ Yoqish", callback_data='section_results_on'),
+                InlineKeyboardButton("✖️ O'chirilgan", callback_data='section_results_off')
+            ]
+        ]
+        reply_markup = InlineKeyboardMarkup(keyboard)
+        
+        await query.edit_message_text(
+            section_text,
+            parse_mode='Markdown',
+            reply_markup=reply_markup
+        )
+        await query.answer("❌ Fan bo'limlari bo'yicha natijalash o'chirildi!")
+    
     # Handle subject selection
     elif query.data.startswith('subject_'):
         subject_mapping = {
@@ -451,15 +508,45 @@ async def handle_select_subject(update: Update, context: ContextTypes.DEFAULT_TY
 
 async def handle_section_results(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Handle Section Results button"""
+    user_id = update.effective_user.id
+    user_data = user_data_manager.get_user_data(user_id)
+    
+    # Get current state (default is off)
+    section_results_enabled = user_data.get('section_results_enabled', False)
+    
+    status_icon = "✅" if section_results_enabled else "❌"
+    status_text = "Yoqilgan" if section_results_enabled else "O'chirilgan"
+    
     section_text = (
-        "📊 *Fan bo'limlari bo'yicha natijalash*\n\n"
-        "Bu funksiya sizga quyidagilarni beradi:\n"
-        "• Har bir bo'lim bo'yicha natijalar\n"
-        "• Bo'limlar qiyoslash\n"
-        "• Talabgorlar yutuqlari tahlili\n\n"
-        "🔜 Tez orada faollashtiriladi!"
+        f"📊 *Fan bo'limlari bo'yicha natijalash*\n\n"
+        f"Hozirgi holat: {status_icon} *{status_text}*\n\n"
+        f"Bu funksiya sizga quyidagilarni beradi:\n"
+        f"• Har bir bo'lim bo'yicha natijalar\n"
+        f"• Bo'limlar qiyoslash\n"
+        f"• Talabgorlar yutuqlari tahlili\n\n"
+        f"Funksiyani yoqish yoki o'chirish uchun quyidagi tugmalardan birini tanlang:"
     )
-    await update.message.reply_text(section_text, parse_mode='Markdown')
+    
+    # Create inline keyboard
+    keyboard = [
+        [
+            InlineKeyboardButton(
+                "✅ Yoqish" if not section_results_enabled else "✔️ Yoqilgan",
+                callback_data='section_results_on'
+            ),
+            InlineKeyboardButton(
+                "❌ O'chirish" if section_results_enabled else "✖️ O'chirilgan",
+                callback_data='section_results_off'
+            )
+        ]
+    ]
+    reply_markup = InlineKeyboardMarkup(keyboard)
+    
+    await update.message.reply_text(
+        section_text,
+        parse_mode='Markdown',
+        reply_markup=reply_markup
+    )
 
 
 async def handle_writing_task(update: Update, context: ContextTypes.DEFAULT_TYPE):
