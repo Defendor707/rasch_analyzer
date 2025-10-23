@@ -11,7 +11,14 @@ Telegram bot for performing Rasch model analysis on dichotomous test data. The b
 - **Reports:** ReportLab PDF generation
 
 ## Recent Changes
-- **October 23, 2025 (Latest)**: Fixed Markdown parsing error in DataCleaner reports
+- **October 23, 2025 (Latest)**: Implemented File Analyzer as optional separate feature
+  - DataCleaner moved from automatic to optional File Analyzer mode
+  - Added "File Analyzer" button in "Boshqa" menu
+  - File Analyzer mode: Clean files and return cleaned version
+  - Normal mode: Analyze files directly without auto-cleaning
+  - Users can exit File Analyzer with /start or "Ortga" button
+  - Fixed file processing to work with both modes
+- **October 23, 2025**: Fixed Markdown parsing error in DataCleaner reports
   - Fixed "Can't parse entities" error in cleaning report
   - Removed Markdown formatting from cleaning reports to prevent special character issues
   - DataCleaner now works seamlessly with Evalbee exports

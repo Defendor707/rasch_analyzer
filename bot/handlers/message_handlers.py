@@ -39,6 +39,9 @@ async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Send welcome message when the command /start is issued"""
     user_id = update.effective_user.id
     user_data = user_data_manager.get_user_data(user_id)
+    
+    # Disable file analyzer mode when starting
+    user_data_manager.update_user_field(user_id, 'file_analyzer_mode', False)
 
     full_name = user_data.get('full_name')
     if not full_name:
@@ -214,6 +217,71 @@ async def handle_document(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
         return
 
+    # Check if user is in File Analyzer mode
+    user_data = user_data_manager.get_user_data(user_id)
+    file_analyzer_mode = user_data.get('file_analyzer_mode', False)
+
+    if file_analyzer_mode:
+        # FILE ANALYZER MODE: Clean and return the file
+        await update.message.reply_text("📁 File Analyzer rejimi: Fayl tozalanmoqda...")
+        
+        try:
+            file = await context.bot.get_file(document.file_id)
+            upload_dir = "data/uploads"
+            os.makedirs(upload_dir, exist_ok=True)
+            file_path = os.path.join(upload_dir, f"{user_id}_{document.file_name}")
+            await file.download_to_drive(file_path)
+
+            # Read file
+            if file_extension == '.csv':
+                try:
+                    data = pd.read_csv(file_path)
+                except Exception:
+                    data = pd.read_csv(file_path, encoding='latin-1')
+            else:
+                data = pd.read_excel(file_path)
+
+            # Clean the data
+            cleaner = DataCleaner()
+            numeric_data, cleaning_metadata = cleaner.clean_data(data)
+            
+            # Send cleaning report
+            cleaning_report = cleaner.get_cleaning_report(cleaning_metadata)
+            await update.message.reply_text(cleaning_report)
+            
+            # Save cleaned file
+            cleaned_file_path = os.path.join(upload_dir, f"cleaned_{user_id}_{document.file_name}")
+            if file_extension == '.csv':
+                numeric_data.to_csv(cleaned_file_path, index=False)
+            else:
+                numeric_data.to_excel(cleaned_file_path, index=False)
+            
+            # Send cleaned file back to user
+            with open(cleaned_file_path, 'rb') as clean_file:
+                await update.message.reply_document(
+                    document=clean_file,
+                    filename=f"cleaned_{document.file_name}",
+                    caption="✅ Tozalangan fayl tayyor!\n\n"
+                            "Bu faylda faqat 0/1 matritsasi mavjud.\n"
+                            "Endi uni tahlil qilish uchun qayta yuboring yoki /start orqali chiqing."
+                )
+            
+            # Cleanup
+            os.remove(file_path)
+            os.remove(cleaned_file_path)
+            
+            logger.info(f"File cleaned successfully for user {user_id}")
+            return
+            
+        except Exception as e:
+            logger.error(f"Error cleaning file for user {user_id}: {str(e)}")
+            await update.message.reply_text(
+                f"❌ Faylni tozalashda xatolik: {str(e)}\n\n"
+                "Iltimos, faylingizni tekshiring va qayta urinib ko'ring."
+            )
+            return
+
+    # NORMAL MODE: Analyze the file
     await update.message.reply_text("⏳ Fayl qabul qilindi. Tahlil boshlanmoqda...")
 
     try:
@@ -233,15 +301,16 @@ async def handle_document(update: Update, context: ContextTypes.DEFAULT_TYPE):
         else:
             data = pd.read_excel(file_path)
 
-        # Use DataCleaner to automatically clean the data
-        await update.message.reply_text("🧹 Fayl tozalanmoqda va tayyorlanmoqda...")
+        # In normal mode, use data as-is (no auto-cleaning)
+        numeric_data = data
         
-        cleaner = DataCleaner()
-        numeric_data, cleaning_metadata = cleaner.clean_data(data)
-        
-        # Send cleaning report to user (without Markdown to avoid parsing errors)
-        cleaning_report = cleaner.get_cleaning_report(cleaning_metadata)
-        await update.message.reply_text(cleaning_report)
+        # Validate that data is numeric and binary
+        if not all(numeric_data.apply(pd.to_numeric, errors='coerce').notna().all()):
+            await update.message.reply_text(
+                "⚠️ Ogohlantirish: Faylda raqamiy bo'lmagan ma'lumotlar bor.\n"
+                "Ular 0 ga aylantiriladi."
+            )
+            numeric_data = numeric_data.apply(pd.to_numeric, errors='coerce').fillna(0)
         
         # Additional validation
         if not all(numeric_data.isin([0, 1]).all()):
@@ -1101,6 +1170,7 @@ async def handle_students(update: Update, context: ContextTypes.DEFAULT_TYPE):
 def get_other_keyboard():
     """Create keyboard for 'Boshqa' section"""
     keyboard = [
+        [KeyboardButton("📁 File Analyzer")],
         [KeyboardButton("📝 Ommaviy test o'tkazish")],
         [KeyboardButton("📊 Statistika")],
         [KeyboardButton("👥 Hamjamiyat")],
@@ -1175,8 +1245,33 @@ async def handle_contact_admin(update: Update, context: ContextTypes.DEFAULT_TYP
     await update.message.reply_text(contact_text, parse_mode='Markdown')
 
 
+async def handle_file_analyzer(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Handle File Analyzer button - enable file cleaning mode"""
+    user_id = update.effective_user.id
+    
+    # Enable file analyzer mode
+    user_data_manager.update_user_field(user_id, 'file_analyzer_mode', True)
+    
+    analyzer_text = (
+        "📁 *File Analyzer yoqildi*\n\n"
+        "Endi faylni yuboring, men uni tahlil qilib:\n"
+        "✓ Ortiqcha sarlavhalarni olib tashlayman\n"
+        "✓ ID, ism, familiya ustunlarini o'chirayman\n"
+        "✓ Faqat 0/1 matritsani ajratib olaman\n"
+        "✓ Toza formatdagi faylni qaytaraman\n\n"
+        "📤 Excel (.xlsx, .xls) yoki CSV faylni yuboring\n\n"
+        "🔙 Chiqish uchun /start yoki 'Ortga' tugmasini bosing"
+    )
+    await update.message.reply_text(analyzer_text, parse_mode='Markdown')
+
+
 async def handle_back(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Handle Back button - return to main menu"""
+    user_id = update.effective_user.id
+    
+    # Disable file analyzer mode
+    user_data_manager.update_user_field(user_id, 'file_analyzer_mode', False)
+    
     # Clear any ongoing operations
     context.user_data['editing'] = None
     context.user_data['adding_student'] = None
@@ -1478,6 +1573,8 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     elif message_text == "ℹ️ Boshqa":
         await handle_other(update, context)
     # Handle 'Boshqa' section buttons
+    elif message_text == "📁 File Analyzer":
+        await handle_file_analyzer(update, context)
     elif message_text == "📝 Ommaviy test o'tkazish":
         await handle_public_test(update, context)
     elif message_text == "📊 Statistika":

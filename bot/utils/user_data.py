@@ -27,7 +27,8 @@ class UserDataManager:
             'last_name': '',
             'bio': '',
             'subject': '',
-            'school': ''
+            'school': '',
+            'file_analyzer_mode': False
         })
     
     def save_user_data(self, user_id: int, data: Dict[str, Any]):
