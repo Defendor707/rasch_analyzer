@@ -198,6 +198,34 @@ class DataCleaner:
         
         return df
     
+    def standardize_data(self, df: pd.DataFrame) -> Tuple[pd.DataFrame, Dict[str, Any]]:
+        """
+        Standartlashtirish - faqat ustun nomlarini Savol_1, Savol_2, ... formatiga o'zgartiradi
+        Hech qanday tozalash yoki o'zgartirish qilmaydi
+        
+        Args:
+            df: DataFrame (har qanday shaklda)
+            
+        Returns:
+            Tuple of (standardized_df, metadata_dict)
+        """
+        metadata = {
+            'original_shape': df.shape,
+            'original_columns': list(df.columns),
+            'operation': 'standardization_only'
+        }
+        
+        logger.info(f"Starting data standardization. Shape: {df.shape}")
+        
+        # Faqat ustun nomlarini o'zgartirish
+        df = self._standardize_column_names(df, metadata)
+        
+        metadata['final_shape'] = df.shape
+        
+        logger.info(f"Data standardization completed. Final shape: {df.shape}")
+        
+        return df, metadata
+    
     def get_cleaning_report(self, metadata: Dict) -> str:
         """Generate a human-readable cleaning report"""
         report = []
@@ -225,5 +253,23 @@ class DataCleaner:
             report.append("⚠️ Ogohlantirishlar:")
             for warning in metadata['warnings']:
                 report.append(f"  • {warning}")
+        
+        return "\n".join(report)
+    
+    def get_standardization_report(self, metadata: Dict) -> str:
+        """Generate a report for standardization-only operation"""
+        report = []
+        report.append("📋 Standartlashtirish hisoboti\n")
+        report.append(f"O'lcham: {metadata['final_shape'][0]} qator × {metadata['final_shape'][1]} ustun")
+        report.append(f"\n✅ Ustun nomlari standart shaklga keltirildi:")
+        report.append(f"   Savol_1, Savol_2, ... Savol_{metadata['final_shape'][1]}")
+        
+        if 'column_mapping' in metadata and len(metadata['column_mapping']) > 0:
+            report.append(f"\n📝 Eski ustun nomlari:")
+            old_names = list(metadata['column_mapping'].values())
+            for i, old_name in enumerate(old_names[:5], 1):
+                report.append(f"   Savol_{i} ← {old_name}")
+            if len(old_names) > 5:
+                report.append(f"   ... va yana {len(old_names) - 5} ta ustun")
         
         return "\n".join(report)
