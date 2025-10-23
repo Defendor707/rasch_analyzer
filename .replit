@@ -7,7 +7,7 @@ channel = "stable-25_05"
 packages = ["freetype", "glibcLocales"]
 
 [workflows]
-runButton = "Project"
+runButton = "Start Both Bots"
 
 [[workflows.workflow]]
 name = "Project"
