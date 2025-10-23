@@ -222,13 +222,8 @@ async def handle_document(update: Update, context: ContextTypes.DEFAULT_TYPE):
     file_analyzer_mode = user_data.get('file_analyzer_mode', False)
 
     if file_analyzer_mode:
-        # FILE ANALYZER MODE: Clean or Standardize the file
-        operation = user_data.get('file_analyzer_operation', 'full_clean')
-        
-        if operation == 'standardize':
-            await update.message.reply_text("📝 File Analyzer rejimi: Fayl standartlashtirilmoqda...")
-        else:
-            await update.message.reply_text("🧹 File Analyzer rejimi: Fayl tozalanmoqda...")
+        # FILE ANALYZER MODE: Full clean the file
+        await update.message.reply_text("🧹 File Analyzer: Fayl to'liq tozalanmoqda va standartlashtirilmoqda...")
         
         try:
             file = await context.bot.get_file(document.file_id)
@@ -248,23 +243,13 @@ async def handle_document(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
             cleaner = DataCleaner()
             
-            # Perform the selected operation
-            if operation == 'standardize':
-                # Faqat standartlashtirish
-                processed_data, metadata = cleaner.standardize_data(data)
-                report = cleaner.get_standardization_report(metadata)
-                output_prefix = "standardized"
-                success_message = "✅ Standartlashtirilgan fayl tayyor!\n\n" \
-                                "Ustun nomlari Savol_1, Savol_2, ... formatiga keltirildi.\n" \
-                                "Endi uni tahlil qilish uchun qayta yuboring yoki /start orqali chiqing."
-            else:
-                # To'liq tozalash
-                processed_data, metadata = cleaner.clean_data(data)
-                report = cleaner.get_cleaning_report(metadata)
-                output_prefix = "cleaned"
-                success_message = "✅ Tozalangan fayl tayyor!\n\n" \
-                                "Bu faylda faqat 0/1 matritsasi mavjud.\n" \
-                                "Endi uni tahlil qilish uchun qayta yuboring yoki /start orqali chiqing."
+            # Perform full cleaning
+            processed_data, metadata = cleaner.clean_data(data)
+            report = cleaner.get_cleaning_report(metadata)
+            output_prefix = "cleaned"
+            success_message = "✅ Tozalangan va standartlashtirilgan fayl tayyor!\n\n" \
+                            "Fayl to'liq tozalandi va standartlashtirildi.\n" \
+                            "Endi uni tahlil qilish uchun qayta yuboring yoki /start orqali chiqing."
             
             # Send report
             await update.message.reply_text(report)
@@ -618,53 +603,7 @@ async def handle_callback_query(update: Update, context: ContextTypes.DEFAULT_TY
         )
         await query.answer("❌ Yozma ish funksiyasi o'chirildi!")
 
-    # Handle File Analyzer callbacks
-    elif query.data == 'analyzer_full_clean':
-        user_data_manager.update_user_field(user_id, 'file_analyzer_mode', True)
-        user_data_manager.update_user_field(user_id, 'file_analyzer_operation', 'full_clean')
-        
-        await query.edit_message_text(
-            "🧹 *To'liq tozalash rejimi yoqildi*\n\n"
-            "Endi faylni yuboring, men uni to'liq tozalayman:\n"
-            "✓ Ortiqcha sarlavhalarni olib tashlayman\n"
-            "✓ ID, ism, familiya ustunlarini o'chirayman\n"
-            "✓ Faqat 0/1 matritsani ajratib olaman\n"
-            "✓ Ustun nomlarini standartlashtiraman\n\n"
-            "📤 Excel (.xlsx, .xls) yoki CSV faylni yuboring\n\n"
-            "🔙 Chiqish uchun /start yoki 'Ortga' tugmasini bosing",
-            parse_mode='Markdown'
-        )
-        
-    elif query.data == 'analyzer_standardize':
-        user_data_manager.update_user_field(user_id, 'file_analyzer_mode', True)
-        user_data_manager.update_user_field(user_id, 'file_analyzer_operation', 'standardize')
-        
-        await query.edit_message_text(
-            "📝 *Standartlashtirish rejimi yoqildi*\n\n"
-            "Endi faylni yuboring, men faqat ustun nomlarini o'zgartiraman:\n"
-            "✓ Ustun nomlarini Savol_1, Savol_2, ... formatiga keltiraman\n"
-            "✓ Ma'lumotlarga tegmayman\n"
-            "✓ Fayl strukturasini saqlayman\n\n"
-            "📤 Excel (.xlsx, .xls) yoki CSV faylni yuboring\n\n"
-            "🔙 Chiqish uchun /start yoki 'Ortga' tugmasini bosing",
-            parse_mode='Markdown'
-        )
-        
-    elif query.data == 'analyzer_back':
-        user_data_manager.update_user_field(user_id, 'file_analyzer_mode', False)
-        user_data_manager.update_user_field(user_id, 'file_analyzer_operation', None)
-        
-        await query.edit_message_text(
-            "🔙 Bosh menyuga qaytdingiz",
-            parse_mode='Markdown'
-        )
-        
-        await query.message.reply_text(
-            "🏠 *Bosh menyu*\n\n"
-            "Kerakli bo'limni tanlang:",
-            parse_mode='Markdown',
-            reply_markup=get_main_keyboard()
-        )
+    
     
     # Handle subject selection
     elif query.data.startswith('subject_'):
@@ -1308,33 +1247,27 @@ async def handle_contact_admin(update: Update, context: ContextTypes.DEFAULT_TYP
 
 
 async def handle_file_analyzer(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Handle File Analyzer button - show cleaning options"""
+    """Handle File Analyzer button - enable full cleaning mode"""
     user_id = update.effective_user.id
     
-    from telegram import InlineKeyboardButton, InlineKeyboardMarkup
-    
-    keyboard = [
-        [InlineKeyboardButton("🧹 To'liq tozalash", callback_data="analyzer_full_clean")],
-        [InlineKeyboardButton("📝 Faqat standartlashtirish", callback_data="analyzer_standardize")],
-        [InlineKeyboardButton("🔙 Ortga", callback_data="analyzer_back")]
-    ]
-    reply_markup = InlineKeyboardMarkup(keyboard)
+    # Enable File Analyzer mode with full cleaning
+    user_data_manager.update_user_field(user_id, 'file_analyzer_mode', True)
+    user_data_manager.update_user_field(user_id, 'file_analyzer_operation', 'full_clean')
     
     analyzer_text = (
-        "📁 *File Analyzer*\n\n"
-        "Qaysi operatsiyani bajarishni xohlaysiz?\n\n"
-        "🧹 *To'liq tozalash:*\n"
-        "  • Ortiqcha sarlavhalarni olib tashlaydi\n"
-        "  • ID, ism, familiya ustunlarini o'chiradi\n"
-        "  • Faqat 0/1 matritsani ajratib oladi\n"
-        "  • Ustun nomlarini standartlashtiradi\n\n"
-        "📝 *Faqat standartlashtirish:*\n"
-        "  • Faqat ustun nomlarini o'zgartiradi\n"
-        "  • Savol_1, Savol_2, ... formatiga keltiradi\n"
-        "  • Ma'lumotlarga tegmaydi\n\n"
-        "Operatsiyani tanlang:"
+        "📁 *File Analyzer yoqildi*\n\n"
+        "🧹 Faylni to'liq tozalash va standartlashtirish:\n\n"
+        "✓ Ortiqcha sarlavhalarni olib tashlayman\n"
+        "✓ ID, email, vaqt kabi ustunlarni o'chirayman\n"
+        "✓ Talabgor ism-familiyasini saqlayman\n"
+        "✓ Faqat 0/1 javob matritsani ajratib olaman\n"
+        "✓ Ustun nomlarini standartlashtiraman:\n"
+        "  - Talabgor (ism-familiya)\n"
+        "  - Savol_1, Savol_2, ... (javoblar)\n\n"
+        "📤 *Excel (.xlsx, .xls) yoki CSV faylni yuboring*\n\n"
+        "🔙 Chiqish uchun /start yoki 'Ortga' tugmasini bosing"
     )
-    await update.message.reply_text(analyzer_text, parse_mode='Markdown', reply_markup=reply_markup)
+    await update.message.reply_text(analyzer_text, parse_mode='Markdown')
 
 
 async def handle_back(update: Update, context: ContextTypes.DEFAULT_TYPE):
