@@ -28,3 +28,16 @@ outputType = "console"
 [[workflows.workflow.tasks]]
 task = "shell.exec"
 args = "PYTHONPATH=/home/runner/workspace:$PYTHONPATH python bot/main.py"
+
+[[workflows.workflow]]
+name = "Start Both Bots"
+author = 41824677
+mode = "parallel"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "PYTHONPATH=/home/runner/workspace:$PYTHONPATH python bot/main.py"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "PYTHONPATH=/home/runner/workspace:$PYTHONPATH python student_bot/main.py"

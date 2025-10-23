@@ -1,13 +1,22 @@
-# Rasch Model Telegram Bot
+# Rasch Model Telegram Bot System
 
-Telegram bot that performs Rasch model analysis using marginal maximum likelihood (MML) estimation and returns results as a PDF report.
+Two-bot system: Teacher bot for creating tests and analyzing data, Student bot for taking tests.
 
 ## Features
 
+### Teacher Bot (bot/main.py)
 - 📊 Rasch model analysis for dichotomous data (0/1)
 - 📄 Professional PDF reports with detailed statistics
 - 🔄 Support for CSV and Excel file formats
-- 📱 Easy-to-use Telegram interface
+- 📝 Create and manage public tests
+- 👥 Student management
+- 🌐 Uzbek language support
+
+### Student Bot (student_bot/main.py)
+- 📝 View available tests
+- ✍️ Take tests online
+- 📊 View test results
+- 🎯 Track performance
 - 🌐 Uzbek language support
 
 ## Project Structure
