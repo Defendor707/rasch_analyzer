@@ -10,6 +10,45 @@ from datetime import datetime
 import numpy as np
 
 
+def format_question_list(questions: list) -> str:
+    """
+    Format a list of question numbers into a readable string
+    
+    Args:
+        questions: List of question numbers
+        
+    Returns:
+        Formatted string
+    """
+    if not questions:
+        return "Yo'q"
+    
+    # Group consecutive numbers into ranges
+    questions = sorted(questions)
+    ranges = []
+    start = questions[0]
+    end = questions[0]
+    
+    for i in range(1, len(questions)):
+        if questions[i] == end + 1:
+            end = questions[i]
+        else:
+            if start == end:
+                ranges.append(str(start))
+            else:
+                ranges.append(f"{start}-{end}")
+            start = questions[i]
+            end = questions[i]
+    
+    # Add the last range
+    if start == end:
+        ranges.append(str(start))
+    else:
+        ranges.append(f"{start}-{end}")
+    
+    return ", ".join(ranges)
+
+
 class PDFReportGenerator:
     """Generates PDF reports for Rasch model analysis results"""
 
@@ -447,7 +486,58 @@ class PDFReportGenerator:
                 ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
                 ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
                 ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+                ('FONTSIZE', (0, 0), (-1, 0), 8),
+                ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
+                ('BACKGROUND', (0, 1), (-1, -1), colors.HexColor('#ECF0F1')),
+                ('GRID', (0, 0), (-1, -1), 0.5, colors.grey),
+                ('FONTSIZE', (0, 1), (-1, -1), 7),
+                ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, colors.HexColor('#F8F9FA')])
+            ]))
+            story.append(person_table)
 
+            # Add legend/explanation
+            story.append(Spacer(1, 0.2 * inch))
+            if section_scores:
+                legend_text = (
+                    "<b>Tushuntirish:</b><br/>"
+                    "• <b>Rank:</b> O'rin (T-Score umumiy bo'yicha tartiblangan)<br/>"
+                    "• <b>Talabgor:</b> Talabgor identifikatori<br/>"
+                    "• <b>Raw Score:</b> Umumiy to'g'ri javoblar soni<br/>"
+                    "• <b>T-Score Umumiy:</b> Umumiy T-ball (o'rtacha=50, standart og'ish=10)<br/>"
+                    "• <b>Bo'lim T-Score:</b> Har bir bo'lim uchun T-ball<br/>"
+                    "• <b>Foiz:</b> Natija foizda (T-Score/65 × 100)<br/>"
+                    "• <b>Daraja:</b> UZBMB standarti (A+≥70, A≥65, B+≥60, B≥55, C+≥50, C≥46, NC&lt;46)"
+                )
+            else:
+                legend_text = (
+                    "<b>Tushuntirish:</b><br/>"
+                    "• <b>Rank:</b> O'rin (T-Score bo'yicha tartiblangan, eng yuqoridan boshlab)<br/>"
+                    "• <b>Talabgor:</b> Talabgor identifikatori<br/>"
+                    "• <b>Raw Score:</b> To'g'ri javoblar soni<br/>"
+                    "• <b>Ability (θ):</b> Qobiliyat darajasi (logit o'lchovi)<br/>"
+                    "• <b>T-Score:</b> T-ball (o'rtacha=50, standart og'ish=10)<br/>"
+                    "• <b>Foiz:</b> Natija foizda (T-Score/65 × 100)<br/>"
+                    "• <b>Daraja:</b> UZBMB standarti (A+≥70, A≥65, B+≥60, B≥55, C+≥50, C≥46, NC&lt;46)"
+                )
+            story.append(Paragraph(legend_text, styles['Normal']))
+
+        story.append(Spacer(1, 0.4 * inch))
+
+        footer_style = ParagraphStyle(
+            'Footer',
+            parent=styles['Normal'],
+            fontSize=8,
+            textColor=colors.grey,
+            alignment=TA_CENTER
+        )
+        story.append(Paragraph(
+            "Rasch Model Tahlili - Talabgorlar Natijalari",
+            footer_style
+        ))
+
+        doc.build(story)
+
+        return filepath
 
     def generate_section_results_report(self, results: Dict[str, Any], filename: str = None, section_questions: Dict[str, list] = None) -> str:
         """
