@@ -40,7 +40,7 @@ class UserDataManager:
         with open(self.data_file, 'w', encoding='utf-8') as f:
             json.dump(all_data, f, ensure_ascii=False, indent=2)
     
-    def update_user_field(self, user_id: int, field: str, value: str):
+    def update_user_field(self, user_id: int, field: str, value: Any):
         """Update specific field in user profile"""
         user_data = self.get_user_data(user_id)
         user_data[field] = value

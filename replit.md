@@ -11,6 +11,13 @@ Telegram bot for performing Rasch model analysis on dichotomous test data. The b
 - **Reports:** ReportLab PDF generation
 
 ## Recent Changes
+- **October 23, 2025 (Latest)**: Added subject sections configuration feature
+  - Created subject_sections.py with all 9 subjects and their sections
+  - Added section question number collection when section_results is enabled
+  - Implemented question number parsing with validation (supports ranges, comma-separated, mixed)
+  - Added "Bo'limlarni sozlash" menu option to reconfigure sections
+  - Section configuration data saved to user_data for future use
+  - Enhanced error messages for better user experience
 - **October 22, 2025 (Latest)**: Fixed critical indexing bug in Rasch analysis
   - Removed unnecessary `.astype(bool)` conversion causing NumPy indexing errors
   - Fixed unbound variable issue in person statistics calculation

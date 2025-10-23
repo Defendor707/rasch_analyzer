@@ -530,21 +530,29 @@ async def handle_section_questions_input(update: Update, context: ContextTypes.D
         question_numbers = []
     else:
         # Try to parse the input
-        try:
-            question_numbers = parse_question_numbers(text)
-            if not question_numbers:
-                await update.message.reply_text(
-                    "❌ Noto'g'ri format!\n\n"
-                    "Iltimos, savol raqamlarini to'g'ri formatda kiriting:\n"
-                    "Masalan: 1-10 yoki 1,2,3,4,5\n\n"
-                    "Bo'limni o'tkazib yuborish uchun 'o'tkazib' deb yozing."
-                )
-                return True
-        except Exception:
+        question_numbers, error_msg = parse_question_numbers(text)
+        
+        if error_msg:
+            # Show specific error
             await update.message.reply_text(
-                "❌ Xatolik yuz berdi!\n\n"
+                f"❌ {error_msg}\n\n"
                 "Iltimos, savol raqamlarini to'g'ri formatda kiriting:\n"
-                "Masalan: 1-10 yoki 1,2,3,4,5\n\n"
+                "• Bitta raqam: 5\n"
+                "• Vergul bilan ajratilgan: 1,2,3,4,5\n"
+                "• Diapazon: 1-10\n"
+                "• Aralash: 1-5,7,9,11-15\n\n"
+                "Bo'limni o'tkazib yuborish uchun 'o'tkazib' deb yozing."
+            )
+            return True
+        
+        if not question_numbers and text.lower().strip() not in ['o\'tkazib', 'otkazib', 'skip']:
+            await update.message.reply_text(
+                "❌ Hech qanday to'g'ri raqam topilmadi!\n\n"
+                "Iltimos, savol raqamlarini to'g'ri formatda kiriting:\n"
+                "• Bitta raqam: 5\n"
+                "• Vergul bilan ajratilgan: 1,2,3,4,5\n"
+                "• Diapazon: 1-10\n"
+                "• Aralash: 1-5,7,9,11-15\n\n"
                 "Bo'limni o'tkazib yuborish uchun 'o'tkazib' deb yozing."
             )
             return True
@@ -599,7 +607,7 @@ async def handle_section_questions_input(update: Update, context: ContextTypes.D
     return True
 
 
-def parse_question_numbers(text: str) -> list:
+def parse_question_numbers(text: str) -> tuple[list, str]:
     """
     Parse question numbers from text input
     Supports formats like: 1-10, 1,2,3,4, or combinations
@@ -608,39 +616,66 @@ def parse_question_numbers(text: str) -> list:
         text: Input text containing question numbers
         
     Returns:
-        List of question numbers
+        Tuple of (list of question numbers, error message if any)
     """
     question_numbers = []
     text = text.strip()
     
+    if not text:
+        return ([], "Bo'sh qiymat kiritildi")
+    
     # Split by comma
     parts = text.split(',')
+    invalid_parts = []
     
     for part in parts:
         part = part.strip()
         
+        if not part:
+            continue
+        
         # Check if it's a range (e.g., 1-10)
         if '-' in part:
             range_parts = part.split('-')
-            if len(range_parts) == 2:
-                try:
-                    start = int(range_parts[0].strip())
-                    end = int(range_parts[1].strip())
-                    question_numbers.extend(range(start, end + 1))
-                except ValueError:
-                    pass
+            if len(range_parts) != 2:
+                invalid_parts.append(part)
+                continue
+            
+            try:
+                start = int(range_parts[0].strip())
+                end = int(range_parts[1].strip())
+                
+                if start < 1 or end < 1:
+                    invalid_parts.append(part)
+                    continue
+                
+                if start > end:
+                    invalid_parts.append(f"{part} (boshlanish oxirishdan katta)")
+                    continue
+                
+                question_numbers.extend(range(start, end + 1))
+            except ValueError:
+                invalid_parts.append(part)
         else:
             # Single number
             try:
                 num = int(part)
+                if num < 1:
+                    invalid_parts.append(f"{num} (musbat bo'lishi kerak)")
+                    continue
                 question_numbers.append(num)
             except ValueError:
-                pass
+                invalid_parts.append(part)
     
     # Remove duplicates and sort
     question_numbers = sorted(list(set(question_numbers)))
     
-    return question_numbers
+    # Generate error message if there were invalid parts
+    error_msg = ""
+    if invalid_parts:
+        error_msg = f"Noto'g'ri formatdagi qiymatlar: {', '.join(invalid_parts)}"
+    
+    return (question_numbers, error_msg)
 
 
 def format_question_list(questions: list) -> str:
@@ -714,19 +749,30 @@ async def handle_profile_edit(update: Update, context: ContextTypes.DEFAULT_TYPE
     return editing_state is not None
 
 
-def get_settings_keyboard():
+def get_settings_keyboard(user_id: int = None):
     """Create keyboard for Settings section"""
     keyboard = [
         [KeyboardButton("📚 Mutaxassislik fanini tanlash")],
         [KeyboardButton("📊 Fan bo'limlari bo'yicha natijalash")],
-        [KeyboardButton("✍️ Yozma ish funksiyasi")],
-        [KeyboardButton("◀️ Ortga")]
+        [KeyboardButton("✍️ Yozma ish funksiyasi")]
     ]
+    
+    # Add section configuration option if section_results is enabled and subject is selected
+    if user_id:
+        user_data = user_data_manager.get_user_data(user_id)
+        section_results_enabled = user_data.get('section_results_enabled', False)
+        subject = user_data.get('subject', '')
+        
+        if section_results_enabled and subject and has_sections(subject):
+            keyboard.insert(2, [KeyboardButton("🔧 Bo'limlarni sozlash")])
+    
+    keyboard.append([KeyboardButton("◀️ Ortga")])
     return ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
 
 
 async def handle_settings(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Handle Settings button"""
+    user_id = update.effective_user.id
     settings_text = (
         "⚙️ *Sozlamalar*\n\n"
         "Quyidagi sozlamalardan birini tanlang:"
@@ -734,7 +780,7 @@ async def handle_settings(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(
         settings_text, 
         parse_mode='Markdown',
-        reply_markup=get_settings_keyboard()
+        reply_markup=get_settings_keyboard(user_id)
     )
 
 
@@ -806,6 +852,61 @@ async def handle_section_results(update: Update, context: ContextTypes.DEFAULT_T
         section_text,
         parse_mode='Markdown',
         reply_markup=reply_markup
+    )
+
+
+async def handle_configure_sections(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Handle Configure Sections button"""
+    user_id = update.effective_user.id
+    user_data = user_data_manager.get_user_data(user_id)
+    
+    subject = user_data.get('subject', '')
+    section_results_enabled = user_data.get('section_results_enabled', False)
+    
+    if not section_results_enabled:
+        await update.message.reply_text(
+            "❌ Bo'limlar bo'yicha natijalash funksiyasi o'chirilgan!\n\n"
+            "Avval 'Fan bo'limlari bo'yicha natijalash' dan funksiyani yoqing.",
+            reply_markup=get_settings_keyboard(user_id)
+        )
+        return
+    
+    if not subject:
+        await update.message.reply_text(
+            "❌ Mutaxassislik fani tanlanmagan!\n\n"
+            "Avval 'Mutaxassislik fanini tanlash' dan fanini tanlang.",
+            reply_markup=get_settings_keyboard(user_id)
+        )
+        return
+    
+    if not has_sections(subject):
+        await update.message.reply_text(
+            f"❌ {subject} fani uchun bo'limlar ma'lumotlari mavjud emas!",
+            reply_markup=get_settings_keyboard(user_id)
+        )
+        return
+    
+    # Start section configuration
+    sections = get_sections(subject)
+    context.user_data['configuring_sections'] = True
+    context.user_data['current_subject'] = subject
+    context.user_data['sections_list'] = sections
+    context.user_data['current_section_index'] = 0
+    context.user_data['section_questions'] = {}
+    
+    await update.message.reply_text(
+        f"🔧 *{subject}* fani uchun bo'limlarni sozlash:\n\n"
+        f"Jami {len(sections)} ta bo'lim mavjud.\n\n"
+        f"*1-bo'lim: {sections[0]}*\n\n"
+        f"Ushbu bo'limga tegishli savol raqamlarini kiriting.\n\n"
+        f"Formatlar:\n"
+        f"• Bitta raqam: 5\n"
+        f"• Vergul bilan ajratilgan: 1,2,3,4,5\n"
+        f"• Diapazon: 1-10\n"
+        f"• Aralash: 1-5,7,9,11-15\n\n"
+        f"Bo'limni o'tkazib yuborish uchun 'o'tkazib' deb yozing.",
+        parse_mode='Markdown',
+        reply_markup=get_main_keyboard()
     )
 
 
@@ -1291,6 +1392,8 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await handle_select_subject(update, context)
     elif message_text == "📊 Fan bo'limlari bo'yicha natijalash":
         await handle_section_results(update, context)
+    elif message_text == "🔧 Bo'limlarni sozlash":
+        await handle_configure_sections(update, context)
     elif message_text == "✍️ Yozma ish funksiyasi":
         await handle_writing_task(update, context)
     else:
