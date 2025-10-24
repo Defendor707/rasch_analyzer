@@ -35,10 +35,9 @@ async def error_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.effective_message.reply_text(
             "❌ Uzr, xatolik yuz berdi. Iltimos, qayta urinib ko'ring."
         )
-        )
 
 
-def main():
+async def main():
     """Start the student bot"""
     bot_token = os.getenv('STUDENT_BOT_TOKEN')
     
@@ -61,8 +60,9 @@ def main():
     application.add_error_handler(error_handler)
     
     logger.info("Talabgor boti ishga tushdi...")
-    application.run_polling(allowed_updates=Update.ALL_TYPES)
+    await application.run_polling(allowed_updates=Update.ALL_TYPES)
 
 
 if __name__ == '__main__':
-    main()()
+    import asyncio
+    asyncio.run(main())

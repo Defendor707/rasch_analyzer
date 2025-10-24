@@ -38,7 +38,7 @@ async def error_handler(update: object, context: ContextTypes.DEFAULT_TYPE):
         )
 
 
-def main():
+async def main():
     """Start the bot"""
     bot_token = os.getenv('BOT_TOKEN')
     
@@ -66,9 +66,10 @@ def main():
     
     application.add_error_handler(error_handler)
     
-    logger.info("Bot ishga tushdi...")
-    application.run_polling(allowed_updates=Update.ALL_TYPES)
+    logger.info("O'qituvchi boti ishga tushdi...")
+    await application.run_polling(allowed_updates=Update.ALL_TYPES)
 
 
 if __name__ == '__main__':
-    main()
+    import asyncio
+    asyncio.run(main())
