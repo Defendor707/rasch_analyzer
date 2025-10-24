@@ -4,15 +4,6 @@ openpyxl==3.1.2
 reportlab==4.0.7
 python-dotenv==1.0.0
 girth==0.8.0
-girth
-openpyxl
-pandas
-python-dotenv
-python-telegram-bot
-reportlab
-matplotlib
-seaborn
 matplotlib
 seaborn
 pytz
-telegram
