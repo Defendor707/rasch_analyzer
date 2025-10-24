@@ -59,6 +59,7 @@ class TestManager:
             'questions': [],
             'created_at': datetime.now().isoformat(),
             'is_active': False,
+            'allow_retake': False,  # Default: no retakes
             'participants': []
         }
         
@@ -167,6 +168,23 @@ class TestManager:
         if not test['is_active']:
             return {'error': 'Test faol emas'}
         
+        # Check if test time is valid
+        time_check = self.is_test_time_valid(test_id)
+        if not time_check['valid']:
+            return {'error': time_check['message']}
+        
+        # Check if student has already taken the test
+        if self.has_student_taken_test(test_id, student_id):
+            # Check if retakes are allowed
+            if not test.get('allow_retake', False):
+                return {'error': 'Siz allaqachon ushbu testni topshirgansiz. Qayta topshirish mumkin emas.'}
+            else:
+                # Remove previous submission for retake
+                test['participants'] = [
+                    p for p in test['participants'] 
+                    if p['student_id'] != student_id
+                ]
+        
         # Calculate score
         total_points = 0
         earned_points = 0
@@ -255,6 +273,85 @@ class TestManager:
             'n_questions': n_questions,
             'n_participants': len(participants)
         }
+    
+    def is_test_time_valid(self, test_id: str) -> Dict[str, Any]:
+        """
+        Check if current time is within test time range
+        
+        Args:
+            test_id: Test identifier
+            
+        Returns:
+            Dict with validity status and message
+        """
+        test = self.get_test(test_id)
+        
+        if not test:
+            return {'valid': False, 'message': 'Test topilmadi'}
+        
+        if not test.get('start_date') or not test.get('start_time'):
+            # No time restrictions
+            return {'valid': True, 'message': 'OK'}
+        
+        try:
+            # Parse test start datetime
+            start_datetime_str = f"{test['start_date']} {test['start_time']}"
+            start_datetime = datetime.strptime(start_datetime_str, '%Y-%m-%d %H:%M')
+            
+            # Calculate end datetime
+            from datetime import timedelta
+            duration_minutes = test.get('duration', 60)
+            end_datetime = start_datetime + timedelta(minutes=duration_minutes)
+            
+            # Get current time
+            current_datetime = datetime.now()
+            
+            # Check if before start
+            if current_datetime < start_datetime:
+                return {
+                    'valid': False,
+                    'message': f"Test hali boshlanmagan. Boshlanish vaqti: {test['start_date']} {test['start_time']}"
+                }
+            
+            # Check if after end
+            if current_datetime > end_datetime:
+                return {
+                    'valid': False,
+                    'message': f"Test vaqti tugagan. Tugash vaqti: {end_datetime.strftime('%Y-%m-%d %H:%M')}"
+                }
+            
+            # Within valid time range
+            remaining_minutes = int((end_datetime - current_datetime).total_seconds() / 60)
+            return {
+                'valid': True,
+                'message': f"Test davom etmoqda. Qolgan vaqt: {remaining_minutes} daqiqa"
+            }
+            
+        except Exception as e:
+            # If parsing fails, allow test
+            return {'valid': True, 'message': 'OK'}
+    
+    def has_student_taken_test(self, test_id: str, student_id: int) -> bool:
+        """
+        Check if student has already taken this test
+        
+        Args:
+            test_id: Test identifier
+            student_id: Student user ID
+            
+        Returns:
+            True if student has taken test, False otherwise
+        """
+        test = self.get_test(test_id)
+        
+        if not test:
+            return False
+        
+        for participant in test.get('participants', []):
+            if participant['student_id'] == student_id:
+                return True
+        
+        return False
     
     def finalize_test(self, test_id: str) -> bool:
         """

@@ -118,6 +118,7 @@ async def show_available_tests(update: Update, context: ContextTypes.DEFAULT_TYP
 async def start_test(update: Update, context: ContextTypes.DEFAULT_TYPE, test_id: str):
     """Start taking a test"""
     test = test_manager.get_test(test_id)
+    user_id = update.effective_user.id
 
     if not test:
         await update.message.reply_text("❌ Test topilmadi!")
@@ -126,20 +127,49 @@ async def start_test(update: Update, context: ContextTypes.DEFAULT_TYPE, test_id
     if not test.get('is_active', False):
         await update.message.reply_text("❌ Bu test hozirda faol emas!")
         return
+    
+    # Check if test time is valid
+    time_check = test_manager.is_test_time_valid(test_id)
+    if not time_check['valid']:
+        await update.message.reply_text(f"❌ {time_check['message']}")
+        return
+    
+    # Check if student has already taken the test
+    if test_manager.has_student_taken_test(test_id, user_id):
+        if not test.get('allow_retake', False):
+            await update.message.reply_text(
+                "❌ Siz allaqachon ushbu testni topshirgansiz.\n\n"
+                "Qayta topshirish mumkin emas."
+            )
+            return
+        else:
+            await update.message.reply_text(
+                "⚠️ Siz bu testni qayta topshiryapsiz.\n"
+                "Oldingi natijangiz o'chiriladi."
+            )
 
     # Initialize test session
     context.user_data['current_test_id'] = test_id
     context.user_data['current_question_index'] = 0
     context.user_data['answers'] = []
     context.user_data['taking_test'] = True
+    
+    # Store test start time for this session
+    from datetime import datetime
+    context.user_data['test_started_at'] = datetime.now().isoformat()
 
     intro_text = (
         f"📝 *{test['name']}* testini boshlaysiz\n\n"
         f"📚 Fan: {test['subject']}\n"
         f"⏱ Davomiyligi: {test['duration']} daqiqa\n"
         f"📝 Savollar soni: {len(test['questions'])} ta\n\n"
-        "Tayyor bo'lsangiz, 'Boshlash' tugmasini bosing!"
     )
+    
+    # Add time info if available
+    if time_check.get('message') != 'OK':
+        intro_text += f"⏰ {time_check['message']}\n\n"
+    
+    intro_text += "Tayyor bo'lsangiz, 'Boshlash' tugmasini bosing!"
 
     keyboard = [
         [InlineKeyboardButton("▶️ Boshlash", callback_data=f"begin_test_{test_id}")]
@@ -156,6 +186,19 @@ async def show_question(update: Update, context: ContextTypes.DEFAULT_TYPE):
     question_index = context.user_data.get('current_question_index', 0)
 
     test = test_manager.get_test(test_id)
+    
+    # Check if test time is still valid
+    if test_id:
+        time_check = test_manager.is_test_time_valid(test_id)
+        if not time_check['valid']:
+            message = update.callback_query.message if update.callback_query else update.message
+            await message.reply_text(
+                f"⏰ {time_check['message']}\n\n"
+                "Testingiz avtomatik yakunlanmoqda..."
+            )
+            await finish_test(update, context, auto_submit=True)
+            return
+    
     if not test or question_index >= len(test['questions']):
         await finish_test(update, context)
         return
@@ -187,6 +230,19 @@ async def handle_answer(update: Update, context: ContextTypes.DEFAULT_TYPE, ques
     """Handle student answer"""
     query = update.callback_query
     await query.answer()
+    
+    # Check if test time is still valid
+    test_id = context.user_data.get('current_test_id')
+    if test_id:
+        time_check = test_manager.is_test_time_valid(test_id)
+        if not time_check['valid']:
+            # Time expired, auto-submit
+            await query.message.reply_text(
+                f"⏰ {time_check['message']}\n\n"
+                "Testingiz avtomatik yakunlanmoqda..."
+            )
+            await finish_test(update, context, auto_submit=True)
+            return
 
     # Save answer
     answers = context.user_data.get('answers', [])
@@ -199,17 +255,26 @@ async def handle_answer(update: Update, context: ContextTypes.DEFAULT_TYPE, ques
     await show_question(update, context)
 
 
-async def finish_test(update: Update, context: ContextTypes.DEFAULT_TYPE):
+async def finish_test(update: Update, context: ContextTypes.DEFAULT_TYPE, auto_submit: bool = False):
     """Finish test and show results"""
     test_id = context.user_data.get('current_test_id')
     answers = context.user_data.get('answers', [])
     user_id = update.effective_user.id
+    
+    # Pad answers with -1 for unanswered questions if auto-submit
+    if auto_submit:
+        test = test_manager.get_test(test_id)
+        if test:
+            total_questions = len(test['questions'])
+            while len(answers) < total_questions:
+                answers.append(-1)  # -1 indicates no answer
 
     # Submit answers and get results
     results = test_manager.submit_answer(test_id, user_id, answers)
 
     if 'error' in results:
-        await update.callback_query.message.reply_text(
+        message = update.callback_query.message if update.callback_query else update.message
+        await message.reply_text(
             f"❌ Xatolik: {results['error']}"
         )
         return
@@ -219,10 +284,17 @@ async def finish_test(update: Update, context: ContextTypes.DEFAULT_TYPE):
     context.user_data['current_test_id'] = None
     context.user_data['current_question_index'] = 0
     context.user_data['answers'] = []
+    context.user_data['test_started_at'] = None
 
     # Show results
-    results_text = (
-        f"✅ *Test yakunlandi!*\n\n"
+    results_text = ""
+    
+    if auto_submit:
+        results_text += "⏰ *Test vaqti tugadi! Avtomatik topshirildi.*\n\n"
+    else:
+        results_text += "✅ *Test yakunlandi!*\n\n"
+    
+    results_text += (
         f"📊 *Natijangiz:*\n"
         f"• Ball: {results['score']}/{results['max_score']}\n"
         f"• Foiz: {results['percentage']:.1f}%\n\n"
