@@ -33,6 +33,7 @@ WAITING_FOR_TEST_DURATION = 11
 WAITING_FOR_QUESTION_TEXT = 12
 WAITING_FOR_QUESTION_OPTIONS = 13
 WAITING_FOR_CORRECT_ANSWER = 14
+WAITING_FOR_ADMIN_MESSAGE = 15
 
 
 def get_main_keyboard():
@@ -786,7 +787,15 @@ async def handle_callback_query(update: Update, context: ContextTypes.DEFAULT_TY
         )
         await query.answer("❌ Yozma ish funksiyasi o'chirildi!")
 
-    
+    # Handle send message to admin
+    elif query.data == 'send_message_to_admin':
+        context.user_data['sending_message_to_admin'] = True
+        await query.message.reply_text(
+            "✉️ *Adminga xabar yuborish*\n\n"
+            "Iltimos, xabaringizni yozing. Admin ko'radi va tez orada javob beradi.\n\n"
+            "❌ Bekor qilish uchun /start buyrug'ini yuboring.",
+            parse_mode='Markdown'
+        )
     
     # Handle subject selection
     elif query.data.startswith('subject_'):
@@ -1427,28 +1436,110 @@ async def handle_statistics(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 
 async def handle_community(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Handle Community button"""
+    """Handle Community button with inline keyboard"""
+    from telegram import InlineKeyboardButton, InlineKeyboardMarkup
+    
     community_text = (
         "👥 *Hamjamiyat*\n\n"
-        "Bizning hamjamiyatga qo'shiling:\n"
-        "• Tajriba almashish\n"
-        "• Savollar berish\n"
-        "• Yangiliklar va yangilanishlar\n\n"
-        "🔜 Tez orada faollashtiriladi!"
+        "Bizning hamjamiyatga qo'shiling va quyidagi imkoniyatlardan foydalaning:\n\n"
+        "✓ Tajriba almashish va muhokama\n"
+        "✓ Savol-javob va yordam olish\n"
+        "✓ Yangi xususiyatlar haqida bilib oling\n"
+        "✓ O'zbekiston ta'lim hamjamiyati bilan tanishing\n\n"
+        "Quyidagi tugmalardan birini tanlang:"
     )
-    await update.message.reply_text(community_text, parse_mode='Markdown')
+    
+    keyboard = [
+        [InlineKeyboardButton("📢 Telegram Kanalimiz", url="https://t.me/raschbot_channel")],
+        [InlineKeyboardButton("💬 Telegram Guruhimiz", url="https://t.me/raschbot_group")],
+        [InlineKeyboardButton("📱 Instagram", url="https://instagram.com/raschbot")],
+        [InlineKeyboardButton("🌐 Veb-sayt", url="https://raschbot.uz")]
+    ]
+    reply_markup = InlineKeyboardMarkup(keyboard)
+    
+    await update.message.reply_text(
+        community_text, 
+        parse_mode='Markdown',
+        reply_markup=reply_markup
+    )
 
 
 async def handle_contact_admin(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Handle Contact Admin button"""
+    """Handle Contact Admin button with inline keyboard and message sending"""
+    from telegram import InlineKeyboardButton, InlineKeyboardMarkup
+    
     contact_text = (
         "💬 *Adminga murojaat*\n\n"
-        "Savollaringiz yoki takliflaringiz uchun biz bilan bog'laning:\n"
-        "📧 Email: support@raschbot.uz\n"
-        "📱 Telegram: @raschbot_admin\n\n"
-        "Tez orada sizga javob beramiz!"
+        "Savollaringiz yoki takliflaringiz bo'lsa, biz bilan bog'laning!\n\n"
+        "📋 *Quyidagi yo'llardan birini tanlang:*\n"
+        "• Telegram orqali to'g'ridan-to'g'ri yozish\n"
+        "• Email yuborish\n"
+        "• Xabar qoldirish (admin ko'radi)\n\n"
+        "⏱ Odatda 24 soat ichida javob beramiz!"
     )
-    await update.message.reply_text(contact_text, parse_mode='Markdown')
+    
+    keyboard = [
+        [InlineKeyboardButton("📱 Telegram admin", url="https://t.me/raschbot_admin")],
+        [InlineKeyboardButton("📧 Email yuborish", url="mailto:support@raschbot.uz")],
+        [InlineKeyboardButton("✉️ Xabar qoldirish", callback_data="send_message_to_admin")]
+    ]
+    reply_markup = InlineKeyboardMarkup(keyboard)
+    
+    await update.message.reply_text(
+        contact_text, 
+        parse_mode='Markdown',
+        reply_markup=reply_markup
+    )
+
+
+async def handle_admin_message(update: Update, context: ContextTypes.DEFAULT_TYPE, message_text: str):
+    """Handle message to admin"""
+    user = update.effective_user
+    user_id = user.id
+    
+    # Get admin Telegram ID from environment (you can set this in .env file)
+    import os
+    admin_id = os.getenv('ADMIN_TELEGRAM_ID')  # Add ADMIN_TELEGRAM_ID to .env
+    
+    # Format message for admin
+    admin_message = (
+        f"📬 *Yangi xabar*\n\n"
+        f"👤 *Foydalanuvchi:*\n"
+        f"  • ID: {user_id}\n"
+        f"  • Ism: {user.first_name} {user.last_name or ''}\n"
+        f"  • Username: @{user.username or 'N/A'}\n\n"
+        f"💬 *Xabar:*\n{message_text}\n\n"
+        f"━━━━━━━━━━━━━━━━\n"
+        f"Javob berish uchun foydalanuvchiga to'g'ridan-to'g'ri yozing."
+    )
+    
+    try:
+        # Send to admin if admin_id is set
+        if admin_id:
+            await context.bot.send_message(
+                chat_id=admin_id,
+                text=admin_message,
+                parse_mode='Markdown'
+            )
+        
+        # Confirmation to user
+        await update.message.reply_text(
+            "✅ *Xabaringiz adminga yuborildi!*\n\n"
+            "Tez orada sizga javob beramiz. Rahmat!\n\n"
+            "Bosh menyuga qaytish uchun /start buyrug'ini yuboring.",
+            parse_mode='Markdown'
+        )
+        
+        # Clear the state
+        context.user_data['sending_message_to_admin'] = False
+        
+    except Exception as e:
+        logger.error(f"Error sending message to admin: {e}")
+        await update.message.reply_text(
+            "❌ Xatolik yuz berdi. Iltimos, qaytadan urinib ko'ring yoki "
+            "to'g'ridan-to'g'ri @raschbot_admin ga yozing.",
+            parse_mode='Markdown'
+        )
 
 
 async def handle_file_analyzer(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -2082,6 +2173,11 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         if handled:
             return
 
+    # Check if user is sending message to admin
+    if context.user_data.get('sending_message_to_admin'):
+        await handle_admin_message(update, context, message_text)
+        return
+    
     # Check if user is editing profile
     if context.user_data.get('editing'):
         handled = await handle_profile_edit(update, context, message_text)

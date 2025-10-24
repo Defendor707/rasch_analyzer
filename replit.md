@@ -11,7 +11,19 @@ Telegram bot for performing Rasch model analysis on dichotomous test data. The b
 - **Reports:** ReportLab PDF generation
 
 ## Recent Changes
-- **October 23, 2025 (Latest)**: Removed automatic data fixing from normal analysis mode
+- **October 24, 2025 (Latest)**: Optimized "Adminga murojaat" and "Hamjamiyat" buttons
+  - Added inline keyboard with multiple contact options
+  - Implemented message-to-admin functionality
+  - Users can now send messages directly to admin via bot
+  - Added Telegram, Email, and Message options for contacting admin
+  - Community button now includes links to Telegram channel, group, Instagram, and website
+  - Enhanced user experience with professional contact flow
+- **October 24, 2025**: Fixed all critical code errors
+  - Fixed run_bots.py event loop conflicts
+  - Fixed rasch_analysis.py type checking errors
+  - Corrected NumPy/Pandas type conversions
+  - Both teacher and student bots running successfully
+- **October 23, 2025**: Removed automatic data fixing from normal analysis mode
   - Normal mode now passes data as-is to RaschAnalyzer without any automatic conversion/fixing
   - No automatic conversion to numeric, no fillna, no rounding
   - Enhanced error handling to detect data format issues
