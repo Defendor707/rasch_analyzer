@@ -1446,21 +1446,14 @@ async def handle_community(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "✓ Savol-javob va yordam olish\n"
         "✓ Yangi xususiyatlar haqida bilib oling\n"
         "✓ O'zbekiston ta'lim hamjamiyati bilan tanishing\n\n"
-        "Quyidagi tugmalardan birini tanlang:"
+        "📢 Telegram: @raschbot_uz\n"
+        "💬 Yordam: @raschbot_support\n\n"
+        "🔜 Tez orada kanal va guruh faollashtiriladi!"
     )
-    
-    keyboard = [
-        [InlineKeyboardButton("📢 Telegram Kanalimiz", url="https://t.me/raschbot_channel")],
-        [InlineKeyboardButton("💬 Telegram Guruhimiz", url="https://t.me/raschbot_group")],
-        [InlineKeyboardButton("📱 Instagram", url="https://instagram.com/raschbot")],
-        [InlineKeyboardButton("🌐 Veb-sayt", url="https://raschbot.uz")]
-    ]
-    reply_markup = InlineKeyboardMarkup(keyboard)
     
     await update.message.reply_text(
         community_text, 
-        parse_mode='Markdown',
-        reply_markup=reply_markup
+        parse_mode='Markdown'
     )
 
 
@@ -1472,16 +1465,14 @@ async def handle_contact_admin(update: Update, context: ContextTypes.DEFAULT_TYP
         "💬 *Adminga murojaat*\n\n"
         "Savollaringiz yoki takliflaringiz bo'lsa, biz bilan bog'laning!\n\n"
         "📋 *Quyidagi yo'llardan birini tanlang:*\n"
-        "• Telegram orqali to'g'ridan-to'g'ri yozish\n"
-        "• Email yuborish\n"
-        "• Xabar qoldirish (admin ko'radi)\n\n"
+        "• Xabar qoldirish (admin ko'radi va javob beradi)\n"
+        "• Telegram orqali to'g'ridan-to'g'ri yozish\n\n"
         "⏱ Odatda 24 soat ichida javob beramiz!"
     )
     
     keyboard = [
-        [InlineKeyboardButton("📱 Telegram admin", url="https://t.me/raschbot_admin")],
-        [InlineKeyboardButton("📧 Email yuborish", url="mailto:support@raschbot.uz")],
-        [InlineKeyboardButton("✉️ Xabar qoldirish", callback_data="send_message_to_admin")]
+        [InlineKeyboardButton("✉️ Xabar qoldirish", callback_data="send_message_to_admin")],
+        [InlineKeyboardButton("📱 Telegram: @raschbot_support", url="https://t.me/raschbot_support")]
     ]
     reply_markup = InlineKeyboardMarkup(keyboard)
     
