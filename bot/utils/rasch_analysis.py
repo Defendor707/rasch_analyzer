@@ -99,14 +99,18 @@ class RaschAnalyzer:
             if abs(delta) < tol:
                 break
         
-        return theta
+        return float(theta)
     
     def _get_descriptive_stats(self, data: pd.DataFrame) -> Dict[str, Any]:
         """Calculate descriptive statistics for items"""
+        item_means = data.mean()
+        item_sd = data.std()
+        total_scores = data.sum(axis=1).describe()
+        
         stats = {
-            'item_means': data.mean().to_dict(),
-            'item_sd': data.std().to_dict(),
-            'total_scores': data.sum(axis=1).describe().to_dict()
+            'item_means': item_means.to_dict() if isinstance(item_means, pd.Series) else {},
+            'item_sd': item_sd.to_dict() if isinstance(item_sd, pd.Series) else {},
+            'total_scores': total_scores.to_dict() if isinstance(total_scores, pd.Series) else {}
         }
         return stats
     
@@ -124,13 +128,13 @@ class RaschAnalyzer:
         )
         
         reliability = (observed_variance - expected_variance) / observed_variance
-        return max(0.0, min(1.0, reliability))
+        return float(max(0.0, min(1.0, reliability)))
     
     def _expected_score_variance(self, difficulty: np.ndarray) -> float:
         """Calculate expected score variance"""
         theta = 0.0  
         p = 1 / (1 + np.exp(-(theta - difficulty)))
-        return np.sum(p * (1 - p))
+        return float(np.sum(p * (1 - p)))
     
     def _calculate_person_statistics(self, responses: np.ndarray, 
                                     abilities: np.ndarray) -> Dict[str, Any]:

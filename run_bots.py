@@ -1,9 +1,11 @@
 
 import asyncio
 import logging
-from telegram.ext import Application
 import os
+from typing import NoReturn
 from dotenv import load_dotenv
+from telegram import Update
+from telegram.ext import Application
 
 load_dotenv()
 
@@ -25,7 +27,6 @@ async def run_teacher_bot():
         handle_message,
         handle_callback_query
     )
-    from telegram import Update
     from telegram.ext import CommandHandler, MessageHandler, CallbackQueryHandler, filters, ContextTypes
     
     async def error_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -56,12 +57,8 @@ async def run_teacher_bot():
     
     logger.info("O'qituvchi boti ishga tushdi!")
     
-    await application.initialize()
-    await application.start()
-    await application.updater.start_polling(allowed_updates=Update.ALL_TYPES)
-    
-    # Keep running
-    await asyncio.Event().wait()
+    await application.run_polling(drop_pending_updates=True)
+    await asyncio.sleep(0)  # For type checker
 
 
 async def run_student_bot():
@@ -72,7 +69,6 @@ async def run_student_bot():
         handle_message,
         handle_callback_query
     )
-    from telegram import Update
     from telegram.ext import CommandHandler, MessageHandler, CallbackQueryHandler, filters, ContextTypes
     
     bot_token = os.getenv('STUDENT_BOT_TOKEN')
@@ -101,12 +97,8 @@ async def run_student_bot():
     
     logger.info("Talabgor boti ishga tushdi!")
     
-    await application.initialize()
-    await application.start()
-    await application.updater.start_polling(allowed_updates=Update.ALL_TYPES)
-    
-    # Keep running
-    await asyncio.Event().wait()
+    await application.run_polling(drop_pending_updates=True)
+    await asyncio.sleep(0)  # For type checker
 
 
 async def main():
