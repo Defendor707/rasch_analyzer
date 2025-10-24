@@ -18,6 +18,7 @@
     "bio": "",
     "subject": "",
     "school": "",
-    "file_analyzer_mode": false
+    "file_analyzer_mode": false,
+    "file_analyzer_operation": null
   }
 }
