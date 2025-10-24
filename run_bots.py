@@ -57,8 +57,15 @@ async def run_teacher_bot():
     
     logger.info("O'qituvchi boti ishga tushdi!")
     
-    await application.run_polling(drop_pending_updates=True)
-    await asyncio.sleep(0)  # For type checker
+    await application.initialize()
+    await application.start()
+    await application.updater.start_polling(drop_pending_updates=True)
+    
+    try:
+        await asyncio.Event().wait()
+    finally:
+        await application.stop()
+        await application.shutdown()
 
 
 async def run_student_bot():
@@ -97,8 +104,15 @@ async def run_student_bot():
     
     logger.info("Talabgor boti ishga tushdi!")
     
-    await application.run_polling(drop_pending_updates=True)
-    await asyncio.sleep(0)  # For type checker
+    await application.initialize()
+    await application.start()
+    await application.updater.start_polling(drop_pending_updates=True)
+    
+    try:
+        await asyncio.Event().wait()
+    finally:
+        await application.stop()
+        await application.shutdown()
 
 
 async def main():
