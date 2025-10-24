@@ -1443,11 +1443,10 @@ async def handle_contact_admin(update: Update, context: ContextTypes.DEFAULT_TYP
     """Handle Contact Admin button"""
     contact_text = (
         "💬 *Adminga murojaat*\n\n"
-        "Savollaringiz yoki takliflaringiz bo'lsa,\n"
-        "quyidagi ma'lumotlardan foydalaning:\n\n"
+        "Savollaringiz yoki takliflaringiz uchun biz bilan bog'laning:\n"
         "📧 Email: support@raschbot.uz\n"
         "📱 Telegram: @raschbot_admin\n\n"
-        "Tez orada javob beramiz! 😊"
+        "Tez orada sizga javob beramiz!"
     )
     await update.message.reply_text(contact_text, parse_mode='Markdown')
 
