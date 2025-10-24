@@ -23,11 +23,18 @@ async def run_teacher_bot():
         sample_command,
         handle_document,
         handle_message,
-        handle_callback_query,
-        error_handler
+        handle_callback_query
     )
     from telegram import Update
-    from telegram.ext import CommandHandler, MessageHandler, CallbackQueryHandler, filters
+    from telegram.ext import CommandHandler, MessageHandler, CallbackQueryHandler, filters, ContextTypes
+    
+    async def error_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
+        """Log errors caused by updates"""
+        logger.error(f"Update {update} caused error {context.error}")
+        if update and update.effective_message:
+            await update.effective_message.reply_text(
+                "❌ Uzr, xatolik yuz berdi. Iltimos, qayta urinib ko'ring."
+            )
     
     bot_token = os.getenv('BOT_TOKEN')
     
