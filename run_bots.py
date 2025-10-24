@@ -1,8 +1,11 @@
 
 import asyncio
 import logging
-from bot.main import main as teacher_bot_main
-from student_bot.main import main as student_bot_main
+from telegram.ext import Application
+import os
+from dotenv import load_dotenv
+
+load_dotenv()
 
 logging.basicConfig(
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
@@ -11,31 +14,111 @@ logging.basicConfig(
 
 logger = logging.getLogger(__name__)
 
+
 async def run_teacher_bot():
     """Run teacher bot"""
-    try:
-        logger.info("O'qituvchi boti ishga tushmoqda...")
-        await teacher_bot_main()
-    except Exception as e:
-        logger.error(f"O'qituvchi botida xatolik: {e}")
+    from bot.handlers.message_handlers import (
+        start_command,
+        help_command,
+        sample_command,
+        handle_document,
+        handle_message,
+        handle_callback_query,
+        error_handler
+    )
+    from telegram import Update
+    from telegram.ext import CommandHandler, MessageHandler, CallbackQueryHandler, filters
+    
+    bot_token = os.getenv('BOT_TOKEN')
+    
+    if not bot_token:
+        logger.error("BOT_TOKEN topilmadi!")
+        return
+    
+    logger.info("O'qituvchi boti ishga tushmoqda...")
+    
+    application = Application.builder().token(bot_token).build()
+    
+    application.add_handler(CommandHandler("start", start_command))
+    application.add_handler(CommandHandler("help", help_command))
+    application.add_handler(CommandHandler("namuna", sample_command))
+    application.add_handler(CallbackQueryHandler(handle_callback_query))
+    application.add_handler(MessageHandler(filters.Document.ALL, handle_document))
+    application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
+    application.add_error_handler(error_handler)
+    
+    logger.info("O'qituvchi boti ishga tushdi!")
+    
+    await application.initialize()
+    await application.start()
+    await application.updater.start_polling(allowed_updates=Update.ALL_TYPES)
+    
+    # Keep running
+    await asyncio.Event().wait()
+
 
 async def run_student_bot():
     """Run student bot"""
-    try:
-        logger.info("Talabgor boti ishga tushmoqda...")
-        await student_bot_main()
-    except Exception as e:
-        logger.error(f"Talabgor botida xatolik: {e}")
+    from student_bot.handlers.student_handlers import (
+        start_command,
+        help_command,
+        handle_message,
+        handle_callback_query
+    )
+    from telegram import Update
+    from telegram.ext import CommandHandler, MessageHandler, CallbackQueryHandler, filters, ContextTypes
+    
+    bot_token = os.getenv('STUDENT_BOT_TOKEN')
+    
+    if not bot_token:
+        logger.error("STUDENT_BOT_TOKEN topilmadi!")
+        return
+    
+    logger.info("Talabgor boti ishga tushmoqda...")
+    
+    application = Application.builder().token(bot_token).build()
+    
+    async def error_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
+        """Log errors caused by updates"""
+        logger.error(f"Update {update} caused error {context.error}")
+        if update and update.effective_message:
+            await update.effective_message.reply_text(
+                "❌ Uzr, xatolik yuz berdi. Iltimos, qayta urinib ko'ring."
+            )
+    
+    application.add_handler(CommandHandler("start", start_command))
+    application.add_handler(CommandHandler("help", help_command))
+    application.add_handler(CallbackQueryHandler(handle_callback_query))
+    application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
+    application.add_error_handler(error_handler)
+    
+    logger.info("Talabgor boti ishga tushdi!")
+    
+    await application.initialize()
+    await application.start()
+    await application.updater.start_polling(allowed_updates=Update.ALL_TYPES)
+    
+    # Keep running
+    await asyncio.Event().wait()
+
 
 async def main():
     """Run both bots concurrently"""
     logger.info("Ikkala bot ham ishga tushmoqda...")
     
-    # Run both bots concurrently
-    await asyncio.gather(
-        run_teacher_bot(),
-        run_student_bot()
-    )
+    # Create tasks for both bots
+    teacher_task = asyncio.create_task(run_teacher_bot())
+    student_task = asyncio.create_task(run_student_bot())
+    
+    # Wait for both tasks (they run indefinitely)
+    try:
+        await asyncio.gather(teacher_task, student_task)
+    except KeyboardInterrupt:
+        logger.info("Botlar to'xtatilmoqda...")
+
 
 if __name__ == '__main__':
-    asyncio.run(main())
+    try:
+        asyncio.run(main())
+    except KeyboardInterrupt:
+        logger.info("Dastur to'xtatildi")
