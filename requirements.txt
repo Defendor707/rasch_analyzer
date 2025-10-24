@@ -14,3 +14,5 @@ matplotlib
 seaborn
 matplotlib
 seaborn
+pytz
+telegram
