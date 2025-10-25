@@ -154,29 +154,32 @@ async def start_test(update: Update, context: ContextTypes.DEFAULT_TYPE, test_id
     """Start taking a test"""
     test = test_manager.get_test(test_id)
     user_id = update.effective_user.id
+    
+    # Get message object correctly (works for both message and callback_query)
+    message = update.callback_query.message if update.callback_query else update.message
 
     if not test:
-        await update.message.reply_text("❌ Test topilmadi!")
+        await message.reply_text("❌ Test topilmadi!")
         return
 
     if not test.get('is_active', False):
-        await update.message.reply_text("❌ Bu test hozirda faol emas!")
+        await message.reply_text("❌ Bu test hozirda faol emas!")
         return
     
     time_check = test_manager.is_test_time_valid(test_id)
     if not time_check['valid']:
-        await update.message.reply_text(f"❌ {time_check['message']}")
+        await message.reply_text(f"❌ {time_check['message']}")
         return
     
     if test_manager.has_student_taken_test(test_id, user_id):
         if not test.get('allow_retake', False):
-            await update.message.reply_text(
+            await message.reply_text(
                 "❌ Siz allaqachon ushbu testni topshirgansiz.\n\n"
                 "Qayta topshirish mumkin emas."
             )
             return
         else:
-            await update.message.reply_text(
+            await message.reply_text(
                 "⚠️ Siz bu testni qayta topshiryapsiz.\n"
                 "Oldingi natijangiz o'chiriladi."
             )
@@ -210,7 +213,6 @@ async def start_test(update: Update, context: ContextTypes.DEFAULT_TYPE, test_id
     ]
     reply_markup = InlineKeyboardMarkup(keyboard)
 
-    message = update.callback_query.message if update.callback_query else update.message
     await message.reply_text(intro_text, parse_mode='Markdown', reply_markup=reply_markup)
 
 
