@@ -27,7 +27,14 @@ async def run_teacher_bot():
         handle_message,
         handle_callback_query
     )
-    from telegram.ext import CommandHandler, MessageHandler, CallbackQueryHandler, filters, ContextTypes
+    from bot.handlers.payment_handlers import (
+        admin_panel_command,
+        handle_admin_callbacks,
+        show_payment_history,
+        precheckout_callback,
+        successful_payment_callback
+    )
+    from telegram.ext import CommandHandler, MessageHandler, CallbackQueryHandler, PreCheckoutQueryHandler, filters, ContextTypes
     
     async def error_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         """Log errors caused by updates"""
@@ -50,6 +57,13 @@ async def run_teacher_bot():
     application.add_handler(CommandHandler("start", start_command))
     application.add_handler(CommandHandler("help", help_command))
     application.add_handler(CommandHandler("namuna", sample_command))
+    application.add_handler(CommandHandler("payments", show_payment_history))
+    application.add_handler(CommandHandler("admos", admin_panel_command))
+    
+    application.add_handler(PreCheckoutQueryHandler(precheckout_callback))
+    application.add_handler(MessageHandler(filters.SUCCESSFUL_PAYMENT, successful_payment_callback))
+    
+    application.add_handler(CallbackQueryHandler(handle_admin_callbacks, pattern="^admin_"))
     application.add_handler(CallbackQueryHandler(handle_callback_query))
     application.add_handler(MessageHandler(filters.Document.ALL, handle_document))
     application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
