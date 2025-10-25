@@ -173,8 +173,19 @@ class TestManager:
 
         user_id_str = str(user_id)
         
-        # Initialize participants dict if it doesn't exist
-        if not isinstance(test.get('participants'), dict):
+        # Migrate participants from list to dict format if needed
+        participants = test.get('participants', {})
+        if isinstance(participants, list):
+            # Convert old list format to new dict format
+            migrated_participants = {}
+            for participant in participants:
+                if isinstance(participant, dict):
+                    p_user_id = str(participant.get('student_id', ''))
+                    if p_user_id:
+                        migrated_participants[p_user_id] = participant
+            test['participants'] = migrated_participants
+        elif not isinstance(participants, dict):
+            # Initialize as empty dict if not list or dict
             test['participants'] = {}
 
         # Check if already submitted (prevent retake unless allowed)
@@ -242,7 +253,7 @@ class TestManager:
             return None
 
         test = tests[test_id]
-        participants = test.get('participants', [])
+        participants = test.get('participants', {})
 
         if not participants:
             return None
@@ -252,14 +263,25 @@ class TestManager:
         response_matrix = []
         student_ids = []
 
-        for participant in participants:
-            student_ids.append(participant['student_id'])
-            row = []
+        # Handle both dict and list formats for backward compatibility
+        if isinstance(participants, dict):
+            for user_id_str, participant in participants.items():
+                if isinstance(participant, dict) and participant.get('submitted'):
+                    student_ids.append(participant.get('student_id', int(user_id_str)))
+                    row = []
+                    for result in participant.get('results', []):
+                        row.append(1 if result.get('correct') else 0)
+                    response_matrix.append(row)
+        elif isinstance(participants, list):
+            for participant in participants:
+                student_ids.append(participant['student_id'])
+                row = []
+                for i, result in enumerate(participant['results']):
+                    row.append(1 if result['correct'] else 0)
+                response_matrix.append(row)
 
-            for i, result in enumerate(participant['results']):
-                row.append(1 if result['correct'] else 0)
-
-            response_matrix.append(row)
+        if not response_matrix:
+            return None
 
         # Create item names
         item_names = [f"Savol_{i+1}" for i in range(n_questions)]
@@ -271,7 +293,7 @@ class TestManager:
             'test_name': test['name'],
             'test_subject': test['subject'],
             'n_questions': n_questions,
-            'n_participants': len(participants)
+            'n_participants': len(response_matrix)
         }
 
     def is_test_time_valid(self, test_id: str) -> Dict[str, Any]:
@@ -351,9 +373,18 @@ class TestManager:
             return False
 
         student_id_str = str(student_id)
-        for participant in test.get('participants', []):
-            if str(participant.get('student_id')) == student_id_str:
-                return True
+        participants = test.get('participants', {})
+        
+        # Handle both dict and list formats for backward compatibility
+        if isinstance(participants, dict):
+            if student_id_str in participants:
+                participant_data = participants[student_id_str]
+                if isinstance(participant_data, dict) and participant_data.get('submitted'):
+                    return True
+        elif isinstance(participants, list):
+            for participant in participants:
+                if str(participant.get('student_id')) == student_id_str:
+                    return True
 
         return False
 

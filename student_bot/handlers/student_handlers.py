@@ -457,16 +457,33 @@ async def show_my_results(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     my_results = []
     for test_id, test_data in all_tests.items():
-        for participant in test_data.get('participants', []):
-            if participant['student_id'] == user_id:
-                my_results.append({
-                    'test_name': test_data['name'],
-                    'subject': test_data['subject'],
-                    'score': participant['score'],
-                    'max_score': participant['max_score'],
-                    'percentage': participant['percentage'],
-                    'submitted_at': participant['submitted_at'][:10]
-                })
+        participants = test_data.get('participants', {})
+        
+        # Handle both dict and list formats for backward compatibility
+        if isinstance(participants, dict):
+            user_id_str = str(user_id)
+            if user_id_str in participants:
+                participant = participants[user_id_str]
+                if isinstance(participant, dict) and participant.get('submitted'):
+                    my_results.append({
+                        'test_name': test_data['name'],
+                        'subject': test_data['subject'],
+                        'score': participant.get('score', 0),
+                        'max_score': participant.get('max_score', 0),
+                        'percentage': participant.get('percentage', 0),
+                        'submitted_at': participant.get('submitted_at', '')[:10]
+                    })
+        elif isinstance(participants, list):
+            for participant in participants:
+                if participant.get('student_id') == user_id:
+                    my_results.append({
+                        'test_name': test_data['name'],
+                        'subject': test_data['subject'],
+                        'score': participant.get('score', 0),
+                        'max_score': participant.get('max_score', 0),
+                        'percentage': participant.get('percentage', 0),
+                        'submitted_at': participant.get('submitted_at', '')[:10]
+                    })
 
     if not my_results:
         await update.message.reply_text(
