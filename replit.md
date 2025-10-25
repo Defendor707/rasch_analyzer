@@ -11,6 +11,15 @@ Telegram bot for performing Rasch model analysis on dichotomous test data. The b
 - **Reports:** ReportLab PDF generation
 
 ## Recent Changes
+- **October 25, 2025 (Latest Update 5)**: Fixed critical bugs in test submission system
+  - Fixed undefined `tests` variable errors in test_manager.py
+  - Completely rewrote `submit_answer()` method to accept list of answers instead of single answer
+  - Changed participants data structure from list to dict (keyed by user_id) for better performance
+  - Added automatic migration from old list format to new dict format, preserving all historical data
+  - Added backward compatibility in all methods: has_student_taken_test, show_my_results, get_test_results_matrix
+  - Fixed student_handlers.py to correctly use updated submit_answer method
+  - Test submission now works correctly with immediate score calculation
+  - All existing participant records are preserved during migration
 - **October 25, 2025 (Latest Update 4)**: Optimized Student Bot with enhanced features
   - Added test navigation: Previous/Next question buttons
   - Real-time timer display showing remaining minutes
