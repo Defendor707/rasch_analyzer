@@ -147,34 +147,84 @@ class TestManager:
         self._save_tests(tests)
         return True
 
-    def submit_answer(self, test_id: str, user_id: int, question_num: int, answer: str) -> bool:
-        """Submit an answer for a question"""
-        test = self.get_test(test_id)
-        if not test:
-            return False
-
+    def submit_answer(self, test_id: str, user_id: int, answers: List[int]) -> Dict[str, Any]:
+        """
+        Submit all answers for a test and calculate results
+        
+        Args:
+            test_id: Test identifier
+            user_id: Student user ID
+            answers: List of answer indices (-1 for unanswered)
+            
+        Returns:
+            Dict with results or error
+        """
+        tests = self._load_tests()
+        
+        if test_id not in tests:
+            return {'error': 'Test topilmadi'}
+        
+        test = tests[test_id]
+        
         # Check if test time expired
-        can_take, _ = self.can_take_test(test_id)
+        can_take, message = self.can_take_test(test_id)
         if not can_take:
-            return False
+            return {'error': message}
 
         user_id_str = str(user_id)
+        
+        # Initialize participants dict if it doesn't exist
+        if not isinstance(test.get('participants'), dict):
+            test['participants'] = {}
 
-        # Prevent retaking if already submitted
-        if user_id_str in test['participants'] and test['participants'][user_id_str].get('submitted'):
-            return False
+        # Check if already submitted (prevent retake unless allowed)
+        if user_id_str in test['participants']:
+            participant_data = test['participants'][user_id_str]
+            if isinstance(participant_data, dict) and participant_data.get('submitted'):
+                if not test.get('allow_retake', False):
+                    return {'error': 'Siz allaqachon ushbu testni topshirgansiz'}
 
-        if user_id_str not in test['participants']:
-            tz = pytz.timezone('Asia/Tashkent')
-            test['participants'][user_id_str] = {
-                'answers': {},
-                'start_time': datetime.now(tz).isoformat(),
-                'submitted': False
-            }
-
-        test['participants'][user_id_str]['answers'][str(question_num)] = answer
+        # Calculate score
+        correct_count = 0
+        total_questions = len(test['questions'])
+        results = []
+        
+        for i, question in enumerate(test['questions']):
+            answer_idx = answers[i] if i < len(answers) else -1
+            is_correct = (answer_idx == question['correct_answer'])
+            if is_correct:
+                correct_count += 1
+            
+            results.append({
+                'question_id': i + 1,
+                'student_answer': answer_idx,
+                'correct_answer': question['correct_answer'],
+                'correct': is_correct
+            })
+        
+        percentage = (correct_count / total_questions * 100) if total_questions > 0 else 0
+        
+        # Save participant data
+        tz = pytz.timezone('Asia/Tashkent')
+        test['participants'][user_id_str] = {
+            'student_id': user_id,
+            'answers': {str(i): ans for i, ans in enumerate(answers)},
+            'score': correct_count,
+            'max_score': total_questions,
+            'percentage': percentage,
+            'results': results,
+            'submitted': True,
+            'submitted_at': datetime.now(tz).isoformat()
+        }
+        
         self._save_tests(tests)
-        return True
+        
+        return {
+            'score': correct_count,
+            'max_score': total_questions,
+            'percentage': percentage,
+            'results': results
+        }
 
     def get_test_results_matrix(self, test_id: str) -> Optional[Dict]:
         """
@@ -389,21 +439,24 @@ class TestManager:
 
     def calculate_score(self, test_id: str, user_id: int) -> Optional[Dict[str, Any]]:
         """Calculate user's score for the test"""
-        test = self.get_test(test_id)
+        tests = self._load_tests()
+        
+        if test_id not in tests:
+            return None
+            
+        test = tests[test_id]
         user_id_str = str(user_id)
 
-        if not test or user_id_str not in test['participants']:
+        if user_id_str not in test.get('participants', {}):
             return None
 
         participant_data = test['participants'][user_id_str]
         user_answers = participant_data.get('answers', {})
-        # Assuming correct answers are stored directly in the test data structure for simplicity
-        # In a real scenario, this might need a more robust way to access correct answers per question
+        
+        # Build correct answer map
         correct_answer_map = {str(q['id']): q['correct_answer'] for q in test.get('questions', [])}
 
-
         total_questions_in_test = len(test.get('questions', []))
-        submitted_answers_count = len(user_answers)
 
         correct_count = 0
         question_results = []
@@ -425,11 +478,10 @@ class TestManager:
         participant_data['submitted'] = True
         tz = pytz.timezone('Asia/Tashkent')
         participant_data['submit_time'] = datetime.now(tz).isoformat()
-        self._save_tests(tests) # Save the updated participant data
-
+        self._save_tests(tests)
 
         return {
-            'total_possible_score': total_questions_in_test, # This might need adjustment if questions have different points
+            'total_possible_score': total_questions_in_test,
             'correct_answers': correct_count,
             'percentage': (correct_count / total_questions_in_test * 100) if total_questions_in_test > 0 else 0,
             'results_details': question_results
