@@ -464,8 +464,23 @@ async def perform_analysis_after_payment(message, context: ContextTypes.DEFAULT_
         else:
             data = pd.read_excel(file_path)
 
-        # Normal mode: use data as-is, no automatic cleaning/fixing
-        numeric_data = data
+        # Convert all columns to numeric, handling errors
+        numeric_data = data.copy()
+        for col in numeric_data.columns:
+            numeric_data[col] = pd.to_numeric(numeric_data[col], errors='coerce')
+        
+        # Remove any rows or columns that are all NaN after conversion
+        numeric_data = numeric_data.dropna(how='all', axis=0)
+        numeric_data = numeric_data.dropna(how='all', axis=1)
+        
+        # Check if we have valid data
+        if numeric_data.empty or numeric_data.shape[0] < 2 or numeric_data.shape[1] < 2:
+            await message.reply_text(
+                "❌ Ma'lumotlar formatida xatolik!\n\n"
+                "Iltimos, fayl faqat 0 va 1 raqamlaridan iborat bo'lganligini tekshiring.\n\n"
+                "Yoki File Analyzer orqali faylni tozalang: ℹ️ Boshqa → 🧹 File Analyzer"
+            )
+            return
 
         analyzer = RaschAnalyzer()
         results = analyzer.fit(numeric_data)

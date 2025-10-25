@@ -11,6 +11,14 @@ Telegram bot for performing Rasch model analysis on dichotomous test data. The b
 - **Reports:** ReportLab PDF generation
 
 ## Recent Changes
+- **October 25, 2025 (Latest Update 3)**: Fixed data type conversion error in file analysis
+  - Added automatic numeric conversion for all columns using `pd.to_numeric()`
+  - Convert data with `errors='coerce'` to handle mixed types
+  - Remove NaN-only rows and columns after conversion
+  - Added validation check for empty data after conversion
+  - Fixed "axis argument to unique not supported for dtype object" error
+  - Clear error message guides users to File Analyzer if data invalid
+  - Now handles Excel files with mixed data types correctly
 - **October 25, 2025 (Latest Update 2)**: Added Free/Paid service toggle feature
   - Implemented `is_payment_enabled()` and `toggle_payment_mode()` in PaymentManager
   - Added "Tekin qilish/Pullik qilish" toggle button in admin panel
