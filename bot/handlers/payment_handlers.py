@@ -124,8 +124,7 @@ async def admin_panel_command(update: Update, context: ContextTypes.DEFAULT_TYPE
             InlineKeyboardButton("🤖 Bot statistikasi", callback_data="admin_bot_stats")
         ],
         [
-            InlineKeyboardButton("💵 Narxni o'zgartirish", callback_data="admin_change_price"),
-            InlineKeyboardButton("👨‍💼 Admin qo'shish", callback_data="admin_add_admin")
+            InlineKeyboardButton("💵 Narxni o'zgartirish", callback_data="admin_change_price")
         ],
         [
             InlineKeyboardButton("📋 Batafsil hisobot", callback_data="admin_detailed_report"),
@@ -175,15 +174,6 @@ async def handle_admin_callbacks(update: Update, context: ContextTypes.DEFAULT_T
         )
         context.user_data['admin_waiting_price'] = True
     
-    elif query.data == "admin_add_admin":
-        await query.edit_message_text(
-            "👨‍💼 *Admin qo'shish*\n\n"
-            "Yangi admin user ID sini quyidagi formatda yuboring:\n"
-            "`admin:123456789`",
-            parse_mode='Markdown'
-        )
-        context.user_data['admin_waiting_new_admin'] = True
-    
     elif query.data == "admin_detailed_report":
         await show_detailed_report(query, context)
     
@@ -201,8 +191,7 @@ async def handle_admin_callbacks(update: Update, context: ContextTypes.DEFAULT_T
                 InlineKeyboardButton("🤖 Bot statistikasi", callback_data="admin_bot_stats")
             ],
             [
-                InlineKeyboardButton("💵 Narxni o'zgartirish", callback_data="admin_change_price"),
-                InlineKeyboardButton("👨‍💼 Admin qo'shish", callback_data="admin_add_admin")
+                InlineKeyboardButton("💵 Narxni o'zgartirish", callback_data="admin_change_price")
             ],
             [
                 InlineKeyboardButton("📋 Batafsil hisobot", callback_data="admin_detailed_report"),
@@ -415,17 +404,18 @@ async def show_detailed_report(query, context: ContextTypes.DEFAULT_TYPE):
 
 async def show_admin_settings(query, context: ContextTypes.DEFAULT_TYPE):
     """Show admin settings"""
+    import os
     config = payment_manager.get_config()
     
-    admin_list = "\n".join([f"  • {admin_id}" for admin_id in config['admin_ids']])
-    if not admin_list:
-        admin_list = "  Yo'q"
+    admin_id = os.getenv('ADMIN_TELEGRAM_ID', 'Sozlanmagan')
     
     message = (
         f"⚙️ *Sozlamalar*\n\n"
         f"💵 Tahlil narxi: {config['analysis_price_stars']} ⭐ Stars\n"
         f"💱 Valyuta: {config['currency']}\n\n"
-        f"👨‍💼 *Adminlar:*\n{admin_list}\n"
+        f"👨‍💼 *Admin User ID:*\n"
+        f"  • {admin_id}\n"
+        f"\n💡 Admin ID ni `.env` faylidan o'zgartiring"
     )
     
     keyboard = [[InlineKeyboardButton("◀️ Ortga", callback_data="admin_back")]]
@@ -459,22 +449,6 @@ async def handle_admin_input(update: Update, context: ContextTypes.DEFAULT_TYPE,
                 return True
             except (ValueError, IndexError):
                 await update.message.reply_text("❌ Noto'g'ri format! Masalan: `narx:150`", parse_mode='Markdown')
-                return True
-    
-    elif context.user_data.get('admin_waiting_new_admin'):
-        if text.startswith('admin:'):
-            try:
-                new_admin_id = int(text.split(':')[1].strip())
-                payment_manager.add_admin(new_admin_id)
-                await update.message.reply_text(
-                    f"✅ *Yangi admin qo'shildi!*\n\n"
-                    f"Admin ID: {new_admin_id}",
-                    parse_mode='Markdown'
-                )
-                context.user_data['admin_waiting_new_admin'] = False
-                return True
-            except (ValueError, IndexError):
-                await update.message.reply_text("❌ Noto'g'ri format! Masalan: `admin:123456789`", parse_mode='Markdown')
                 return True
     
     return False

@@ -50,9 +50,15 @@ class PaymentManager:
                 json.dump(config, f, ensure_ascii=False, indent=2)
     
     def is_admin(self, user_id: int) -> bool:
-        """Check if user is admin"""
-        config = self.get_config()
-        return user_id in config['admin_ids']
+        """Check if user is admin (checks environment variable)"""
+        import os
+        admin_id = os.getenv('ADMIN_TELEGRAM_ID')
+        if admin_id:
+            try:
+                return user_id == int(admin_id)
+            except ValueError:
+                return False
+        return False
     
     def record_payment(self, user_id: int, amount_stars: int, 
                       telegram_payment_charge_id: str, 
