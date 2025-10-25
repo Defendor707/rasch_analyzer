@@ -7,3 +7,6 @@ girth==0.8.0
 matplotlib
 seaborn
 pytz
+python-dotenv
+stripe
+telegram
