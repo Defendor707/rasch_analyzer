@@ -8,5 +8,3 @@ matplotlib
 seaborn
 pytz
 python-dotenv
-stripe
-telegram
