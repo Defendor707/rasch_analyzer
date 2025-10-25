@@ -11,6 +11,15 @@ Telegram bot for performing Rasch model analysis on dichotomous test data. The b
 - **Reports:** ReportLab PDF generation
 
 ## Recent Changes
+- **October 25, 2025 (Latest Update 2)**: Added Free/Paid service toggle feature
+  - Implemented `is_payment_enabled()` and `toggle_payment_mode()` in PaymentManager
+  - Added "Tekin qilish/Pullik qilish" toggle button in admin panel
+  - Admin can switch between free and paid modes with one click
+  - When free mode enabled, analysis runs without payment request
+  - Dynamic button text shows current mode (🟢 Tekin / 💰 Pullik)
+  - Payment status displayed in admin panel and settings
+  - Free mode message shown to users when enabled
+  - All changes persist in payment_config.json
 - **October 25, 2025 (Latest Update)**: Added `/balance` command for real-time Stars balance monitoring
   - Implemented `show_bot_balance()` function using Telegram Bot API
   - Fetches real-time balance via `get_star_transactions()` API method

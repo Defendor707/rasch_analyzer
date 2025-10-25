@@ -24,7 +24,8 @@ class PaymentManager:
             default_config = {
                 'analysis_price_stars': 100,
                 'currency': 'XTR',
-                'admin_ids': []
+                'admin_ids': [],
+                'payment_enabled': True
             }
             with open(self.config_file, 'w', encoding='utf-8') as f:
                 json.dump(default_config, f, ensure_ascii=False, indent=2)
@@ -38,6 +39,18 @@ class PaymentManager:
         """Update analysis price in Stars"""
         config = self.get_config()
         config['analysis_price_stars'] = price_stars
+        with open(self.config_file, 'w', encoding='utf-8') as f:
+            json.dump(config, f, ensure_ascii=False, indent=2)
+    
+    def is_payment_enabled(self) -> bool:
+        """Check if payment is enabled"""
+        config = self.get_config()
+        return config.get('payment_enabled', True)
+    
+    def toggle_payment_mode(self, enabled: bool):
+        """Enable or disable payment requirement"""
+        config = self.get_config()
+        config['payment_enabled'] = enabled
         with open(self.config_file, 'w', encoding='utf-8') as f:
             json.dump(config, f, ensure_ascii=False, indent=2)
     

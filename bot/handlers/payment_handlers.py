@@ -192,6 +192,11 @@ async def admin_panel_command(update: Update, context: ContextTypes.DEFAULT_TYPE
         await update.message.reply_text("❌ Bu buyruq faqat adminlar uchun.")
         return
     
+    # Check payment status for dynamic button text
+    config = payment_manager.get_config()
+    payment_enabled = config.get('payment_enabled', True)
+    payment_toggle_text = "🔴 Tekin qilish" if payment_enabled else "🟢 Pullik qilish"
+    
     keyboard = [
         [
             InlineKeyboardButton("📊 Foydalanuvchilar", callback_data="admin_user_stats"),
@@ -202,7 +207,8 @@ async def admin_panel_command(update: Update, context: ContextTypes.DEFAULT_TYPE
             InlineKeyboardButton("🤖 Bot statistikasi", callback_data="admin_bot_stats")
         ],
         [
-            InlineKeyboardButton("💵 Narxni o'zgartirish", callback_data="admin_change_price")
+            InlineKeyboardButton("💵 Narxni o'zgartirish", callback_data="admin_change_price"),
+            InlineKeyboardButton(payment_toggle_text, callback_data="admin_toggle_payment")
         ],
         [
             InlineKeyboardButton("📋 Batafsil hisobot", callback_data="admin_detailed_report"),
@@ -211,8 +217,11 @@ async def admin_panel_command(update: Update, context: ContextTypes.DEFAULT_TYPE
     ]
     reply_markup = InlineKeyboardMarkup(keyboard)
     
+    status_icon = "🟢 Tekin" if not payment_enabled else "💰 Pullik"
+    
     await update.message.reply_text(
-        "👨‍💼 *Admin Panel*\n\n"
+        f"👨‍💼 *Admin Panel*\n\n"
+        f"Hozirgi rejim: {status_icon}\n\n"
         "Kerakli bo'limni tanlang:",
         parse_mode='Markdown',
         reply_markup=reply_markup
@@ -252,13 +261,21 @@ async def handle_admin_callbacks(update: Update, context: ContextTypes.DEFAULT_T
         )
         context.user_data['admin_waiting_price'] = True
     
-    elif query.data == "admin_detailed_report":
-        await show_detailed_report(query, context)
-    
-    elif query.data == "admin_settings":
-        await show_admin_settings(query, context)
-    
-    elif query.data == "admin_back":
+    elif query.data == "admin_toggle_payment":
+        config = payment_manager.get_config()
+        current_status = config.get('payment_enabled', True)
+        new_status = not current_status
+        
+        payment_manager.toggle_payment_mode(new_status)
+        
+        status_text = "pullik" if new_status else "tekin"
+        status_icon = "💰" if new_status else "🟢"
+        
+        await query.answer(f"{status_icon} Xizmat endi {status_text}!", show_alert=True)
+        
+        # Update keyboard
+        payment_toggle_text = "🔴 Tekin qilish" if new_status else "🟢 Pullik qilish"
+        
         keyboard = [
             [
                 InlineKeyboardButton("📊 Foydalanuvchilar", callback_data="admin_user_stats"),
@@ -269,7 +286,8 @@ async def handle_admin_callbacks(update: Update, context: ContextTypes.DEFAULT_T
                 InlineKeyboardButton("🤖 Bot statistikasi", callback_data="admin_bot_stats")
             ],
             [
-                InlineKeyboardButton("💵 Narxni o'zgartirish", callback_data="admin_change_price")
+                InlineKeyboardButton("💵 Narxni o'zgartirish", callback_data="admin_change_price"),
+                InlineKeyboardButton(payment_toggle_text, callback_data="admin_toggle_payment")
             ],
             [
                 InlineKeyboardButton("📋 Batafsil hisobot", callback_data="admin_detailed_report"),
@@ -278,8 +296,53 @@ async def handle_admin_callbacks(update: Update, context: ContextTypes.DEFAULT_T
         ]
         reply_markup = InlineKeyboardMarkup(keyboard)
         
+        status_display = "🟢 Tekin" if not new_status else "💰 Pullik"
+        
         await query.edit_message_text(
-            "👨‍💼 *Admin Panel*\n\n"
+            f"👨‍💼 *Admin Panel*\n\n"
+            f"Hozirgi rejim: {status_display}\n\n"
+            "Kerakli bo'limni tanlang:",
+            parse_mode='Markdown',
+            reply_markup=reply_markup
+        )
+    
+    elif query.data == "admin_detailed_report":
+        await show_detailed_report(query, context)
+    
+    elif query.data == "admin_settings":
+        await show_admin_settings(query, context)
+    
+    elif query.data == "admin_back":
+        # Check payment status for dynamic button
+        config = payment_manager.get_config()
+        payment_enabled = config.get('payment_enabled', True)
+        payment_toggle_text = "🔴 Tekin qilish" if payment_enabled else "🟢 Pullik qilish"
+        
+        keyboard = [
+            [
+                InlineKeyboardButton("📊 Foydalanuvchilar", callback_data="admin_user_stats"),
+                InlineKeyboardButton("💰 To'lovlar", callback_data="admin_payment_stats")
+            ],
+            [
+                InlineKeyboardButton("📈 Xizmatlar", callback_data="admin_service_stats"),
+                InlineKeyboardButton("🤖 Bot statistikasi", callback_data="admin_bot_stats")
+            ],
+            [
+                InlineKeyboardButton("💵 Narxni o'zgartirish", callback_data="admin_change_price"),
+                InlineKeyboardButton(payment_toggle_text, callback_data="admin_toggle_payment")
+            ],
+            [
+                InlineKeyboardButton("📋 Batafsil hisobot", callback_data="admin_detailed_report"),
+                InlineKeyboardButton("⚙️ Sozlamalar", callback_data="admin_settings")
+            ]
+        ]
+        reply_markup = InlineKeyboardMarkup(keyboard)
+        
+        status_icon = "🟢 Tekin" if not payment_enabled else "💰 Pullik"
+        
+        await query.edit_message_text(
+            f"👨‍💼 *Admin Panel*\n\n"
+            f"Hozirgi rejim: {status_icon}\n\n"
             "Kerakli bo'limni tanlang:",
             parse_mode='Markdown',
             reply_markup=reply_markup
@@ -486,14 +549,17 @@ async def show_admin_settings(query, context: ContextTypes.DEFAULT_TYPE):
     config = payment_manager.get_config()
     
     admin_id = os.getenv('ADMIN_TELEGRAM_ID', 'Sozlanmagan')
+    payment_enabled = config.get('payment_enabled', True)
+    payment_status = "💰 Pullik" if payment_enabled else "🟢 Tekin"
     
     message = (
         f"⚙️ *Sozlamalar*\n\n"
+        f"🎯 *Xizmat rejimi:* {payment_status}\n"
         f"💵 Tahlil narxi: {config['analysis_price_stars']} ⭐ Stars\n"
         f"💱 Valyuta: {config['currency']}\n\n"
         f"👨‍💼 *Admin User ID:*\n"
         f"  • {admin_id}\n"
-        f"\n💡 Admin ID ni `.env` faylidan o'zgartiring"
+        f"\n💡 Sozlamalarni admin paneldan o'zgartiring"
     )
     
     keyboard = [[InlineKeyboardButton("◀️ Ortga", callback_data="admin_back")]]

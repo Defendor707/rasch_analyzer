@@ -411,17 +411,28 @@ async def handle_document(update: Update, context: ContextTypes.DEFAULT_TYPE):
         file_path = os.path.join(upload_dir, f"{user_id}_{document.file_name}")
         await file.download_to_drive(file_path)
         
-        # Check if payment is required
-        config = payment_manager.get_config()
-        
-        # Save file info for later use after payment
+        # Save file info for later use
         context.user_data['pending_analysis_file'] = file_path
         context.user_data['pending_analysis_filename'] = document.file_name
         context.user_data['pending_file_extension'] = file_extension
         
-        # Send payment invoice
-        from bot.handlers.payment_handlers import create_payment_invoice
-        await create_payment_invoice(update, context, document.file_name)
+        # Check if payment is required
+        if payment_manager.is_payment_enabled():
+            # Send payment invoice
+            from bot.handlers.payment_handlers import create_payment_invoice
+            await create_payment_invoice(update, context, document.file_name)
+        else:
+            # Payment disabled - proceed directly to analysis
+            await update.message.reply_text(
+                "🎉 Xizmat hozir tekin!\n\n"
+                "⏳ Tahlil boshlanmoqda..."
+            )
+            # Set payment as completed to skip payment check
+            context.user_data['payment_completed'] = True
+            context.user_data['paid_file_name'] = document.file_name
+            
+            # Perform analysis directly
+            await perform_analysis_after_payment(update.message, context)
 
     except Exception as e:
         logger.error(f"Error uploading file for user {user_id}: {str(e)}")
