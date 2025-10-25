@@ -9,6 +9,7 @@ from bot.utils.student_data import StudentDataManager
 from bot.utils.subject_sections import get_sections, has_sections
 from bot.utils.data_cleaner import DataCleaner
 from bot.utils.test_manager import TestManager
+from bot.utils.payment_manager import PaymentManager
 import logging
 
 logger = logging.getLogger(__name__)
@@ -17,6 +18,7 @@ logger = logging.getLogger(__name__)
 user_data_manager = UserDataManager()
 student_data_manager = StudentDataManager()
 test_manager = TestManager()
+payment_manager = PaymentManager()
 
 # Conversation states
 WAITING_FOR_FULL_NAME = 1
@@ -393,8 +395,8 @@ async def handle_document(update: Update, context: ContextTypes.DEFAULT_TYPE):
             )
             return
 
-    # NORMAL MODE: Analyze the file
-    await update.message.reply_text("⏳ Fayl qabul qilindi. Tahlil boshlanmoqda...")
+    # NORMAL MODE: Check payment and analyze the file
+    await update.message.reply_text("⏳ Fayl qabul qilindi...")
 
     try:
         file = await context.bot.get_file(document.file_id)
@@ -404,7 +406,41 @@ async def handle_document(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
         file_path = os.path.join(upload_dir, f"{user_id}_{document.file_name}")
         await file.download_to_drive(file_path)
+        
+        # Check if payment is required
+        config = payment_manager.get_config()
+        
+        # Save file info for later use after payment
+        context.user_data['pending_analysis_file'] = file_path
+        context.user_data['pending_analysis_filename'] = document.file_name
+        context.user_data['pending_file_extension'] = file_extension
+        
+        # Send payment invoice
+        from bot.handlers.payment_handlers import create_payment_invoice
+        await create_payment_invoice(update, context, document.file_name)
 
+    except Exception as e:
+        logger.error(f"Error uploading file for user {user_id}: {str(e)}")
+        await update.message.reply_text(
+            f"❌ Faylni yuklashda xatolik: {str(e)}\n\n"
+            "Iltimos, qayta urinib ko'ring."
+        )
+
+
+async def perform_analysis_after_payment(message, context: ContextTypes.DEFAULT_TYPE):
+    """Perform Rasch analysis after successful payment"""
+    user_id = message.chat.id
+    
+    file_path = context.user_data.get('pending_analysis_file')
+    file_extension = context.user_data.get('pending_file_extension')
+    
+    if not file_path or not os.path.exists(file_path):
+        await message.reply_text("❌ Fayl topilmadi. Iltimos, qayta fayl yuboring.")
+        return
+    
+    await message.reply_text("⏳ Tahlil boshlanmoqda...")
+    
+    try:
         if file_extension == '.csv':
             try:
                 data = pd.read_csv(file_path)
@@ -450,7 +486,7 @@ async def handle_document(update: Update, context: ContextTypes.DEFAULT_TYPE):
             context.user_data['current_section_index'] = 0
             context.user_data['section_questions'] = {}
 
-            await update.message.reply_text(
+            await message.reply_text(
                 f"📋 *{selected_subject}* fani uchun bo'limlar bo'yicha savol raqamlarini kiritish:\n\n"
                 f"Jami {len(sections)} ta bo'lim mavjud.\n\n"
                 f"*1-bo'lim: {sections[0]}*\n\n"
@@ -476,7 +512,7 @@ async def handle_document(update: Update, context: ContextTypes.DEFAULT_TYPE):
         # Send general statistics PDF
         if general_pdf_path and os.path.exists(general_pdf_path):
             with open(general_pdf_path, 'rb') as pdf_file:
-                await update.message.reply_document(
+                await message.reply_document(
                     document=pdf_file,
                     filename=os.path.basename(general_pdf_path),
                     caption="📊 Umumiy statistika va item parametrlari"
@@ -484,7 +520,7 @@ async def handle_document(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
         # Send person results PDF
         with open(person_pdf_path, 'rb') as pdf_file:
-            await update.message.reply_document(
+            await message.reply_document(
                 document=pdf_file,
                 filename=os.path.basename(person_pdf_path),
                 caption="👥 Talabgorlar natijalari (Umumiy)"
@@ -499,24 +535,32 @@ async def handle_document(update: Update, context: ContextTypes.DEFAULT_TYPE):
             )
 
             with open(section_pdf_path, 'rb') as pdf_file:
-                await update.message.reply_document(
+                await message.reply_document(
                     document=pdf_file,
                     filename=os.path.basename(section_pdf_path),
                     caption="📋 Bo'limlar bo'yicha natijalar (T-Score)"
                 )
 
-        await update.message.reply_text(
+        await message.reply_text(
             "✅ Barcha hisobotlar yuborildi!",
             parse_mode='Markdown',
             reply_markup=get_main_keyboard()
         )
 
-        os.remove(file_path)
+        # Cleanup
+        if os.path.exists(file_path):
+            os.remove(file_path)
+        
+        # Clear pending data
+        context.user_data.pop('pending_analysis_file', None)
+        context.user_data.pop('pending_analysis_filename', None)
+        context.user_data.pop('pending_file_extension', None)
+        context.user_data.pop('pending_payment_file', None)
 
         logger.info(f"Successfully processed file for user {user_id}")
 
     except pd.errors.EmptyDataError:
-        await update.message.reply_text(
+        await message.reply_text(
             "❌ Fayl bo'sh yoki noto'g'ri formatda!\n\n"
             "Iltimos, to'g'ri ma'lumotlar bilan qayta urinib ko'ring."
         )
@@ -526,7 +570,7 @@ async def handle_document(update: Update, context: ContextTypes.DEFAULT_TYPE):
         
         # Check if error is related to data format issues
         if any(keyword in error_message for keyword in ['string', 'text', 'object', 'cannot convert', 'invalid literal']):
-            await update.message.reply_text(
+            await message.reply_text(
                 f"❌ Ma'lumot formati noto'g'ri!\n\n"
                 f"Sabab: Faylda matn yoki noto'g'ri formatdagi ma'lumotlar mavjud.\n\n"
                 f"💡 Yechim:\n"
@@ -536,7 +580,7 @@ async def handle_document(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 f"File Analyzer faylingizni tahlil uchun tayyorlaydi."
             )
         else:
-            await update.message.reply_text(
+            await message.reply_text(
                 f"❌ Xatolik yuz berdi: {str(e)}\n\n"
                 f"Iltimos, faylingizni tekshiring va qayta urinib ko'ring.\n\n"
                 f"💡 Agar faylda ortiqcha ustunlar yoki qatorlar bo'lsa,\n"

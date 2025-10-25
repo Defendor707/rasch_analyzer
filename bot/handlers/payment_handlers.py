@@ -74,6 +74,10 @@ async def successful_payment_callback(update: Update, context: ContextTypes.DEFA
     
     context.user_data['payment_completed'] = True
     context.user_data['paid_file_name'] = file_name
+    
+    # Start analysis after successful payment
+    from bot.handlers.message_handlers import perform_analysis_after_payment
+    await perform_analysis_after_payment(update.message, context)
 
 
 async def show_payment_history(update: Update, context: ContextTypes.DEFAULT_TYPE):
