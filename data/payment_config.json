@@ -2,5 +2,5 @@
   "analysis_price_stars": 1,
   "currency": "XTR",
   "admin_ids": [],
-  "payment_enabled": true
+  "payment_enabled": false
 }
