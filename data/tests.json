@@ -109,7 +109,7 @@
       }
     ],
     "created_at": "2025-10-24T02:43:59.939144",
-    "is_active": true,
+    "is_active": false,
     "participants": [
       {
         "student_id": 7537966029,
@@ -127,7 +127,8 @@
           }
         ]
       }
-    ]
+    ],
+    "finalized_at": "2025-10-25T13:02:00.768509"
   },
   "test_7537966029_20251024_030159": {
     "teacher_id": 7537966029,
@@ -162,8 +163,9 @@
       }
     ],
     "created_at": "2025-10-24T03:01:59.734922",
-    "is_active": true,
+    "is_active": false,
     "allow_retake": false,
-    "participants": []
+    "participants": [],
+    "finalized_at": "2025-10-25T13:02:02.187790"
   }
 }
