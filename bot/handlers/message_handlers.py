@@ -1404,21 +1404,31 @@ async def handle_students(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(students_text, parse_mode='HTML', reply_markup=reply_markup)
 
 
-def get_other_keyboard():
+def get_other_keyboard(is_admin=False):
     """Create keyboard for 'Boshqa' section"""
     keyboard = [
         [KeyboardButton("📁 File Analyzer")],
         [KeyboardButton("📝 Ommaviy test o'tkazish")],
-        [KeyboardButton("📊 Statistika")],
+        [KeyboardButton("💳 To'lovlar tarixi"), KeyboardButton("📊 Statistika")]
+    ]
+    
+    if is_admin:
+        keyboard.append([KeyboardButton("👨‍💼 Admin panel")])
+    
+    keyboard.extend([
         [KeyboardButton("👥 Hamjamiyat")],
         [KeyboardButton("💬 Adminga murojaat")],
         [KeyboardButton("◀️ Ortga")]
-    ]
+    ])
+    
     return ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
 
 
 async def handle_other(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Handle Other button"""
+    user_id = update.effective_user.id
+    is_admin = payment_manager.is_admin(user_id)
+    
     other_text = (
         "ℹ️ *Boshqa bo'lim*\n\n"
         "Quyidagi bo'limlardan birini tanlang:"
@@ -1426,7 +1436,7 @@ async def handle_other(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(
         other_text, 
         parse_mode='Markdown',
-        reply_markup=get_other_keyboard()
+        reply_markup=get_other_keyboard(is_admin)
     )
 
 
@@ -1477,6 +1487,38 @@ async def handle_statistics(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "🔜 Tez orada faollashtiriladi!"
     )
     await update.message.reply_text(stats_text, parse_mode='Markdown')
+
+
+async def handle_admin_panel(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Handle Admin Panel"""
+    user_id = update.effective_user.id
+    
+    if not payment_manager.is_admin(user_id):
+        await update.message.reply_text(
+            "❌ Bu bo'lim faqat adminlar uchun!",
+            reply_markup=get_main_keyboard()
+        )
+        return
+    
+    from bot.handlers.payment_handlers import show_admin_stats
+    
+    # Show stats
+    await show_admin_stats(update, context)
+    
+    # Show admin options
+    keyboard = [
+        [InlineKeyboardButton("💰 Narxni o'zgartirish", callback_data="admin_change_price")],
+        [InlineKeyboardButton("➕ Admin qo'shish", callback_data="admin_add_admin")],
+        [InlineKeyboardButton("📊 Batafsil statistika", callback_data="admin_detailed_stats")]
+    ]
+    reply_markup = InlineKeyboardMarkup(keyboard)
+    
+    await update.message.reply_text(
+        "👨‍💼 *Admin panel*\n\n"
+        "Kerakli buyruqni tanlang:",
+        parse_mode='Markdown',
+        reply_markup=reply_markup
+    )
 
 
 async def handle_community(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -2247,6 +2289,11 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await handle_public_test(update, context)
     elif message_text == "📊 Statistika":
         await handle_statistics(update, context)
+    elif message_text == "💳 To'lovlar tarixi":
+        from bot.handlers.payment_handlers import show_payment_history
+        await show_payment_history(update, context)
+    elif message_text == "👨‍💼 Admin panel":
+        await handle_admin_panel(update, context)
     elif message_text == "👥 Hamjamiyat":
         await handle_community(update, context)
     elif message_text == "💬 Adminga murojaat":
