@@ -11,6 +11,21 @@ Telegram bot for performing Rasch model analysis on dichotomous test data. The b
 - **Reports:** ReportLab PDF generation
 
 ## Recent Changes
+- **October 25, 2025 (Latest Update 4)**: Optimized Student Bot with enhanced features
+  - Added test navigation: Previous/Next question buttons
+  - Real-time timer display showing remaining minutes
+  - Color-coded time warnings (🔴 <5min, 🟡 <10min, ⏰ normal)
+  - Progress bar showing answered/unanswered questions
+  - Review all answers before submitting
+  - Confirmation dialogs for test submission and cancellation
+  - Detailed results showing correct/incorrect/unanswered questions
+  - Test search by subject filter
+  - Visual indicators (✅) for answered questions
+  - Answer modification during test
+  - Warning for unanswered questions before submit
+  - Sorted results by date (newest first)
+  - Top 10 results display with performance medals (🥇🥈🥉)
+  - Better error handling and user experience
 - **October 25, 2025 (Latest Update 3)**: Fixed data type conversion error in file analysis
   - Added automatic numeric conversion for all columns using `pd.to_numeric()`
   - Convert data with `errors='coerce'` to handle mixed types
