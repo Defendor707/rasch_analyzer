@@ -1500,25 +1500,8 @@ async def handle_admin_panel(update: Update, context: ContextTypes.DEFAULT_TYPE)
         )
         return
     
-    from bot.handlers.payment_handlers import show_admin_stats
-    
-    # Show stats
-    await show_admin_stats(update, context)
-    
-    # Show admin options
-    keyboard = [
-        [InlineKeyboardButton("💰 Narxni o'zgartirish", callback_data="admin_change_price")],
-        [InlineKeyboardButton("➕ Admin qo'shish", callback_data="admin_add_admin")],
-        [InlineKeyboardButton("📊 Batafsil statistika", callback_data="admin_detailed_stats")]
-    ]
-    reply_markup = InlineKeyboardMarkup(keyboard)
-    
-    await update.message.reply_text(
-        "👨‍💼 *Admin panel*\n\n"
-        "Kerakli buyruqni tanlang:",
-        parse_mode='Markdown',
-        reply_markup=reply_markup
-    )
+    from bot.handlers.payment_handlers import admin_panel_command
+    await admin_panel_command(update, context)
 
 
 async def handle_community(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -2207,6 +2190,12 @@ async def handle_finish_test(update: Update, context: ContextTypes.DEFAULT_TYPE)
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Handle regular text messages"""
     message_text = update.message.text
+
+    # Check if admin is inputting data
+    from bot.handlers.payment_handlers import handle_admin_input
+    admin_handled = await handle_admin_input(update, context, message_text)
+    if admin_handled:
+        return
 
     # Handle "Ortga" button - cancel any ongoing operations
     if message_text == "◀️ Ortga":

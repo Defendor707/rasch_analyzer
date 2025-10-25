@@ -23,8 +23,7 @@ from bot.handlers.payment_handlers import (
     precheckout_callback,
     successful_payment_callback,
     show_payment_history,
-    show_admin_stats,
-    update_price_command
+    admin_panel_command
 )
 
 load_dotenv()
@@ -60,12 +59,13 @@ async def main():
     application.add_handler(CommandHandler("help", help_command))
     application.add_handler(CommandHandler("namuna", sample_command))
     application.add_handler(CommandHandler("payments", show_payment_history))
-    application.add_handler(CommandHandler("stats", show_admin_stats))
-    application.add_handler(CommandHandler("setprice", update_price_command))
+    application.add_handler(CommandHandler("admos", admin_panel_command))
     
     application.add_handler(PreCheckoutQueryHandler(precheckout_callback))
     application.add_handler(MessageHandler(filters.SUCCESSFUL_PAYMENT, successful_payment_callback))
     
+    from bot.handlers.payment_handlers import handle_admin_callbacks
+    application.add_handler(CallbackQueryHandler(handle_admin_callbacks, pattern="^admin_"))
     application.add_handler(CallbackQueryHandler(handle_callback_query))
     
     application.add_handler(MessageHandler(
