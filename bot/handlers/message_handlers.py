@@ -174,6 +174,8 @@ async def perform_test_rasch_analysis(message, context, test_id: str):
 
 async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Send help message when the command /help is issued"""
+    user_id = update.effective_user.id
+    
     help_message = (
         "*📖 Yordam*\n\n"
         "*Fayl talablari:*\n"
@@ -194,8 +196,21 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "✓ Person ability ko'rsatkichlari\n"
         "✓ Reliability (ishonchlilik)\n"
         "✓ Deskriptiv statistika\n\n"
-        "Savol bo'lsa, fayl yuboring va tahlil boshlaylik!"
+        "*Buyruqlar:*\n"
+        "• /namuna - Namuna tahlil ko'rish\n"
+        "• /payments - To'lovlar tarixi\n"
     )
+    
+    # Add admin commands if user is admin
+    if payment_manager.is_admin(user_id):
+        help_message += (
+            "\n*🔧 Admin buyruqlari:*\n"
+            "• /balance - Bot Stars balansi\n"
+            "• /admos - Admin panel\n"
+        )
+    
+    help_message += "\n\nSavol bo'lsa, fayl yuboring va tahlil boshlaylik!"
+    
     await update.message.reply_text(help_message, parse_mode='Markdown')
 
 

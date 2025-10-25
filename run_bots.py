@@ -31,6 +31,7 @@ async def run_teacher_bot():
         admin_panel_command,
         handle_admin_callbacks,
         show_payment_history,
+        show_bot_balance,
         precheckout_callback,
         successful_payment_callback
     )
@@ -58,6 +59,7 @@ async def run_teacher_bot():
     application.add_handler(CommandHandler("help", help_command))
     application.add_handler(CommandHandler("namuna", sample_command))
     application.add_handler(CommandHandler("payments", show_payment_history))
+    application.add_handler(CommandHandler("balance", show_bot_balance))
     application.add_handler(CommandHandler("admos", admin_panel_command))
     
     application.add_handler(PreCheckoutQueryHandler(precheckout_callback))

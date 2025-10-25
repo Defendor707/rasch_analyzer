@@ -11,7 +11,16 @@ Telegram bot for performing Rasch model analysis on dichotomous test data. The b
 - **Reports:** ReportLab PDF generation
 
 ## Recent Changes
-- **October 25, 2025 (Latest)**: Implemented Telegram Stars payment integration
+- **October 25, 2025 (Latest Update)**: Added `/balance` command for real-time Stars balance monitoring
+  - Implemented `show_bot_balance()` function using Telegram Bot API
+  - Fetches real-time balance via `get_star_transactions()` API method
+  - Shows current balance, total received, total withdrawn Stars
+  - Displays recent transactions with timestamps
+  - Shows withdrawal status (minimum 1,000 Stars required)
+  - Includes fallback to local stats if API unavailable
+  - Admin-only command for bot owner
+  - Updated `/help` command to show admin commands dynamically
+- **October 25, 2025**: Implemented Telegram Stars payment integration
   - Added per-analysis payment system using Telegram Stars
   - Created PaymentManager class for payment tracking and pricing
   - Implemented payment handlers: invoice creation, pre-checkout, successful payment

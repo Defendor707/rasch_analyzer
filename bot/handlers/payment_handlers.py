@@ -106,6 +106,84 @@ async def show_payment_history(update: Update, context: ContextTypes.DEFAULT_TYP
     await update.message.reply_text(message)
 
 
+async def show_bot_balance(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Show bot's Telegram Stars balance and transaction history (admin only)"""
+    user_id = update.effective_user.id
+    
+    if not payment_manager.is_admin(user_id):
+        await update.message.reply_text("❌ Bu buyruq faqat adminlar uchun.")
+        return
+    
+    try:
+        # Get star transactions from Telegram API
+        transactions = await context.bot.get_star_transactions(limit=100)
+        
+        # Calculate total balance from transactions
+        total_received = 0
+        total_withdrawn = 0
+        
+        for tx in transactions.transactions:
+            if tx.amount > 0:
+                total_received += tx.amount
+            else:
+                total_withdrawn += abs(tx.amount)
+        
+        current_balance = total_received - total_withdrawn
+        
+        # Get local payment stats
+        stats = payment_manager.get_payment_stats()
+        
+        message = (
+            f"💰 *Bot Stars Balansi*\n\n"
+            f"⭐ *Telegram API:*\n"
+            f"  • Hozirgi balans: {current_balance} Stars\n"
+            f"  • Jami qabul qilingan: {total_received} Stars\n"
+            f"  • Yechib olingan: {total_withdrawn} Stars\n\n"
+            f"📊 *Lokal statistika:*\n"
+            f"  • Jami to'lovlar: {stats['total_payments']} ta\n"
+            f"  • Jami Stars: {stats['total_stars']} ⭐\n"
+            f"  • To'lov qilganlar: {stats['unique_users']} ta\n\n"
+        )
+        
+        if current_balance >= 1000:
+            message += "✅ Yechib olish mumkin (min. 1000 Stars)\n"
+            message += "💡 Fragment orqali TON hamyoningizga o'tkazing"
+        else:
+            remaining = 1000 - current_balance
+            message += f"⏳ Yechib olish uchun yana {remaining} Stars kerak"
+        
+        # Show recent transactions
+        if transactions.transactions:
+            message += "\n\n📜 *So'nggi tranzaksiyalar:*\n"
+            for i, tx in enumerate(transactions.transactions[:5], 1):
+                from datetime import datetime
+                date = datetime.fromtimestamp(tx.date).strftime('%d.%m.%Y %H:%M')
+                amount_str = f"+{tx.amount}" if tx.amount > 0 else str(tx.amount)
+                message += f"{i}. {amount_str} ⭐ - {date}\n"
+        
+        await update.message.reply_text(message, parse_mode='Markdown')
+        
+    except Exception as e:
+        logger.error(f"Balansni olishda xatolik: {e}")
+        
+        # Fallback to local stats only
+        stats = payment_manager.get_payment_stats()
+        
+        message = (
+            f"💰 *Bot Statistikasi*\n\n"
+            f"📊 *Lokal ma'lumotlar:*\n"
+            f"  • Jami to'lovlar: {stats['total_payments']} ta\n"
+            f"  • Jami Stars: {stats['total_stars']} ⭐\n"
+            f"  • To'lov qilganlar: {stats['unique_users']} ta\n\n"
+            f"⚠️ *Telegram API orqali balansni ololmadik.*\n\n"
+            f"💡 Balansni BotFatherdan ko'ring:\n"
+            f"   @BotFather → Botingiz → Edit → Balance\n\n"
+            f"📌 *Eslatma:* Balans birinchi to'lovdan 1-2 soat keyin ko'rinadi."
+        )
+        
+        await update.message.reply_text(message, parse_mode='Markdown')
+
+
 async def admin_panel_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Main admin panel with inline keyboard (admin only)"""
     user_id = update.effective_user.id
