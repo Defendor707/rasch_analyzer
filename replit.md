@@ -11,7 +11,17 @@ Telegram bot for performing Rasch model analysis on dichotomous test data. The b
 - **Reports:** ReportLab PDF generation
 
 ## Recent Changes
-- **October 24, 2025 (Latest)**: Optimized "Adminga murojaat" and "Hamjamiyat" buttons
+- **October 25, 2025 (Latest)**: Implemented Telegram Stars payment integration
+  - Added per-analysis payment system using Telegram Stars
+  - Created PaymentManager class for payment tracking and pricing
+  - Implemented payment handlers: invoice creation, pre-checkout, successful payment
+  - Modified file upload workflow: file upload → payment → analysis → PDF delivery
+  - Added admin panel: price configuration, payment statistics, user history
+  - Payment data persists in JSON-based database (data/payments.json)
+  - Users cannot analyze files without completing payment
+  - Fixed critical package conflict: removed `telegram` 0.0.1, kept `python-telegram-bot` 20.7
+  - Botlar to'liq ishlamoqda va to'lov tizimi faol
+- **October 24, 2025**: Optimized "Adminga murojaat" and "Hamjamiyat" buttons
   - Added inline keyboard with multiple contact options
   - Implemented message-to-admin functionality
   - Users can now send messages directly to admin via bot
@@ -97,13 +107,16 @@ Telegram bot for performing Rasch model analysis on dichotomous test data. The b
 ├── bot/
 │   ├── main.py                    # Bot entry point
 │   ├── handlers/
-│   │   └── message_handlers.py    # Commands & file handling
+│   │   ├── message_handlers.py    # Commands & file handling
+│   │   └── payment_handlers.py    # Payment invoice & callbacks
 │   └── utils/
 │       ├── rasch_analysis.py      # Rasch model implementation
-│       └── pdf_generator.py       # PDF report generation
+│       ├── pdf_generator.py       # PDF report generation
+│       └── payment_manager.py     # Payment tracking & pricing
 ├── data/
 │   ├── uploads/                   # Temporary file storage
-│   └── results/                   # Generated PDFs
+│   ├── results/                   # Generated PDFs
+│   └── payments.json              # Payment history database
 ```
 
 ### Key Components
@@ -125,6 +138,14 @@ Telegram bot for performing Rasch model analysis on dichotomous test data. The b
    - Data validation
    - Analysis orchestration
    - Report delivery
+   - Admin panel (price configuration, payment statistics)
+
+4. **Payment System** (`bot/utils/payment_manager.py` & `bot/handlers/payment_handlers.py`)
+   - Telegram Stars integration for per-analysis payments
+   - Invoice creation and validation
+   - Payment tracking and history
+   - Admin pricing controls
+   - Transaction persistence (JSON database)
 
 ### Dependencies
 - python-telegram-bot 20.7 - Telegram Bot API
