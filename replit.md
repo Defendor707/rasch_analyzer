@@ -11,6 +11,15 @@ Telegram bot for performing Rasch model analysis on dichotomous test data. The b
 - **Reports:** ReportLab PDF generation
 
 ## Recent Changes
+- **October 26, 2025 (Latest Update)**: Made test time restrictions optional
+  - Only test name is now mandatory during test creation
+  - Added inline keyboard choice: "Do you want to set time restrictions?"
+  - If "Yes" - asks for start date, start time, and duration
+  - If "No" - creates test without time restrictions (available anytime)
+  - Updated test display to show "No time restriction" for tests without schedule
+  - Tests without time restrictions can be taken anytime once activated
+  - Fixed timezone handling: all times use Asia/Tashkent timezone with `tz.localize()`
+  - Improved user experience with clearer test creation flow
 - **October 25, 2025 (Latest Update 5)**: Fixed critical bugs in test submission system
   - Fixed undefined `tests` variable errors in test_manager.py
   - Completely rewrote `submit_answer()` method to accept list of answers instead of single answer

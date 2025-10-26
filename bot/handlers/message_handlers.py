@@ -29,13 +29,14 @@ WAITING_FOR_STUDENT_TELEGRAM = 5
 WAITING_FOR_PARENT_TELEGRAM = 6
 WAITING_FOR_SECTION_QUESTIONS = 7
 WAITING_FOR_TEST_NAME = 8
-WAITING_FOR_TEST_START_DATE = 9
-WAITING_FOR_TEST_START_TIME = 10
-WAITING_FOR_TEST_DURATION = 11
-WAITING_FOR_QUESTION_TEXT = 12
-WAITING_FOR_QUESTION_OPTIONS = 13
-WAITING_FOR_CORRECT_ANSWER = 14
-WAITING_FOR_ADMIN_MESSAGE = 15
+WAITING_FOR_TIME_RESTRICTION_CHOICE = 9
+WAITING_FOR_TEST_START_DATE = 10
+WAITING_FOR_TEST_START_TIME = 11
+WAITING_FOR_TEST_DURATION = 12
+WAITING_FOR_QUESTION_TEXT = 13
+WAITING_FOR_QUESTION_OPTIONS = 14
+WAITING_FOR_CORRECT_ANSWER = 15
+WAITING_FOR_ADMIN_MESSAGE = 16
 
 
 def get_main_keyboard():
@@ -669,6 +670,37 @@ async def handle_callback_query(update: Update, context: ContextTypes.DEFAULT_TY
             "✏️ O'zingiz haqida qisqacha ma'lumot kiriting:",
             reply_markup=get_main_keyboard()
         )
+    
+    # Handle time restriction choice for test creation
+    elif query.data == 'time_restriction_yes':
+        context.user_data['creating_test'] = WAITING_FOR_TEST_START_DATE
+        await query.message.reply_text(
+            "📅 Test boshlanish sanasini kiriting\n"
+            "(Format: KK.OO.YYYY, masalan: 25.10.2025):"
+        )
+    
+    elif query.data == 'time_restriction_no':
+        # Create test without time restrictions
+        user_id = update.effective_user.id
+        test_temp = context.user_data.get('test_temp', {})
+        test_temp['start_date'] = ''
+        test_temp['start_time'] = ''
+        test_temp['duration'] = 60  # Default duration
+        
+        test_id = test_manager.create_test(user_id, test_temp)
+        context.user_data['current_test_id'] = test_id
+        
+        await query.message.reply_text(
+            f"✅ Test muvaffaqiyatli yaratildi!\n\n"
+            f"📋 *{test_temp['name']}*\n"
+            f"📚 Fan: {test_temp['subject']}\n"
+            f"⏱ Vaqt chegarasi: Yo'q (istalgan vaqtda topshirish mumkin)\n\n"
+            "Endi savollar qo'shing.\n\n"
+            "Birinchi savol matnini kiriting:",
+            parse_mode='Markdown'
+        )
+        
+        context.user_data['creating_test'] = WAITING_FOR_QUESTION_TEXT
 
     # Handle section results toggle
     elif query.data == 'section_results_on':
@@ -1944,11 +1976,19 @@ async def handle_view_tests(update: Update, context: ContextTypes.DEFAULT_TYPE):
         else:
             status = "⏸ Faol emas"
         
+        # Build test info dynamically based on what's available
+        start_date = test.get('start_date', '')
+        start_time = test.get('start_time', '')
+        
+        if start_date and start_time:
+            time_info = f"📅 Boshlanish: {start_date} {start_time}\n⏱ Davomiyligi: {test['duration']} daqiqa\n"
+        else:
+            time_info = f"⏱ Vaqt chegarasi: Yo'q (istalgan vaqtda topshirish mumkin)\n"
+        
         test_text = (
             f"📋 *{test['name']}*\n\n"
             f"📚 Fan: {test['subject']}\n"
-            f"📅 Boshlanish: {test.get('start_date', 'Belgilanmagan')} {test.get('start_time', '')}\n"
-            f"⏱ Davomiyligi: {test['duration']} daqiqa\n"
+            f"{time_info}"
             f"📝 Savollar: {len(test['questions'])} ta\n"
             f"📊 Status: {status}\n"
             f"👥 Ishtirokchilar: {len(test['participants'])} ta\n"
@@ -1985,10 +2025,22 @@ async def handle_test_input(update: Update, context: ContextTypes.DEFAULT_TYPE, 
     
     if creating_state == WAITING_FOR_TEST_NAME:
         context.user_data['test_temp']['name'] = text
-        context.user_data['creating_test'] = WAITING_FOR_TEST_START_DATE
+        context.user_data['creating_test'] = WAITING_FOR_TIME_RESTRICTION_CHOICE
+        
+        keyboard = [
+            [
+                InlineKeyboardButton("✅ Ha", callback_data="time_restriction_yes"),
+                InlineKeyboardButton("❌ Yo'q", callback_data="time_restriction_no")
+            ]
+        ]
+        reply_markup = InlineKeyboardMarkup(keyboard)
+        
         await update.message.reply_text(
-            "Test boshlanish sanasini kiriting\n"
-            "(Format: KK.OO.YYYY, masalan: 25.10.2025):"
+            "❓ Test uchun vaqt chegarasini belgilaysizmi?\n\n"
+            "• *Ha* - Muayyan sana va vaqtda boshlanadi\n"
+            "• *Yo'q* - Istalgan vaqtda topshirish mumkin",
+            parse_mode='Markdown',
+            reply_markup=reply_markup
         )
         return True
     
