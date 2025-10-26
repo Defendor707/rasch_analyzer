@@ -86,8 +86,13 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(help_message, parse_mode='Markdown')
 
 
-async def show_available_tests(update: Update, context: ContextTypes.DEFAULT_TYPE, subject_filter=None):
-    """Show all active tests with optional subject filter"""
+async def show_available_tests(update: Update, context: ContextTypes.DEFAULT_TYPE, subject_filter=None, page=0):
+    """Show all active tests with optional subject filter and pagination"""
+    # If no subject filter, show subject selection
+    if not subject_filter:
+        await show_subject_selection(update, context)
+        return
+    
     all_tests = test_manager._load_tests()
     active_tests = [
         (test_id, test_data)
@@ -95,31 +100,40 @@ async def show_available_tests(update: Update, context: ContextTypes.DEFAULT_TYP
         if test_data.get('is_active', False)
     ]
 
-    if subject_filter:
-        active_tests = [
-            (test_id, test_data)
-            for test_id, test_data in active_tests
-            if subject_filter.lower() in test_data.get('subject', '').lower()
-        ]
+    # Filter by subject
+    active_tests = [
+        (test_id, test_data)
+        for test_id, test_data in active_tests
+        if subject_filter.lower() in test_data.get('subject', '').lower()
+    ]
 
     if not active_tests:
-        message_text = "❌ Hozirda faol testlar yo'q.\n\n"
-        if subject_filter:
-            message_text = f"❌ '{subject_filter}' bo'yicha faol testlar topilmadi.\n\n"
+        message_text = f"❌ '{subject_filter}' bo'yicha faol testlar topilmadi.\n\n"
         message_text += "Keyinroq qayta urinib ko'ring."
         
         await update.message.reply_text(message_text)
         return
 
-    header = f"📝 *Mavjud testlar* ({len(active_tests)} ta)\n\n"
-    if subject_filter:
-        header = f"🔍 *'{subject_filter}' bo'yicha testlar* ({len(active_tests)} ta)\n\n"
+    # Pagination settings
+    TESTS_PER_PAGE = 5
+    total_tests = len(active_tests)
+    total_pages = (total_tests + TESTS_PER_PAGE - 1) // TESTS_PER_PAGE
+    page = max(0, min(page, total_pages - 1))  # Ensure valid page
     
-    header += "Testni boshlash uchun quyidagilardan birini tanlang:"
+    start_idx = page * TESTS_PER_PAGE
+    end_idx = min(start_idx + TESTS_PER_PAGE, total_tests)
+    page_tests = active_tests[start_idx:end_idx]
+
+    header = (
+        f"🔍 *'{subject_filter}' bo'yicha testlar*\n\n"
+        f"Jami: {total_tests} ta test\n"
+        f"Sahifa: {page + 1}/{total_pages}\n\n"
+        f"Testni boshlash uchun quyidagilardan birini tanlang:"
+    )
     
     await update.message.reply_text(header, parse_mode='Markdown')
 
-    for test_id, test_data in active_tests:
+    for test_id, test_data in page_tests:
         test_text = (
             f"📋 *{test_data['name']}*\n"
             f"📚 Fan: {test_data['subject']}\n"
@@ -137,6 +151,80 @@ async def show_available_tests(update: Update, context: ContextTypes.DEFAULT_TYP
             parse_mode='Markdown',
             reply_markup=reply_markup
         )
+    
+    # Add pagination buttons if needed
+    if total_pages > 1:
+        pagination_buttons = []
+        
+        if page > 0:
+            pagination_buttons.append(
+                InlineKeyboardButton("◀️ Oldingi", callback_data=f"page_{subject_filter}_{page-1}")
+            )
+        
+        if page < total_pages - 1:
+            pagination_buttons.append(
+                InlineKeyboardButton("Keyingi ▶️", callback_data=f"page_{subject_filter}_{page+1}")
+            )
+        
+        if pagination_buttons:
+            keyboard = [pagination_buttons]
+            reply_markup = InlineKeyboardMarkup(keyboard)
+            await update.message.reply_text(
+                f"Sahifa {page + 1}/{total_pages}",
+                reply_markup=reply_markup
+            )
+
+
+async def show_subject_selection(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Show subject selection for test filtering"""
+    from bot.utils.subject_sections import get_all_subjects
+    
+    subjects = get_all_subjects()
+    
+    # Get unique subjects from active tests
+    all_tests = test_manager._load_tests()
+    active_subjects = set()
+    for test_data in all_tests.values():
+        if test_data.get('is_active', False):
+            active_subjects.add(test_data.get('subject', ''))
+    
+    # Filter to only show subjects with active tests
+    available_subjects = [s for s in subjects if s in active_subjects]
+    
+    if not available_subjects:
+        await update.message.reply_text(
+            "❌ Hozirda faol testlar yo'q.\n\n"
+            "Keyinroq qayta urinib ko'ring."
+        )
+        return
+    
+    text = (
+        "📚 *Fanlarni tanlang*\n\n"
+        "Qaysi fanga oid testlarni ko'rmoqchisiz?"
+    )
+    
+    # Create keyboard with subject buttons (2 per row)
+    keyboard = []
+    for i in range(0, len(available_subjects), 2):
+        row = []
+        row.append(InlineKeyboardButton(
+            available_subjects[i], 
+            callback_data=f"subject_filter_{available_subjects[i]}"
+        ))
+        if i + 1 < len(available_subjects):
+            row.append(InlineKeyboardButton(
+                available_subjects[i + 1], 
+                callback_data=f"subject_filter_{available_subjects[i + 1]}"
+            ))
+        keyboard.append(row)
+    
+    reply_markup = InlineKeyboardMarkup(keyboard)
+    
+    await update.message.reply_text(
+        text,
+        parse_mode='Markdown',
+        reply_markup=reply_markup
+    )
 
 
 async def search_tests(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -620,6 +708,29 @@ async def handle_callback_query(update: Update, context: ContextTypes.DEFAULT_TY
 
     elif query.data == 'force_submit':
         await finish_test(update, context)
+    
+    elif query.data.startswith('subject_filter_'):
+        subject = query.data.replace('subject_filter_', '')
+        await query.answer(f"📚 {subject}")
+        # Create a fake update with message for show_available_tests
+        fake_update = Update(
+            update_id=update.update_id,
+            message=query.message
+        )
+        await show_available_tests(fake_update, context, subject_filter=subject, page=0)
+    
+    elif query.data.startswith('page_'):
+        parts = query.data.split('_')
+        if len(parts) >= 3:
+            subject = '_'.join(parts[1:-1])  # Handle subjects with underscores
+            page = int(parts[-1])
+            await query.answer(f"Sahifa {page + 1}")
+            # Create a fake update with message for show_available_tests
+            fake_update = Update(
+                update_id=update.update_id,
+                message=query.message
+            )
+            await show_available_tests(fake_update, context, subject_filter=subject, page=page)
 
 
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -628,7 +739,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     if context.user_data.get('searching_tests'):
         context.user_data['searching_tests'] = False
-        await show_available_tests(update, context, subject_filter=message_text)
+        await show_available_tests(update, context, subject_filter=message_text, page=0)
         return
 
     if message_text == "📝 Mavjud testlar":
