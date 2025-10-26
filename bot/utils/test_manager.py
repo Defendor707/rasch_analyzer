@@ -319,7 +319,7 @@ class TestManager:
             # Use Tashkent timezone
             tz = pytz.timezone('Asia/Tashkent')
             start_datetime_str = f"{test['start_date']} {test['start_time']}"
-            start_datetime = datetime.strptime(start_datetime_str, '%Y-%m-%d %H:%M').replace(tzinfo=tz)
+            start_datetime = tz.localize(datetime.strptime(start_datetime_str, '%Y-%m-%d %H:%M'))
 
             # Calculate end datetime
             duration_minutes = test.get('duration', 60)
@@ -404,7 +404,8 @@ class TestManager:
             return False
 
         tests[test_id]['is_active'] = False
-        tests[test_id]['finalized_at'] = datetime.now().isoformat()
+        tz = pytz.timezone('Asia/Tashkent')
+        tests[test_id]['finalized_at'] = datetime.now(tz).isoformat()
         self._save_tests(tests)
         return True
 
@@ -435,7 +436,7 @@ class TestManager:
 
         try:
             start_datetime_str = f"{test['start_date']} {test['start_time']}"
-            start_datetime = datetime.strptime(start_datetime_str, '%Y-%m-%d %H:%M').replace(tzinfo=tz)
+            start_datetime = tz.localize(datetime.strptime(start_datetime_str, '%Y-%m-%d %H:%M'))
 
             # If test hasn't started yet
             if now < start_datetime:
