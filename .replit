@@ -36,4 +36,4 @@ outputType = "console"
 
 [[workflows.workflow.tasks]]
 task = "shell.exec"
-args = "python run_bots.py"
+args = "python3 run_bots.py"
