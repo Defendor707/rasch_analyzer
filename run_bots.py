@@ -190,6 +190,15 @@ async def main():
     
     logger.info("Ikkala bot ham ishga tushmoqda...")
     
+    # Initialize database
+    from bot.database.connection import db
+    try:
+        await db.initialize()
+        logger.info("Database muvaffaqiyatli initialize qilindi!")
+    except Exception as e:
+        logger.error(f"Database initialize qilishda xatolik: {e}")
+        raise
+    
     # Create tasks for both bots
     teacher_task = asyncio.create_task(run_teacher_bot())
     student_task = asyncio.create_task(run_student_bot())
