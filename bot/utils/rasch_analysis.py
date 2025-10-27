@@ -25,8 +25,27 @@ class RaschAnalyzer:
         """
         response_matrix = data.values
         
+        # Validate data before analysis
+        if response_matrix.size == 0:
+            raise ValueError("Ma'lumotlar matritsasi bo'sh. Iltimos, to'g'ri ma'lumotlar bilan qayta urinib ko'ring.")
+        
+        if response_matrix.shape[0] < 2:
+            raise ValueError("Kamida 2 ta ishtirokchi kerak. Hozirgi ishtirokchilar: {} ta".format(response_matrix.shape[0]))
+        
+        if response_matrix.shape[1] < 2:
+            raise ValueError("Kamida 2 ta savol kerak. Hozirgi savollar: {} ta".format(response_matrix.shape[1]))
+        
+        # Check for non-binary values (excluding NaN)
+        unique_values = np.unique(response_matrix[~np.isnan(response_matrix)])
+        if not np.all(np.isin(unique_values, [0, 1, 0.0, 1.0])):
+            raise ValueError("Ma'lumotlar faqat 0 va 1 qiymatlarini o'z ichiga olishi kerak. File Analyzer orqali faylni tozalang.")
+        
         # girth expects data as (items x persons), so we transpose
-        rasch_result = rasch_mml(response_matrix.T)
+        try:
+            rasch_result = rasch_mml(response_matrix.T)
+        except Exception as e:
+            raise RuntimeError(f"Rasch tahlili amalga oshirilmadi. Sabab: {str(e)}. Iltimos, ma'lumotlaringizni tekshiring.")
+        
         self.difficulty = np.asarray(rasch_result['Difficulty'])
         
         self.person_abilities = self._estimate_person_abilities(
