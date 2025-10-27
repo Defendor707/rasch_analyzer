@@ -66,6 +66,117 @@ async def send_certificate_to_student(application: Application, student_id: int,
         return False
 
 
+async def send_test_results_to_students(test_id: str, student_bot_app: Application = None) -> dict:
+    """
+    Send test results to all students who completed the test (only once)
+    
+    Args:
+        test_id: Test identifier
+        student_bot_app: Student bot application instance for sending results
+        
+    Returns:
+        Dictionary with success status and count of sent results
+    """
+    from bot.database.managers import TestResultManager
+    
+    if not student_bot_app:
+        logger.error("Student bot application topilmadi")
+        return {'success': False, 'count': 0, 'error': 'Student bot topilmadi'}
+    
+    test_manager = TestManager()
+    result_manager = TestResultManager()
+    
+    # Get test info
+    test = test_manager.get_test(test_id)
+    if not test:
+        logger.error(f"Test {test_id} topilmadi")
+        return {'success': False, 'count': 0, 'error': 'Test topilmadi'}
+    
+    # Get all completed test results
+    import asyncio
+    from bot.database.connection import db
+    from sqlalchemy import select, update
+    from bot.database.schema import TestResult
+    
+    try:
+        await db.initialize()
+        
+        async with db.get_session() as session:
+            # Get results that haven't been sent yet
+            result = await session.execute(
+                select(TestResult)
+                .where(TestResult.test_id == test_id)
+                .where(TestResult.is_completed == True)
+                .where(TestResult.results_sent == False)
+            )
+            unsent_results = list(result.scalars().all())
+            
+            if not unsent_results:
+                logger.info(f"Test {test_id} uchun yuborilmagan natijalar yo'q")
+                return {'success': True, 'count': 0, 'already_sent': True}
+            
+            sent_count = 0
+            
+            for test_result in unsent_results:
+                try:
+                    student_id = int(test_result.student_id)
+                    score = test_result.score or 0
+                    total = test_result.total_questions or 0
+                    percentage = (score / total * 100) if total > 0 else 0
+                    
+                    # Determine grade
+                    if percentage >= 90:
+                        grade = "A (A'lo) 🥇"
+                    elif percentage >= 80:
+                        grade = "B (Yaxshi) 🥈"
+                    elif percentage >= 70:
+                        grade = "C (Qoniqarli) 🥉"
+                    elif percentage >= 60:
+                        grade = "D (O'rtacha) 📊"
+                    else:
+                        grade = "F (Qoniqarsiz) 📉"
+                    
+                    # Send result to student
+                    message = (
+                        f"📊 <b>Test natijalari</b>\n\n"
+                        f"📋 Test: <b>{test['name']}</b>\n"
+                        f"📚 Fan: <b>{test['subject']}</b>\n\n"
+                        f"✅ To'g'ri javoblar: <b>{int(score)}/{total}</b>\n"
+                        f"📈 Foiz: <b>{percentage:.1f}%</b>\n"
+                        f"🎯 Baho: <b>{grade}</b>\n\n"
+                        f"Test yakunlandi. Natijalaringiz yuqorida ko'rsatilgan."
+                    )
+                    
+                    await student_bot_app.bot.send_message(
+                        chat_id=student_id,
+                        text=message,
+                        parse_mode='HTML'
+                    )
+                    
+                    # Mark as sent
+                    await session.execute(
+                        update(TestResult)
+                        .where(TestResult.id == test_result.id)
+                        .values(results_sent=True)
+                    )
+                    await session.commit()
+                    
+                    sent_count += 1
+                    logger.info(f"Natija yuborildi: talabgor {student_id}, test {test_id}")
+                    
+                except Exception as student_error:
+                    logger.error(f"Talabgor {test_result.student_id} ga natija yuborishda xatolik: {student_error}")
+                    await session.rollback()
+                    continue
+            
+            logger.info(f"Test {test_id} uchun {sent_count} ta natija yuborildi")
+            return {'success': True, 'count': sent_count}
+            
+    except Exception as e:
+        logger.error(f"Test natijalarini yuborishda xatolik: {e}")
+        return {'success': False, 'count': 0, 'error': str(e)}
+
+
 async def process_and_send_test_results(application: Application, test_id: str, student_bot_app: Application = None) -> None:
     """
     Process test results, perform Rasch analysis, and send to teacher

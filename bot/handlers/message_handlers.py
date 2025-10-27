@@ -928,6 +928,10 @@ async def handle_callback_query(update: Update, context: ContextTypes.DEFAULT_TY
             is_finalized = test.get('finalized_at') is not None
             has_time_limit = test.get('start_date') and test.get('start_time')
             
+            # Check if results have been sent to students
+            from bot.database.managers import TestResultManager
+            results_sent = await TestResultManager.check_results_sent(test_id)
+            
             results_text = f"📊 *{test['name']}* - Natijalar\n\n"
             
             participants = test.get('participants', {})
@@ -952,6 +956,10 @@ async def handle_callback_query(update: Update, context: ContextTypes.DEFAULT_TY
                                 f"   Foiz: {p.get('percentage', 0):.1f}%\n\n"
                             )
                 
+                # Add status message if results have been sent
+                if results_sent:
+                    results_text += "\n✅ Natijalar talabgorlarga yuborilgan\n"
+                
                 # Build keyboard based on test state
                 keyboard = []
                 
@@ -968,6 +976,10 @@ async def handle_callback_query(update: Update, context: ContextTypes.DEFAULT_TY
                     # Test already finalized - show re-analysis option
                     keyboard.append([InlineKeyboardButton("🔄 Rasch tahlilini qayta amalga oshirish", callback_data=f"rasch_analysis_{test_id}")])
                 
+                # Add "Send results" button only if results haven't been sent yet
+                if not results_sent:
+                    keyboard.append([InlineKeyboardButton("📤 Talabgorlarga natijalarni yuborish", callback_data=f"send_results_{test_id}")])
+                
                 reply_markup = InlineKeyboardMarkup(keyboard)
                 await query.edit_message_text(results_text, parse_mode='Markdown', reply_markup=reply_markup)
             else:
@@ -981,6 +993,61 @@ async def handle_callback_query(update: Update, context: ContextTypes.DEFAULT_TY
         await query.answer("⏳ Rasch tahlili boshlanmoqda...")
         
         await perform_test_rasch_analysis(query.message, context, test_id)
+    
+    elif query.data.startswith('send_results_'):
+        test_id = query.data.replace('send_results_', '')
+        
+        # Check if results have already been sent
+        from bot.database.managers import TestResultManager
+        results_sent = await TestResultManager.check_results_sent(test_id)
+        
+        if results_sent:
+            await query.answer("✅ Natijalar allaqachon yuborilgan!", show_alert=True)
+            return
+        
+        await query.answer("⏳ Talabgorlarga natijalar yuborilmoqda...")
+        
+        # Import the function to send results
+        from bot.utils.test_scheduler import send_test_results_to_students
+        
+        try:
+            # Get student bot application from bot_data
+            student_bot_app = context.application.bot_data.get('student_bot_app')
+            
+            if not student_bot_app:
+                await query.edit_message_text(
+                    "❌ Student bot topilmadi!\n\n"
+                    "Natijalarni yuborish uchun student bot ishlab turishi kerak."
+                )
+                return
+            
+            # Send results to all students
+            result = await send_test_results_to_students(test_id, student_bot_app)
+            
+            if result.get('success'):
+                count = result.get('count', 0)
+                if result.get('already_sent'):
+                    await query.edit_message_text(
+                        "ℹ️ Barcha talabgorlarga natijalar allaqachon yuborilgan!"
+                    )
+                else:
+                    await query.edit_message_text(
+                        f"✅ Natijalar muvaffaqiyatli yuborildi!\n\n"
+                        f"📤 {count} ta talabgorga natijalar yuborildi.\n\n"
+                        f"Talabgorlar o'z natijalarini telegram orqali ko'rishlari mumkin."
+                    )
+            else:
+                error_msg = result.get('error', 'Noma\'lum xatolik')
+                await query.edit_message_text(
+                    f"❌ Natijalarni yuborishda xatolik yuz berdi!\n\n"
+                    f"Xatolik: {error_msg}"
+                )
+        except Exception as e:
+            logger.error(f"Send results error: {e}")
+            await query.edit_message_text(
+                f"❌ Natijalarni yuborishda xatolik yuz berdi!\n\n"
+                f"Xatolik: {str(e)}"
+            )
     
     elif query.data.startswith('manual_finalize_'):
         # Manual finalize - finalize test and automatically run Rasch analysis

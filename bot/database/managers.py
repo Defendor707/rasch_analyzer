@@ -303,6 +303,19 @@ class TestResultManager:
                 .order_by(TestResult.created_at.desc())
             )
             return list(result.scalars().all())
+    
+    @staticmethod
+    async def check_results_sent(test_id: str) -> bool:
+        """Test uchun natijalar yuborilgan yoki yo'qligini tekshirish"""
+        async with db.get_session() as session:
+            result = await session.execute(
+                select(TestResult)
+                .where(TestResult.test_id == test_id)
+                .where(TestResult.is_completed == True)
+                .where(TestResult.results_sent == False)
+            )
+            unsent_results = list(result.scalars().all())
+            return len(unsent_results) == 0
 
 
 class PaymentManager:
