@@ -2548,9 +2548,13 @@ async def handle_pdf_question_file_upload(update: Update, context: ContextTypes.
     
     try:
         file = await context.bot.get_file(document.file_id)
-        upload_dir = "data/uploads"
+        upload_dir = "data/uploads/pdf_files"
         os.makedirs(upload_dir, exist_ok=True)
-        file_path = os.path.join(upload_dir, f"pdf_questions_{user_id}_{document.file_name}")
+        
+        # Create unique filename with timestamp
+        from datetime import datetime
+        timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+        file_path = os.path.join(upload_dir, f"test_pdf_{user_id}_{timestamp}_{document.file_name}")
         await file.download_to_drive(file_path)
         
         # Extract text from PDF using PyMuPDF
@@ -2561,17 +2565,18 @@ async def handle_pdf_question_file_upload(update: Update, context: ContextTypes.
             pdf_text += page.get_text()
         pdf_document.close()
         
-        # Save PDF text to context
+        # Save PDF text and file path to context
         context.user_data['pdf_text'] = pdf_text
-        
-        # Cleanup
-        os.remove(file_path)
+        context.user_data['pdf_file_path'] = file_path
         
         if not pdf_text.strip():
             await update.message.reply_text(
                 "❌ PDF fayldan matn topilmadi!\n\n"
                 "Iltimos, matnli PDF faylini yuboring."
             )
+            # Remove the file if text extraction failed
+            if os.path.exists(file_path):
+                os.remove(file_path)
             return
         
         # Ask for number of questions
@@ -2621,6 +2626,11 @@ async def show_pdf_question_answer_selector(update_or_message, context: ContextT
             }
             test_manager.add_question(test_id, question_data)
         
+        # Save PDF file path to test if available
+        pdf_file_path = context.user_data.get('pdf_file_path')
+        if pdf_file_path:
+            test_manager.set_pdf_file(test_id, pdf_file_path)
+        
         # Automatically activate the test
         test_manager.activate_test(test_id)
         test = test_manager.get_test(test_id)
@@ -2643,6 +2653,7 @@ async def show_pdf_question_answer_selector(update_or_message, context: ContextT
         context.user_data['pdf_questions'] = []
         context.user_data['current_pdf_question_index'] = 0
         context.user_data['pdf_text'] = None
+        context.user_data['pdf_file_path'] = None
         return
     
     question = pdf_questions[current_index]
