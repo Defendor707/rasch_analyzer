@@ -6,10 +6,70 @@
     "start_date": "2025-10-27",
     "start_time": "20:39",
     "duration": 1,
-    "questions": [],
+    "questions": [
+      {
+        "id": 1,
+        "text": "1",
+        "options": [
+          "1",
+          "1",
+          "1",
+          "1"
+        ],
+        "correct_answer": 1,
+        "points": 1
+      }
+    ],
     "created_at": "2025-10-27T15:37:18.746321",
-    "is_active": false,
+    "is_active": true,
     "allow_retake": false,
-    "participants": []
+    "participants": {
+      "7537966029": {
+        "student_id": 7537966029,
+        "answers": {
+          "0": 1
+        },
+        "score": 1,
+        "max_score": 1,
+        "percentage": 100.0,
+        "results": [
+          {
+            "question_id": 1,
+            "student_answer": 1,
+            "correct_answer": 1,
+            "correct": true
+          }
+        ],
+        "submitted": true,
+        "submitted_at": "2025-10-27T20:39:07.162299+05:00"
+      }
+    }
+  },
+  "test_7916658442_20251027_153956": {
+    "teacher_id": 7916658442,
+    "name": "13",
+    "subject": "Geografiya",
+    "start_date": "",
+    "start_time": "",
+    "duration": 60,
+    "questions": [
+      {
+        "id": 1,
+        "text": "Savol 1",
+        "options": [
+          "A",
+          "B",
+          "C",
+          "D"
+        ],
+        "correct_answer": 0,
+        "points": 1
+      }
+    ],
+    "created_at": "2025-10-27T15:39:56.706066",
+    "is_active": true,
+    "allow_retake": false,
+    "participants": [],
+    "pdf_file_path": "data/uploads/pdf_files/test_pdf_7916658442_20251027_154008_Akademik yozuv 100 (1).pdf"
   }
 }
