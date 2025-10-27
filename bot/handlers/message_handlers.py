@@ -37,6 +37,8 @@ WAITING_FOR_QUESTION_TEXT = 13
 WAITING_FOR_QUESTION_OPTIONS = 14
 WAITING_FOR_CORRECT_ANSWER = 15
 WAITING_FOR_ADMIN_MESSAGE = 16
+WAITING_FOR_QUESTION_FILE = 17
+WAITING_FOR_CORRECT_ANSWER_FROM_FILE = 18
 
 
 def get_main_keyboard():
@@ -701,6 +703,30 @@ async def handle_callback_query(update: Update, context: ContextTypes.DEFAULT_TY
         )
         
         context.user_data['creating_test'] = WAITING_FOR_QUESTION_TEXT
+    
+    # Handle question upload method choice
+    elif query.data == 'upload_questions_file':
+        context.user_data['creating_test'] = WAITING_FOR_QUESTION_FILE
+        await query.message.reply_text(
+            "📁 Savollar faylini yuboring\n\n"
+            "Fayl formati:\n"
+            "• Excel (.xlsx, .xls) yoki CSV (.csv)\n"
+            "• Har bir qatorda bitta savol\n"
+            "• 1-ustun: Savol matni\n"
+            "• 2-5 ustunlar: A, B, C, D variantlar\n\n"
+            "Misol:\n"
+            "```\n"
+            "Savol | A variant | B variant | C variant | D variant\n"
+            "2+2=? | 3 | 4 | 5 | 6\n"
+            "```",
+            parse_mode='Markdown'
+        )
+    
+    elif query.data == 'add_questions_manually':
+        context.user_data['creating_test'] = WAITING_FOR_QUESTION_TEXT
+        await query.message.reply_text(
+            "✍️ Birinchi savol matnini kiriting:"
+        )
 
     # Handle section results toggle
     elif query.data == 'section_results_on':
@@ -2124,18 +2150,26 @@ async def handle_test_input(update: Update, context: ContextTypes.DEFAULT_TYPE, 
             context.user_data['current_test_id'] = test_id
             
             test_temp = context.user_data['test_temp']
+            
+            # Offer choice: upload file or add manually
+            keyboard = [
+                [InlineKeyboardButton("📁 Fayl orqali yuklash", callback_data="upload_questions_file")],
+                [InlineKeyboardButton("✍️ Qo'lda qo'shish", callback_data="add_questions_manually")]
+            ]
+            reply_markup = InlineKeyboardMarkup(keyboard)
+            
             await update.message.reply_text(
                 f"✅ Test muvaffaqiyatli yaratildi!\n\n"
                 f"📋 *{test_temp['name']}*\n"
                 f"📚 Fan: {test_temp['subject']}\n"
                 f"📅 Boshlanish: {test_temp['start_date']} {test_temp['start_time']}\n"
                 f"⏱ Davomiylik: {duration} daqiqa\n\n"
-                "Endi savollar qo'shing.\n\n"
-                "Birinchi savol matnini kiriting:",
-                parse_mode='Markdown'
+                "❓ Savollarni qanday qo'shmoqchisiz?",
+                parse_mode='Markdown',
+                reply_markup=reply_markup
             )
             
-            context.user_data['creating_test'] = WAITING_FOR_QUESTION_TEXT
+            context.user_data['creating_test'] = None
             return True
             
         except ValueError:
