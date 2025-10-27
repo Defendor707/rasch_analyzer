@@ -312,10 +312,18 @@ class TestResultManager:
                 select(TestResult)
                 .where(TestResult.test_id == test_id)
                 .where(TestResult.is_completed == True)
-                .where(TestResult.results_sent == False)
             )
-            unsent_results = list(result.scalars().all())
-            return len(unsent_results) == 0
+            # Check if all results have results_sent field and it's True
+            results = list(result.scalars().all())
+            if not results:
+                return False
+            
+            # Check each result for results_sent attribute
+            for res in results:
+                # If attribute doesn't exist or is False, consider as not sent
+                if not hasattr(res, 'results_sent') or not res.results_sent:
+                    return False
+            return True
 
 
 class PaymentManager:
