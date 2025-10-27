@@ -930,15 +930,27 @@ async def handle_callback_query(update: Update, context: ContextTypes.DEFAULT_TY
             
             results_text = f"📊 *{test['name']}* - Natijalar\n\n"
             
-            if test['participants']:
-                results_text += f"Ishtirokchilar: {len(test['participants'])} ta\n\n"
+            participants = test.get('participants', {})
+            if participants:
+                results_text += f"Ishtirokchilar: {len(participants)} ta\n\n"
                 
-                for p in test['participants']:
-                    results_text += (
-                        f"👤 Talabgor {p['student_id']}\n"
-                        f"   Ball: {p['score']}/{p['max_score']}\n"
-                        f"   Foiz: {p['percentage']:.1f}%\n\n"
-                    )
+                # Handle both dict and list formats for backward compatibility
+                if isinstance(participants, dict):
+                    for user_id_str, p in participants.items():
+                        if isinstance(p, dict):
+                            results_text += (
+                                f"👤 Talabgor {p.get('student_id', user_id_str)}\n"
+                                f"   Ball: {p.get('score', 0)}/{p.get('max_score', 0)}\n"
+                                f"   Foiz: {p.get('percentage', 0):.1f}%\n\n"
+                            )
+                elif isinstance(participants, list):
+                    for p in participants:
+                        if isinstance(p, dict):
+                            results_text += (
+                                f"👤 Talabgor {p.get('student_id', 'N/A')}\n"
+                                f"   Ball: {p.get('score', 0)}/{p.get('max_score', 0)}\n"
+                                f"   Foiz: {p.get('percentage', 0):.1f}%\n\n"
+                            )
                 
                 # Build keyboard based on test state
                 keyboard = []
