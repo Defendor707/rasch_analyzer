@@ -7,7 +7,10 @@ import logging
 from typing import Optional
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, async_sessionmaker
 from sqlalchemy import text
+from dotenv import load_dotenv
 from bot.database.schema import Base
+
+load_dotenv()
 
 logger = logging.getLogger(__name__)
 
