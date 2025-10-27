@@ -31,9 +31,9 @@ args = "Telegram Bots"
 name = "Telegram Bots"
 author = "agent"
 
+[workflows.workflow.metadata]
+outputType = "console"
+
 [[workflows.workflow.tasks]]
 task = "shell.exec"
 args = "python run_bots.py"
-
-[workflows.workflow.metadata]
-outputType = "console"

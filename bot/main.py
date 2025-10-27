@@ -62,12 +62,16 @@ async def main():
         logger.error("BOT_TOKEN topilmadi! .env faylda BOT_TOKEN o'rnatilganligini tekshiring.")
         return
     
-    from bot.utils.payment_manager import PaymentManager
-    payment_manager = PaymentManager()
-    config = payment_manager.load_config()
-    admin_ids = config.get('admin_ids', [])
-    error_notifier.set_admin_ids(admin_ids)
-    logger.info(f"Error notifier sozlandi. Admin IDs: {admin_ids}")
+    # Admin IDs ni payment_config.json dan o'qish
+    import json
+    try:
+        with open('data/payment_config.json', 'r') as f:
+            config = json.load(f)
+            admin_ids = config.get('admin_ids', [])
+            error_notifier.set_admin_ids(admin_ids)
+            logger.info(f"Error notifier sozlandi. Admin IDs: {admin_ids}")
+    except Exception as e:
+        logger.warning(f"Admin IDs yuklanmadi: {e}")
     
     application = Application.builder().token(bot_token).build()
     
