@@ -125,6 +125,26 @@ class TestManager:
         self._save_tests(tests)
         return True
 
+    def set_pdf_file(self, test_id: str, pdf_file_path: str) -> bool:
+        """
+        Set PDF file path for a test
+        
+        Args:
+            test_id: Test identifier
+            pdf_file_path: Path to the PDF file
+            
+        Returns:
+            Success status
+        """
+        tests = self._load_tests()
+        
+        if test_id not in tests:
+            return False
+        
+        tests[test_id]['pdf_file_path'] = pdf_file_path
+        self._save_tests(tests)
+        return True
+
     def deactivate_test(self, test_id: str) -> bool:
         """Deactivate a test"""
         tests = self._load_tests()
