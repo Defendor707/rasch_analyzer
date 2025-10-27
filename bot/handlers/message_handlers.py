@@ -844,9 +844,13 @@ async def handle_callback_query(update: Update, context: ContextTypes.DEFAULT_TY
             # Move to next question
             context.user_data['current_question_index_for_answer'] = question_index + 1
             
-            # Delete previous message and show next question
-            await query.message.delete()
-            await show_question_for_correct_answer(query.message, context)
+            # Create a temporary Update-like object to pass message context
+            class MessageWrapper:
+                def __init__(self, msg):
+                    self.message = msg
+            
+            # Show next question using the message from callback
+            await show_question_for_correct_answer(MessageWrapper(query.message), context)
     
     elif query.data.startswith('test_results_'):
         test_id = query.data.replace('test_results_', '')
