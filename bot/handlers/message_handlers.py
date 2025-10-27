@@ -713,17 +713,24 @@ async def handle_callback_query(update: Update, context: ContextTypes.DEFAULT_TY
         test_id = test_manager.create_test(user_id, test_temp)
         context.user_data['current_test_id'] = test_id
         
+        # Offer choice: upload file or add manually
+        keyboard = [
+            [InlineKeyboardButton("📁 Fayl orqali yuklash", callback_data="upload_questions_file")],
+            [InlineKeyboardButton("✍️ Qo'lda qo'shish", callback_data="add_questions_manually")]
+        ]
+        reply_markup = InlineKeyboardMarkup(keyboard)
+        
         await query.message.reply_text(
             f"✅ Test muvaffaqiyatli yaratildi!\n\n"
             f"📋 *{test_temp['name']}*\n"
             f"📚 Fan: {test_temp['subject']}\n"
             f"⏱ Vaqt chegarasi: Yo'q (istalgan vaqtda topshirish mumkin)\n\n"
-            "Endi savollar qo'shing.\n\n"
-            "Birinchi savol matnini kiriting:",
-            parse_mode='Markdown'
+            "❓ Savollarni qanday qo'shmoqchisiz?",
+            parse_mode='Markdown',
+            reply_markup=reply_markup
         )
         
-        context.user_data['creating_test'] = WAITING_FOR_QUESTION_TEXT
+        context.user_data['creating_test'] = None
     
     # Handle question upload method choice
     elif query.data == 'upload_questions_file':
