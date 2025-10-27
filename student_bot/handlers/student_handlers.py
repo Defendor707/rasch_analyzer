@@ -481,9 +481,9 @@ async def review_answers(update: Update, context: ContextTypes.DEFAULT_TYPE):
             )
         ])
     
-    keyboard.append([InlineKeyboardButton("✅ Testni yakunlash", callback_data="confirm_submit")],
-        [InlineKeyboardButton("◀️ Testga qaytish", callback_data="back_to_test")]
-    ]
+    keyboard.append([InlineKeyboardButton("✅ Testni yakunlash", callback_data="confirm_submit")])
+    keyboard.append([InlineKeyboardButton("◀️ Testga qaytish", callback_data="back_to_test")])
+    
     reply_markup = InlineKeyboardMarkup(keyboard)
     
     await query.edit_message_text(
