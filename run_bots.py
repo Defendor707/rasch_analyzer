@@ -73,7 +73,20 @@ async def run_teacher_bot():
     
     logger.info("O'qituvchi boti ishga tushdi!")
     
-    await application.run_polling(drop_pending_updates=True)
+    await application.initialize()
+    await application.start()
+    
+    if application.updater is None:
+        raise RuntimeError("Updater not available for polling")
+    
+    await application.updater.start_polling(drop_pending_updates=True)
+    
+    try:
+        await asyncio.Event().wait()
+    finally:
+        await application.updater.stop()
+        await application.stop()
+        await application.shutdown()
 
 
 async def run_student_bot():
@@ -112,7 +125,20 @@ async def run_student_bot():
     
     logger.info("Talabgor boti ishga tushdi!")
     
-    await application.run_polling(drop_pending_updates=True)
+    await application.initialize()
+    await application.start()
+    
+    if application.updater is None:
+        raise RuntimeError("Updater not available for polling")
+    
+    await application.updater.start_polling(drop_pending_updates=True)
+    
+    try:
+        await asyncio.Event().wait()
+    finally:
+        await application.updater.stop()
+        await application.stop()
+        await application.shutdown()
 
 
 async def main():

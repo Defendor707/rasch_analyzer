@@ -36,7 +36,10 @@ class RaschAnalyzer:
             raise ValueError("Kamida 2 ta savol kerak. Hozirgi savollar: {} ta".format(response_matrix.shape[1]))
         
         # Check for non-binary values (excluding NaN)
-        unique_values = np.unique(response_matrix[~np.isnan(response_matrix)])
+        # Convert to float to safely check for NaN (works with both int and float arrays)
+        response_matrix_float = response_matrix.astype(float)
+        valid_mask = ~np.isnan(response_matrix_float)
+        unique_values = np.unique(response_matrix_float[valid_mask])
         if not np.all(np.isin(unique_values, [0, 1, 0.0, 1.0])):
             raise ValueError("Ma'lumotlar faqat 0 va 1 qiymatlarini o'z ichiga olishi kerak. File Analyzer orqali faylni tozalang.")
         
