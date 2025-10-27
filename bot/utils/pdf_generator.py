@@ -172,19 +172,21 @@ class PDFReportGenerator:
         min_measure = float(np.min(all_measures) - 1)
         max_measure = float(np.max(all_measures) + 1)
 
-        plt.figure(figsize=(8, 10))
+        plt.figure(figsize=(10, 8))
 
         # Plot persons
         plt.scatter(valid_person_ability, np.zeros_like(valid_person_ability) - 0.1,
                     marker='o', color='blue', label='Persons', alpha=0.7, s=50)
         for i, txt in enumerate(valid_person_names):
-            plt.annotate(txt, (valid_person_ability[i], -0.1), textcoords="offset points", xytext=(0, -15), ha='center', fontsize=8)
+            plt.annotate(txt, (valid_person_ability[i], -0.1), textcoords="offset points", 
+                        xytext=(0, -15), ha='left', fontsize=7, rotation=-45)
 
         # Plot items
         plt.scatter(valid_item_difficulty, np.zeros_like(valid_item_difficulty) + 0.1,
                     marker='s', color='red', label='Items', alpha=0.7, s=50)
         for i, txt in enumerate(valid_item_names):
-            plt.annotate(txt, (valid_item_difficulty[i], 0.1), textcoords="offset points", xytext=(0, 15), ha='center', fontsize=8)
+            plt.annotate(txt, (valid_item_difficulty[i], 0.1), textcoords="offset points", 
+                        xytext=(0, 15), ha='right', fontsize=7, rotation=45)
 
         plt.yticks([])  # Hide y-axis ticks
         plt.xlabel("Logit Scale (Ability/Difficulty)")
