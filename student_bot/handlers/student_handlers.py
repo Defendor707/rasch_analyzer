@@ -660,6 +660,19 @@ async def handle_callback_query(update: Update, context: ContextTypes.DEFAULT_TY
         context.user_data['answers'] = [-1] * len(test['questions'])
         context.user_data['taking_test'] = True
         context.user_data['test_started_at'] = datetime.now().isoformat()
+        
+        # Send PDF file if available
+        pdf_file_path = test.get('pdf_file_path')
+        if pdf_file_path and os.path.exists(pdf_file_path):
+            try:
+                with open(pdf_file_path, 'rb') as pdf_file:
+                    await query.message.reply_document(
+                        document=pdf_file,
+                        caption="📄 Test savollari fayli"
+                    )
+            except Exception as e:
+                logger.error(f"Error sending PDF file: {str(e)}")
+        
         await show_question(update, context)
 
     elif query.data.startswith('answer_'):
