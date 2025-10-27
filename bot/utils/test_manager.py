@@ -518,3 +518,41 @@ class TestManager:
             'percentage': (correct_count / total_questions_in_test * 100) if total_questions_in_test > 0 else 0,
             'results_details': question_results
         }
+    
+    def get_expired_tests(self) -> List[str]:
+        """
+        Get list of test IDs that have expired but are still active
+        
+        Returns:
+            List of test IDs
+        """
+        tests = self._load_tests()
+        expired_test_ids = []
+        
+        tz = pytz.timezone('Asia/Tashkent')
+        current_datetime = datetime.now(tz)
+        
+        for test_id, test in tests.items():
+            # Skip if already finalized or not active
+            if not test.get('is_active', False) or 'finalized_at' in test:
+                continue
+            
+            # Skip tests without time restrictions
+            if not test.get('start_date') or not test.get('start_time'):
+                continue
+            
+            try:
+                # Check if test time has expired
+                start_datetime_str = f"{test['start_date']} {test['start_time']}"
+                start_datetime = tz.localize(datetime.strptime(start_datetime_str, '%Y-%m-%d %H:%M'))
+                
+                duration_minutes = test.get('duration', 60)
+                end_datetime = start_datetime + timedelta(minutes=duration_minutes)
+                
+                if current_datetime > end_datetime:
+                    expired_test_ids.append(test_id)
+            except Exception as e:
+                logging.error(f"Error checking expiration for test {test_id}: {e}")
+                continue
+        
+        return expired_test_ids

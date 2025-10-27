@@ -6,6 +6,8 @@ from typing import NoReturn
 from dotenv import load_dotenv
 from telegram import Update
 from telegram.ext import Application
+from apscheduler.schedulers.asyncio import AsyncIOScheduler
+from apscheduler.triggers.interval import IntervalTrigger
 
 load_dotenv()
 
@@ -35,6 +37,7 @@ async def run_teacher_bot():
         precheckout_callback,
         successful_payment_callback
     )
+    from bot.utils.test_scheduler import check_and_finalize_expired_tests
     from telegram.ext import CommandHandler, MessageHandler, CallbackQueryHandler, PreCheckoutQueryHandler, filters, ContextTypes
     
     async def error_handler(update: object, context: ContextTypes.DEFAULT_TYPE):
@@ -81,9 +84,34 @@ async def run_teacher_bot():
     
     await application.updater.start_polling(drop_pending_updates=True)
     
+    # Set up scheduler for checking expired tests
+    scheduler = AsyncIOScheduler()
+    
+    # Run every hour to check for expired tests
+    scheduler.add_job(
+        check_and_finalize_expired_tests,
+        trigger=IntervalTrigger(hours=1),
+        args=[application],
+        id='check_expired_tests',
+        name='Check and finalize expired tests',
+        replace_existing=True
+    )
+    
+    # Also run immediately on startup
+    scheduler.add_job(
+        check_and_finalize_expired_tests,
+        args=[application],
+        id='check_expired_tests_startup',
+        name='Check expired tests on startup'
+    )
+    
+    scheduler.start()
+    logger.info("Test scheduler ishga tushdi (har soatda tekshirish)")
+    
     try:
         await asyncio.Event().wait()
     finally:
+        scheduler.shutdown()
         await application.updater.stop()
         await application.stop()
         await application.shutdown()
