@@ -11,6 +11,7 @@ from bot.utils.subject_sections import get_sections, has_sections
 from bot.utils.data_cleaner import DataCleaner
 from bot.utils.test_manager import TestManager
 from bot.utils.payment_manager import PaymentManager
+from bot.utils.answer_parser import parse_answer_string, generate_option_labels, format_answer_example
 import logging
 
 logger = logging.getLogger(__name__)
@@ -43,6 +44,7 @@ WAITING_FOR_CORRECT_ANSWER_FROM_FILE = 18
 WAITING_FOR_PDF_QUESTION_FILE = 19
 WAITING_FOR_QUESTION_COUNT = 20
 WAITING_FOR_PDF_CORRECT_ANSWER = 21
+WAITING_FOR_ALL_PDF_ANSWERS = 22
 
 
 def get_main_keyboard():
@@ -2405,26 +2407,101 @@ async def handle_test_input(update: Update, context: ContextTypes.DEFAULT_TYPE, 
                 await update.message.reply_text("❌ Savollar soni musbat son bo'lishi kerak!")
                 return True
             
-            # Initialize PDF questions with default options
-            pdf_questions = []
-            for i in range(question_count):
-                pdf_questions.append({
-                    'index': i,
-                    'options': ['A', 'B', 'C', 'D'],  # Default options
-                    'correct_answer': None
-                })
+            # Store question count
+            context.user_data['pdf_question_count'] = question_count
+            context.user_data['creating_test'] = WAITING_FOR_ALL_PDF_ANSWERS
             
-            context.user_data['pdf_questions'] = pdf_questions
-            context.user_data['current_pdf_question_index'] = 0
-            context.user_data['creating_test'] = WAITING_FOR_PDF_CORRECT_ANSWER
+            # Generate example format
+            example_text = format_answer_example(question_count)
             
-            # Show first question with answer options
-            await show_pdf_question_answer_selector(update, context)
+            # Send instructions
+            instructions = (
+                f"✅ PDF fayl va savollar soni qabul qilindi!\n\n"
+                f"📝 *Javoblarni quyidagi formatda yuboring:*\n\n"
+                f"*Format qoidalari:*\n"
+                f"• Standart (4 variant A,B,C,D): 1a2b3c4d\n"
+                f"• 5 variant (A,B,C,D,E): 32a+\n"
+                f"• 6 variant (A,B,C,D,E,F): 33b++\n"
+                f"• Matn javob: 43(ayb) yoki 44(alisher Navoiy)\n\n"
+                f"*Misollar:*\n{example_text}\n\n"
+                f"Umumiy javoblar sonini: {question_count} ta\n\n"
+                f"Barcha javoblarni bir qatorda yuboring:"
+            )
+            
+            await update.message.reply_text(instructions, parse_mode='Markdown')
             return True
             
         except ValueError:
             await update.message.reply_text("❌ Iltimos, raqam kiriting!")
             return True
+    
+    elif creating_state == WAITING_FOR_ALL_PDF_ANSWERS:
+        # Parse the answer string
+        question_count = context.user_data.get('pdf_question_count', 0)
+        success, parsed_answers, error_message = parse_answer_string(text, question_count)
+        
+        if not success:
+            await update.message.reply_text(
+                f"{error_message}\n\n"
+                f"Iltimos, formatni tekshirib qaytadan yuboring."
+            )
+            return True
+        
+        # Save parsed answers and create test
+        test_id = context.user_data['current_test_id']
+        
+        for answer_data in parsed_answers:
+            if answer_data['is_text_answer']:
+                # Text-based answer
+                question_data = {
+                    'text': f"Savol {answer_data['question_num']}",
+                    'options': [],  # No options for text answers
+                    'correct_answer': answer_data['text_answer'],
+                    'points': 1,
+                    'is_text_answer': True
+                }
+            else:
+                # Letter-based answer with options
+                option_labels = generate_option_labels(answer_data['option_count'])
+                question_data = {
+                    'text': f"Savol {answer_data['question_num']}",
+                    'options': option_labels,
+                    'correct_answer': answer_data['correct_answer'],
+                    'points': 1,
+                    'is_text_answer': False
+                }
+            
+            test_manager.add_question(test_id, question_data)
+        
+        # Save PDF file path to test if available
+        pdf_file_path = context.user_data.get('pdf_file_path')
+        if pdf_file_path:
+            test_manager.set_pdf_file(test_id, pdf_file_path)
+        
+        # Automatically activate the test
+        test_manager.activate_test(test_id)
+        test = test_manager.get_test(test_id)
+        
+        await update.message.reply_text(
+            f"✅ *Test yaratish tugallandi va avtomatik faollashtirildi!*\n\n"
+            f"📋 {test['name']}\n"
+            f"📚 Fan: {test['subject']}\n"
+            f"📝 Savollar: {len(test['questions'])} ta\n"
+            f"📊 Status: ✅ Faol\n\n"
+            f"Test talabgorlarda ko'rinadi.\n\n"
+            f"Test havolasi:\n"
+            f"https://t.me/{context.bot.username}?start=test_{test_id}",
+            parse_mode='Markdown',
+            reply_markup=get_main_keyboard()
+        )
+        
+        # Clear temp data
+        context.user_data['creating_test'] = None
+        context.user_data['pdf_question_count'] = None
+        context.user_data['pdf_text'] = None
+        context.user_data['pdf_file_path'] = None
+        context.user_data['current_test_id'] = None
+        return True
     
     return False
 
