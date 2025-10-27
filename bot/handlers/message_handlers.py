@@ -732,19 +732,8 @@ async def handle_callback_query(update: Update, context: ContextTypes.DEFAULT_TY
         
         context.user_data['creating_test'] = None
     
-    # Handle question upload method choice
+    # Handle question upload method choice - Only PDF allowed for tests
     elif query.data == 'upload_questions_file':
-        keyboard = [
-            [InlineKeyboardButton("📄 PDF fayl yuklash", callback_data='upload_pdf_questions')],
-            [InlineKeyboardButton("📊 Excel/CSV yuklash", callback_data='upload_excel_questions')]
-        ]
-        reply_markup = InlineKeyboardMarkup(keyboard)
-        await query.message.reply_text(
-            "📁 Savollar faylini qanday yuklashni tanlang:",
-            reply_markup=reply_markup
-        )
-    
-    elif query.data == 'upload_pdf_questions':
         context.user_data['creating_test'] = WAITING_FOR_PDF_QUESTION_FILE
         await query.message.reply_text(
             "📄 Test savollarini o'z ichiga olgan PDF faylni yuboring.\n\n"
@@ -752,21 +741,16 @@ async def handle_callback_query(update: Update, context: ContextTypes.DEFAULT_TY
             "Keyin har bir savol uchun to'g'ri javobni tanlaysiz."
         )
     
+    elif query.data == 'upload_pdf_questions':
+        # Handled above in upload_questions_file
+        pass
+    
     elif query.data == 'upload_excel_questions':
-        context.user_data['creating_test'] = WAITING_FOR_QUESTION_FILE
+        # Excel is only for sample analysis, not for creating tests
         await query.message.reply_text(
-            "📁 Savollar faylini yuboring\n\n"
-            "Fayl formati:\n"
-            "• Excel (.xlsx, .xls) yoki CSV (.csv)\n"
-            "• Har bir qatorda bitta savol\n"
-            "• 1-ustun: Savol matni\n"
-            "• 2-5 ustunlar: A, B, C, D variantlar\n\n"
-            "Misol:\n"
-            "```\n"
-            "Savol | A variant | B variant | C variant | D variant\n"
-            "2+2=? | 3 | 4 | 5 | 6\n"
-            "```",
-            parse_mode='Markdown'
+            "❌ Excel faqat namuna tahlil uchun ishlatiladi.\n\n"
+            "Test yaratish uchun PDF fayl yuklashingiz kerak.\n\n"
+            "Bosh menyuga qaytish uchun /start buyrug'ini yuboring."
         )
     
     elif query.data == 'add_questions_manually':
@@ -936,6 +920,9 @@ async def handle_callback_query(update: Update, context: ContextTypes.DEFAULT_TY
         test = test_manager.get_test(test_id)
         
         if test:
+            is_finalized = test.get('finalized_at') is not None
+            has_time_limit = test.get('start_date') and test.get('start_time')
+            
             results_text = f"📊 *{test['name']}* - Natijalar\n\n"
             
             if test['participants']:
@@ -948,13 +935,22 @@ async def handle_callback_query(update: Update, context: ContextTypes.DEFAULT_TY
                         f"   Foiz: {p['percentage']:.1f}%\n\n"
                     )
                 
-                # Add Rasch analysis button
-                keyboard = [
-                    [InlineKeyboardButton("📈 Rasch tahlili", callback_data=f"rasch_analysis_{test_id}")],
-                    [InlineKeyboardButton("🔚 Testni yakunlash", callback_data=f"finalize_test_{test_id}")]
-                ]
-                reply_markup = InlineKeyboardMarkup(keyboard)
+                # Build keyboard based on test state
+                keyboard = []
                 
+                if not is_finalized:
+                    # For tests without time limit - show manual finalize button
+                    if not has_time_limit:
+                        keyboard.append([InlineKeyboardButton("📊 Natijalarni qayta ishlash va ko'rsatish", callback_data=f"manual_finalize_{test_id}")])
+                    
+                    # For time-limited tests - show analysis and finalize buttons
+                    keyboard.append([InlineKeyboardButton("📈 Rasch tahlili", callback_data=f"rasch_analysis_{test_id}")])
+                    keyboard.append([InlineKeyboardButton("🔚 Testni yakunlash", callback_data=f"finalize_test_{test_id}")])
+                else:
+                    # Test already finalized - show re-analysis option
+                    keyboard.append([InlineKeyboardButton("🔄 Rasch tahlilini qayta amalga oshirish", callback_data=f"rasch_analysis_{test_id}")])
+                
+                reply_markup = InlineKeyboardMarkup(keyboard)
                 await query.edit_message_text(results_text, parse_mode='Markdown', reply_markup=reply_markup)
             else:
                 results_text += "Hali natijalar yo'q."
@@ -967,6 +963,28 @@ async def handle_callback_query(update: Update, context: ContextTypes.DEFAULT_TY
         await query.answer("⏳ Rasch tahlili boshlanmoqda...")
         
         await perform_test_rasch_analysis(query.message, context, test_id)
+    
+    elif query.data.startswith('manual_finalize_'):
+        # Manual finalize - finalize test and automatically run Rasch analysis
+        test_id = query.data.replace('manual_finalize_', '')
+        
+        await query.answer("⏳ Test yakunlanmoqda va tahlil qilinmoqda...")
+        
+        # Import process_and_send_test_results
+        from bot.utils.test_scheduler import process_and_send_test_results
+        
+        try:
+            await process_and_send_test_results(context.application, test_id)
+            await query.edit_message_text(
+                "✅ Test yakunlandi va natijalar yuborildi!\n\n"
+                "Rasch tahlili PDF fayllarini yuqorida ko'rishingiz mumkin."
+            )
+        except Exception as e:
+            logger.error(f"Manual finalize error: {e}")
+            await query.edit_message_text(
+                "❌ Test yakunlashda yoki tahlil qilishda xatolik yuz berdi!\n\n"
+                f"Xatolik: {str(e)}"
+            )
     
     elif query.data.startswith('finalize_test_'):
         test_id = query.data.replace('finalize_test_', '')

@@ -123,31 +123,32 @@ async def process_and_send_test_results(application: Application, test_id: str) 
         section_results_enabled = user_data.get('section_results_enabled', False)
         section_questions = user_data.get('section_questions', {})
         
-        # Generate item parameters report
-        item_pdf_path = pdf_generator.generate_item_parameters_report(
+        # Generate general statistics report (umumiy statistika)
+        general_pdf_path = pdf_generator.generate_report(
             analysis_results,
-            filename=f"test_{test_id}_items"
+            filename=f"test_{test_id}_umumiy"
         )
         
-        with open(item_pdf_path, 'rb') as pdf_file:
+        with open(general_pdf_path, 'rb') as pdf_file:
             await application.bot.send_document(
                 chat_id=teacher_id,
                 document=pdf_file,
-                filename=f"{test['name']}_item_parameters.pdf",
-                caption="📊 Savol parametrlari va umumiy statistika"
+                filename=f"{test['name']}_umumiy_statistika.pdf",
+                caption="📊 Umumiy statistika va Wright Map"
             )
         
-        # Generate person statistics report
-        person_pdf_path = pdf_generator.generate_person_statistics_report(
+        # Generate person results report (talabgorlar natijalari)
+        person_pdf_path = pdf_generator.generate_person_results_report(
             analysis_results,
-            filename=f"test_{test_id}_persons"
+            filename=f"test_{test_id}_talabgorlar",
+            section_questions=section_questions if section_results_enabled else None
         )
         
         with open(person_pdf_path, 'rb') as pdf_file:
             await application.bot.send_document(
                 chat_id=teacher_id,
                 document=pdf_file,
-                filename=f"{test['name']}_person_statistics.pdf",
+                filename=f"{test['name']}_talabgorlar_natijalari.pdf",
                 caption="👥 Talabgorlar natijalari"
             )
         
@@ -155,7 +156,7 @@ async def process_and_send_test_results(application: Application, test_id: str) 
         if section_results_enabled and section_questions:
             section_pdf_path = pdf_generator.generate_section_results_report(
                 analysis_results,
-                filename=f"test_{test_id}_sections",
+                filename=f"test_{test_id}_bulimlar",
                 section_questions=section_questions
             )
             
@@ -163,7 +164,7 @@ async def process_and_send_test_results(application: Application, test_id: str) 
                 await application.bot.send_document(
                     chat_id=teacher_id,
                     document=pdf_file,
-                    filename=f"{test['name']}_section_results.pdf",
+                    filename=f"{test['name']}_bulimlar_natijalari.pdf",
                     caption="📋 Bo'limlar bo'yicha natijalar"
                 )
         
