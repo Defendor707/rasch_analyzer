@@ -1,262 +1,49 @@
 # Rasch Model Telegram Bot
 
 ## Overview
-Telegram bot for performing Rasch model analysis on dichotomous test data. The bot accepts CSV/Excel files, runs Rasch model analysis using Python's girth library (MML estimation), and returns professional PDF reports with item difficulties, person abilities, and reliability statistics.
-
-## Project Status
-- **Created:** October 22, 2025
-- **Language:** Python 3.11
-- **Framework:** python-telegram-bot
-- **Analysis:** girth library (Rasch MML estimation)
-- **Reports:** ReportLab PDF generation
-
-## Recent Changes
-- **October 27, 2025 (Latest Update)**: Added PDF file upload for test creation with dynamic answer options
-  - Teachers can now upload PDF files containing test questions
-  - System asks for the number of questions in the PDF
-  - For each question, inline keyboard displays A, B, C, D buttons plus "+" button
-  - Clicking "+" adds additional answer options (E, F, G, etc.)
-  - After selecting all correct answers, test automatically activates
-  - Test becomes immediately visible to students
-  - Streamlined test creation process for teachers with existing PDF materials
-  - PyMuPDF library added for PDF text extraction
-- **October 26, 2025**: Made test time restrictions optional
-  - Only test name is now mandatory during test creation
-  - Added inline keyboard choice: "Do you want to set time restrictions?"
-  - If "Yes" - asks for start date, start time, and duration
-  - If "No" - creates test without time restrictions (available anytime)
-  - Updated test display to show "No time restriction" for tests without schedule
-  - Tests without time restrictions can be taken anytime once activated
-  - Fixed timezone handling: all times use Asia/Tashkent timezone with `tz.localize()`
-  - Improved user experience with clearer test creation flow
-- **October 25, 2025 (Latest Update 5)**: Fixed critical bugs in test submission system
-  - Fixed undefined `tests` variable errors in test_manager.py
-  - Completely rewrote `submit_answer()` method to accept list of answers instead of single answer
-  - Changed participants data structure from list to dict (keyed by user_id) for better performance
-  - Added automatic migration from old list format to new dict format, preserving all historical data
-  - Added backward compatibility in all methods: has_student_taken_test, show_my_results, get_test_results_matrix
-  - Fixed student_handlers.py to correctly use updated submit_answer method
-  - Test submission now works correctly with immediate score calculation
-  - All existing participant records are preserved during migration
-- **October 25, 2025 (Latest Update 4)**: Optimized Student Bot with enhanced features
-  - Added test navigation: Previous/Next question buttons
-  - Real-time timer display showing remaining minutes
-  - Color-coded time warnings (🔴 <5min, 🟡 <10min, ⏰ normal)
-  - Progress bar showing answered/unanswered questions
-  - Review all answers before submitting
-  - Confirmation dialogs for test submission and cancellation
-  - Detailed results showing correct/incorrect/unanswered questions
-  - Test search by subject filter
-  - Visual indicators (✅) for answered questions
-  - Answer modification during test
-  - Warning for unanswered questions before submit
-  - Sorted results by date (newest first)
-  - Top 10 results display with performance medals (🥇🥈🥉)
-  - Better error handling and user experience
-- **October 25, 2025 (Latest Update 3)**: Fixed data type conversion error in file analysis
-  - Added automatic numeric conversion for all columns using `pd.to_numeric()`
-  - Convert data with `errors='coerce'` to handle mixed types
-  - Remove NaN-only rows and columns after conversion
-  - Added validation check for empty data after conversion
-  - Fixed "axis argument to unique not supported for dtype object" error
-  - Clear error message guides users to File Analyzer if data invalid
-  - Now handles Excel files with mixed data types correctly
-- **October 25, 2025 (Latest Update 2)**: Added Free/Paid service toggle feature
-  - Implemented `is_payment_enabled()` and `toggle_payment_mode()` in PaymentManager
-  - Added "Tekin qilish/Pullik qilish" toggle button in admin panel
-  - Admin can switch between free and paid modes with one click
-  - When free mode enabled, analysis runs without payment request
-  - Dynamic button text shows current mode (🟢 Tekin / 💰 Pullik)
-  - Payment status displayed in admin panel and settings
-  - Free mode message shown to users when enabled
-  - All changes persist in payment_config.json
-- **October 25, 2025 (Latest Update)**: Added `/balance` command for real-time Stars balance monitoring
-  - Implemented `show_bot_balance()` function using Telegram Bot API
-  - Fetches real-time balance via `get_star_transactions()` API method
-  - Shows current balance, total received, total withdrawn Stars
-  - Displays recent transactions with timestamps
-  - Shows withdrawal status (minimum 1,000 Stars required)
-  - Includes fallback to local stats if API unavailable
-  - Admin-only command for bot owner
-  - Updated `/help` command to show admin commands dynamically
-- **October 25, 2025**: Implemented Telegram Stars payment integration
-  - Added per-analysis payment system using Telegram Stars
-  - Created PaymentManager class for payment tracking and pricing
-  - Implemented payment handlers: invoice creation, pre-checkout, successful payment
-  - Modified file upload workflow: file upload → payment → analysis → PDF delivery
-  - Added admin panel: price configuration, payment statistics, user history
-  - Payment data persists in JSON-based database (data/payments.json)
-  - Users cannot analyze files without completing payment
-  - Fixed critical package conflict: removed `telegram` 0.0.1, kept `python-telegram-bot` 20.7
-  - Botlar to'liq ishlamoqda va to'lov tizimi faol
-- **October 24, 2025**: Optimized "Adminga murojaat" and "Hamjamiyat" buttons
-  - Added inline keyboard with multiple contact options
-  - Implemented message-to-admin functionality
-  - Users can now send messages directly to admin via bot
-  - Added Telegram, Email, and Message options for contacting admin
-  - Community button now includes links to Telegram channel, group, Instagram, and website
-  - Enhanced user experience with professional contact flow
-- **October 24, 2025**: Fixed all critical code errors
-  - Fixed run_bots.py event loop conflicts
-  - Fixed rasch_analysis.py type checking errors
-  - Corrected NumPy/Pandas type conversions
-  - Both teacher and student bots running successfully
-- **October 23, 2025**: Removed automatic data fixing from normal analysis mode
-  - Normal mode now passes data as-is to RaschAnalyzer without any automatic conversion/fixing
-  - No automatic conversion to numeric, no fillna, no rounding
-  - Enhanced error handling to detect data format issues
-  - Clear error messages guide users to File Analyzer when data needs cleaning
-  - Maintains strict separation: File Analyzer for cleaning, Normal mode for pure analysis
-- **October 23, 2025**: Separated file standardization from cleaning functionality
-  - Added standalone `standardize_data()` method in DataCleaner class
-  - Created `get_standardization_report()` for standardization-only reporting
-  - File Analyzer now offers two options via inline keyboard:
-    * "To'liq tozalash" (Full Cleaning) - cleans and standardizes data
-    * "Faqat standartlashtirish" (Standardization Only) - only renames columns to Savol_1, Savol_2, etc.
-  - Updated callback handlers to support both operations
-  - Document handler now branches based on user-selected operation
-  - Enhanced user experience with clear operation descriptions
-- **October 23, 2025**: Implemented File Analyzer as optional separate feature
-  - DataCleaner moved from automatic to optional File Analyzer mode
-  - Added "File Analyzer" button in "Boshqa" menu
-  - File Analyzer mode: Clean files and return cleaned version
-  - Normal mode: Analyze files directly without auto-cleaning
-  - Users can exit File Analyzer with /start or "Ortga" button
-  - Fixed file processing to work with both modes
-- **October 23, 2025**: Fixed Markdown parsing error in DataCleaner reports
-  - Fixed "Can't parse entities" error in cleaning report
-  - Removed Markdown formatting from cleaning reports to prevent special character issues
-  - DataCleaner now works seamlessly with Evalbee exports
-  - Reports show removed rows/columns in plain text format
-- **October 23, 2025**: Fixed critical bugs in PDF generation and `/namuna` command
-  - Fixed undefined variable error: `pending_general_pdf` → `general_pdf_path`
-  - Added proper null safety checks for Optional type parameters
-  - Fixed section results generation in `/namuna` command
-  - Added section-based PDF generation to sample data analysis
-  - Fixed indentation error in section results loop
-  - All type annotations now properly use Optional for nullable parameters
-- **October 23, 2025**: Implemented section-based T-score reporting in PDF
-  - Added normalized section T-score calculation: Section T-scores sum to overall T-score
-  - Formula: section_t = overall_t × (section_raw / sum_section_raw) when raw > 0
-  - Equal distribution when all section raw scores are 0
-  - Handles edge cases: empty sections, zero scores, invalid question indices
-  - Modified PDF person results table to dynamically include section T-score columns
-  - Added response_matrix to Rasch analysis results for section-based calculations
-  - Integrated section_questions from user_data into PDF generation pipeline
-  - Dynamic column layout adjusts to variable number of sections
-  - Backward compatible: legacy format preserved when no sections configured
-- **October 23, 2025**: Added subject sections configuration feature
-  - Created subject_sections.py with all 9 subjects and their sections
-  - Added section question number collection when section_results is enabled
-  - Implemented question number parsing with validation (supports ranges, comma-separated, mixed)
-  - Added "Bo'limlarni sozlash" menu option to reconfigure sections
-  - Section configuration data saved to user_data for future use
-  - Enhanced error messages for better user experience
-- **October 22, 2025 (Latest)**: Fixed critical indexing bug in Rasch analysis
-  - Removed unnecessary `.astype(bool)` conversion causing NumPy indexing errors
-  - Fixed unbound variable issue in person statistics calculation
-  - Added null safety checks for difficulty array indexing
-  - Bot now runs without errors
-- **October 22, 2025**: Added individual person statistics to PDF reports
-  - Z-scores (standardized scores)
-  - T-scores (mean=50, SD=10)
-  - Standard errors for ability estimates
-  - Detailed person-by-person table
-- Initial project setup with complete Rasch analysis bot
-- Implemented file upload handling (CSV/Excel)
-- Created Rasch model analysis module with MML estimation
-- Built PDF report generator with professional formatting
-- Added Uzbek language interface for user interactions
-
-## Architecture
-
-### Directory Structure
-```
-├── bot/
-│   ├── main.py                    # Bot entry point
-│   ├── handlers/
-│   │   ├── message_handlers.py    # Commands & file handling
-│   │   └── payment_handlers.py    # Payment invoice & callbacks
-│   └── utils/
-│       ├── rasch_analysis.py      # Rasch model implementation
-│       ├── pdf_generator.py       # PDF report generation
-│       └── payment_manager.py     # Payment tracking & pricing
-├── data/
-│   ├── uploads/                   # Temporary file storage
-│   ├── results/                   # Generated PDFs
-│   └── payments.json              # Payment history database
-```
-
-### Key Components
-
-1. **Rasch Analysis Module** (`bot/utils/rasch_analysis.py`)
-   - Uses girth library for MML estimation
-   - Implements Rasch (1PL) model
-   - Estimates item difficulties and person abilities
-   - Calculates reliability coefficients
-
-2. **PDF Generator** (`bot/utils/pdf_generator.py`)
-   - Professional ReportLab-based reports
-   - Formatted tables for item parameters
-   - Statistical summaries
-   - Person ability distributions
-
-3. **Telegram Handlers** (`bot/handlers/message_handlers.py`)
-   - File upload processing (CSV/Excel)
-   - Data validation
-   - Analysis orchestration
-   - Report delivery
-   - Admin panel (price configuration, payment statistics)
-
-4. **Payment System** (`bot/utils/payment_manager.py` & `bot/handlers/payment_handlers.py`)
-   - Telegram Stars integration for per-analysis payments
-   - Invoice creation and validation
-   - Payment tracking and history
-   - Admin pricing controls
-   - Transaction persistence (JSON database)
-
-### Dependencies
-- python-telegram-bot 20.7 - Telegram Bot API
-- pandas 2.1.3 - Data manipulation
-- girth 0.8.0 - Rasch model MML estimation
-- reportlab 4.0.7 - PDF generation
-- openpyxl 3.1.2 - Excel file support
-- python-dotenv 1.0.0 - Environment management
-
-## Configuration
-
-### Required Secrets
-- `BOT_TOKEN` - Telegram bot token from @BotFather
-
-### Workflow
-Bot runs via: `python bot/main.py`
+This project is a Telegram bot designed for performing Rasch model analysis on dichotomous test data. It enables users to upload CSV/Excel files, which are then processed using Python's `girth` library for Rasch model analysis (MML estimation). The bot generates and returns professional PDF reports containing essential psychometric information, including item difficulties, person abilities, and reliability statistics. The vision is to provide an accessible, user-friendly tool for educators and researchers to conduct robust psychometric analysis directly through Telegram. The bot also supports test creation from PDF files, making it easier for teachers to digitalize and administer tests with integrated analysis capabilities.
 
 ## User Preferences
 - Uzbek language interface for Uzbek-speaking users
 - Analysis method: Rasch model (equivalent to R TAM's tam.cmle)
 - Output format: PDF reports
 
-## Technical Notes
+## System Architecture
+The bot operates using a Python backend with the `python-telegram-bot` framework.
 
-### Rasch Model Implementation
-- Method: Marginal Maximum Likelihood (MML) estimation
-- Comparable to R's TAM package `tam.cmle()` function
-- Python implementation chosen for reliability in cloud environment
+### UI/UX Decisions
+- The bot features an Uzbek language interface.
+- Inline keyboards are extensively used for interactive test creation, offering dynamic answer options (A, B, C, D, plus additional options) and test configuration (e.g., time restrictions).
+- Visual indicators like ✅ for answered questions, color-coded time warnings (🔴, 🟡, ⏰), and performance medals (🥇🥈🥉) enhance user experience.
+- PDF reports are professionally formatted using ReportLab, presenting data clearly in tables.
 
-### Data Requirements
-- Format: CSV or Excel (.xlsx, .xls)
-- Structure: Rows = persons, Columns = items
-- Values: Dichotomous (0 = incorrect, 1 = correct)
+### Technical Implementations
+- **Rasch Analysis**: Utilizes the `girth` library for Marginal Maximum Likelihood (MML) estimation of the Rasch (1PL) model, providing item difficulties, person abilities, and reliability coefficients.
+- **PDF Generation**: `reportlab` is used to create detailed PDF reports, including individual person statistics (Z-scores, T-scores, standard errors) and section-based T-score reporting.
+- **Test Management**: Supports creation of tests from PDF files, dynamic answer option configuration, and optional time restrictions. Questions can be extracted from PDFs using PyMuPDF.
+- **Data Handling**: Employs `pandas` for data manipulation, including automatic numeric conversion and handling mixed data types with error coercion. A dedicated "File Analyzer" mode allows users to clean and standardize data (e.g., renaming columns to "Savol_1").
+- **Payment System**: Integrated with Telegram Stars for per-analysis payments, managed by a `PaymentManager` that handles invoice creation, pre-checkout, and successful payment callbacks. An admin panel allows toggling between free and paid modes and configuring pricing.
+- **Error Handling**: Enhanced error handling provides clear messages, guiding users when data needs cleaning or is improperly formatted.
+- **Multi-bot architecture**: Separate bots for teacher and student functionalities, ensuring distinct workflows.
 
-### Analysis Output
-- Item difficulty parameters
-- Person ability estimates (MLE)
-- Reliability (person separation)
-- Descriptive statistics
+### Feature Specifications
+- **Core Analysis**: Performs Rasch analysis on dichotomous data (0/1 format).
+- **Report Generation**: Produces PDF reports with item parameters, person abilities, reliability statistics, and normalized section T-scores.
+- **Test Creation**: Teachers can upload PDFs, define questions, set answers, and configure time restrictions.
+- **Student Interface**: Provides test navigation (previous/next), real-time timer, progress bar, answer review, and detailed results.
+- **Admin Features**: Includes a comprehensive admin panel for payment configuration, balance monitoring (`/balance` command), and user management.
+- **Contact/Community**: Dedicated sections for contacting admin (Telegram, Email) and accessing community channels.
 
-## Future Enhancements (Possible)
-- Support for polytomous models (PCM, RSM)
-- Data visualization in PDF (Wright maps, ICC curves)
-- Multiple model comparison
-- Item fit statistics
-- DIF detection
+### System Design Choices
+- **Modularity**: The codebase is structured into `handlers`, `utils`, and separate modules for `rasch_analysis`, `pdf_generator`, and `payment_manager`.
+- **Data Persistence**: Payment data and test configurations are persisted using JSON-based databases.
+- **Workflow**: The bot follows a clear workflow for file upload → optional payment → analysis → PDF delivery.
+
+## External Dependencies
+- `python-telegram-bot` (20.7): Telegram Bot API interaction.
+- `pandas` (2.1.3): Data manipulation and analysis.
+- `girth` (0.8.0): Rasch model MML estimation.
+- `reportlab` (4.0.7): Professional PDF generation.
+- `openpyxl` (3.1.2): Support for Excel file formats.
+- `PyMuPDF`: PDF text extraction for test creation.
+- `python-dotenv` (1.0.0): Environment variable management.
