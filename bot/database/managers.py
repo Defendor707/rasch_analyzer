@@ -308,22 +308,27 @@ class TestResultManager:
     async def check_results_sent(test_id: str) -> bool:
         """Test uchun natijalar yuborilgan yoki yo'qligini tekshirish"""
         async with db.get_session() as session:
-            result = await session.execute(
-                select(TestResult)
-                .where(TestResult.test_id == test_id)
-                .where(TestResult.is_completed == True)
-            )
-            # Check if all results have results_sent field and it's True
-            results = list(result.scalars().all())
-            if not results:
-                return False
-            
-            # Check each result for results_sent attribute
-            for res in results:
-                # If attribute doesn't exist or is False, consider as not sent
-                if not hasattr(res, 'results_sent') or not res.results_sent:
+            try:
+                # Try to query with results_sent field
+                result = await session.execute(
+                    select(TestResult)
+                    .where(TestResult.test_id == test_id)
+                    .where(TestResult.is_completed == True)
+                )
+                results = list(result.scalars().all())
+                
+                if not results:
                     return False
-            return True
+                
+                # Check each result for results_sent attribute
+                for res in results:
+                    # If attribute doesn't exist or is False, consider as not sent
+                    if not hasattr(res, 'results_sent') or not res.results_sent:
+                        return False
+                return True
+            except Exception:
+                # If column doesn't exist, return False (results not sent)
+                return False
 
 
 class PaymentManager:

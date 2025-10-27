@@ -2260,7 +2260,7 @@ async def handle_view_tests(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 keyboard.append([InlineKeyboardButton("✅ Faollashtirish", callback_data=f"activate_test_{test['id']}")])
         
         keyboard.extend([
-            [InlineKeyboardButton("📊 Natijalar", callback_data=f"test_results_{test['id']}")],
+            [InlineKeyboardButton("📊 Natijalash", callback_data=f"test_results_{test['id']}")],
             [InlineKeyboardButton("🗑 O'chirish", callback_data=f"delete_test_{test['id']}")]
         ])
         
