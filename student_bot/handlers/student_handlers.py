@@ -46,14 +46,16 @@ async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
 
     welcome_message = (
-        f"👋 Salom, *{user.first_name}*!\n\n"
+        f"👋 Salom, *{user.first_name}*\n\n"
         "📝 *Test Platformasi*\n"
         "Online test tizimi\n\n"
-        "✨ Testlarni toping va ishlang\n"
-        "📊 Natijalaringizni ko'ring\n"
-        "🎯 Bilimingizni sinang\n\n"
-        "🚀 Quyidagi tugmalardan birini tanlang\n\n"
-        "Yordam: /help"
+        "📋 *Imkoniyatlar:*\n"
+        "Testlarni topish va ishlash\n"
+        "Natijalarni ko'rish\n"
+        "Bilimni sinash\n\n"
+        "🚀 *Boshlash:*\n"
+        "Quyidagi tugmalardan foydalaning\n\n"
+        "📖 /help — Yordam"
     )
 
     await update.message.reply_text(

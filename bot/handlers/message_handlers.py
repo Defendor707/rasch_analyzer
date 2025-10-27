@@ -67,15 +67,18 @@ async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         full_name = update.effective_user.first_name or "foydalanuvchi"
 
     welcome_message = (
-        f"👋 Assalomu alaykum, *{full_name}*!\n\n"
-        "🎓 *Rasch Analyzer*\n"
+        f"👋 Assalomu alaykum, *{full_name}*\n\n"
+        "🎓 *Rasch Analyzer Bot*\n"
         "Professional test tahlil tizimi\n\n"
-        "📊 Excel/CSV fayllarni tahlil qiling\n"
-        "📝 Test yarating va natijalarni ko'ring\n"
-        "👥 Talabgorlarni boshqaring\n"
-        "📄 PDF hisobotlar oling\n\n"
-        "🚀 Boshlash: Fayl yuboring\n\n"
-        "Yordam: /help | Namuna: /namuna"
+        "📋 *Imkoniyatlar:*\n"
+        "Excel/CSV fayllarni tahlil qilish\n"
+        "Test yaratish va o'tkazish\n"
+        "Talabgorlarni boshqarish\n"
+        "PDF hisobotlar olish\n\n"
+        "🚀 *Boshlash uchun:*\n"
+        "Excel/CSV faylni yuboring\n\n"
+        "📖 /help — Yordam\n"
+        "📊 /namuna — Namuna tahlil"
     )
 
     await update.message.reply_text(
