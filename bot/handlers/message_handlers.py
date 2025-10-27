@@ -1,5 +1,6 @@
 import os
 import pandas as pd
+import fitz
 from telegram import Update, ReplyKeyboardMarkup, KeyboardButton, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ContextTypes
 from bot.utils.rasch_analysis import RaschAnalyzer
@@ -39,6 +40,9 @@ WAITING_FOR_CORRECT_ANSWER = 15
 WAITING_FOR_ADMIN_MESSAGE = 16
 WAITING_FOR_QUESTION_FILE = 17
 WAITING_FOR_CORRECT_ANSWER_FROM_FILE = 18
+WAITING_FOR_PDF_QUESTION_FILE = 19
+WAITING_FOR_QUESTION_COUNT = 20
+WAITING_FOR_PDF_CORRECT_ANSWER = 21
 
 
 def get_main_keyboard():
