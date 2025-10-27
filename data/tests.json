@@ -6,10 +6,43 @@
     "start_date": "",
     "start_time": "",
     "duration": 60,
-    "questions": [],
+    "questions": [
+      {
+        "id": 1,
+        "text": ".",
+        "options": [
+          "1",
+          "1",
+          "1",
+          "1"
+        ],
+        "correct_answer": 0,
+        "points": 1
+      }
+    ],
     "created_at": "2025-10-27T03:25:47.721559",
-    "is_active": false,
+    "is_active": true,
     "allow_retake": false,
-    "participants": []
+    "participants": {
+      "7537966029": {
+        "student_id": 7537966029,
+        "answers": {
+          "0": 0
+        },
+        "score": 1,
+        "max_score": 1,
+        "percentage": 100.0,
+        "results": [
+          {
+            "question_id": 1,
+            "student_answer": 0,
+            "correct_answer": 0,
+            "correct": true
+          }
+        ],
+        "submitted": true,
+        "submitted_at": "2025-10-27T13:05:09.636597+05:00"
+      }
+    }
   }
 }

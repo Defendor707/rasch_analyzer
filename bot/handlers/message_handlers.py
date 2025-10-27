@@ -333,6 +333,12 @@ async def handle_document(update: Update, context: ContextTypes.DEFAULT_TYPE):
             "Iltimos, CSV (.csv) yoki Excel (.xlsx, .xls) formatdagi fayl yuboring."
         )
         return
+    
+    # Check if user is uploading questions file for test
+    creating_state = context.user_data.get('creating_test')
+    if creating_state == WAITING_FOR_QUESTION_FILE:
+        await handle_question_file_upload(update, context, document, file_extension)
+        return
 
     # Check if user is in File Analyzer mode
     user_data = user_data_manager.get_user_data(user_id)
@@ -812,6 +818,35 @@ async def handle_callback_query(update: Update, context: ContextTypes.DEFAULT_TY
             await query.edit_message_text("🗑 Test o'chirildi!")
         else:
             await query.answer("❌ Xatolik yuz berdi!")
+    
+    # Handle correct answer selection from uploaded questions
+    elif query.data.startswith('set_correct_'):
+        parts = query.data.split('_')
+        question_index = int(parts[2])
+        answer_index = int(parts[3])
+        
+        questions = context.user_data.get('uploaded_questions', [])
+        if question_index < len(questions):
+            question = questions[question_index]
+            
+            # Add question to test
+            test_id = context.user_data['current_test_id']
+            question_data = {
+                'text': question['text'],
+                'options': question['options'],
+                'correct_answer': answer_index,
+                'points': 1
+            }
+            test_manager.add_question(test_id, question_data)
+            
+            await query.answer(f"✅ To'g'ri javob: {chr(65 + answer_index)}")
+            
+            # Move to next question
+            context.user_data['current_question_index_for_answer'] = question_index + 1
+            
+            # Delete previous message and show next question
+            await query.message.delete()
+            await show_question_for_correct_answer(query.message, context)
     
     elif query.data.startswith('test_results_'):
         test_id = query.data.replace('test_results_', '')
@@ -2301,6 +2336,131 @@ async def handle_finish_test(update: Update, context: ContextTypes.DEFAULT_TYPE)
     context.user_data['current_test_id'] = None
     context.user_data['test_temp'] = {}
     context.user_data['question_temp'] = {}
+
+
+async def handle_question_file_upload(update: Update, context: ContextTypes.DEFAULT_TYPE, document, file_extension: str):
+    """Handle uploaded questions file for test creation"""
+    user_id = update.effective_user.id
+    
+    await update.message.reply_text("📁 Savollar fayli yuklanmoqda...")
+    
+    try:
+        file = await context.bot.get_file(document.file_id)
+        upload_dir = "data/uploads"
+        os.makedirs(upload_dir, exist_ok=True)
+        file_path = os.path.join(upload_dir, f"questions_{user_id}_{document.file_name}")
+        await file.download_to_drive(file_path)
+        
+        # Read file
+        if file_extension == '.csv':
+            try:
+                data = pd.read_csv(file_path)
+            except Exception:
+                data = pd.read_csv(file_path, encoding='latin-1')
+        else:
+            data = pd.read_excel(file_path)
+        
+        # Parse questions from file
+        questions = []
+        for idx, row in data.iterrows():
+            # Assuming columns: Question, Option A, Option B, Option C, Option D (or more)
+            row_values = [str(val).strip() for val in row.values if pd.notna(val) and str(val).strip()]
+            
+            if len(row_values) < 3:  # At least question + 2 options
+                continue
+            
+            question_text = row_values[0]
+            options = row_values[1:]  # All remaining columns are options
+            
+            if len(options) >= 2:  # At least 2 options required
+                questions.append({
+                    'text': question_text,
+                    'options': options,
+                    'index': len(questions)
+                })
+        
+        # Cleanup
+        os.remove(file_path)
+        
+        if not questions:
+            await update.message.reply_text(
+                "❌ Fayldan savollar topilmadi!\n\n"
+                "Fayl formati:\n"
+                "• 1-ustun: Savol matni\n"
+                "• 2-5 ustunlar: Javob variantlari\n\n"
+                "Iltimos, faylni tekshirib qayta yuboring."
+            )
+            return
+        
+        # Save questions to context
+        context.user_data['uploaded_questions'] = questions
+        context.user_data['current_question_index_for_answer'] = 0
+        context.user_data['creating_test'] = WAITING_FOR_CORRECT_ANSWER_FROM_FILE
+        
+        # Show first question and ask for correct answer
+        await show_question_for_correct_answer(update, context)
+        
+    except Exception as e:
+        logger.error(f"Error processing questions file: {str(e)}")
+        await update.message.reply_text(
+            f"❌ Faylni qayta ishlashda xatolik: {str(e)}\n\n"
+            "Iltimos, fayl formatini tekshirib qayta yuboring."
+        )
+
+
+async def show_question_for_correct_answer(update_or_message, context: ContextTypes.DEFAULT_TYPE):
+    """Show a question from uploaded file and ask for correct answer"""
+    questions = context.user_data.get('uploaded_questions', [])
+    current_index = context.user_data.get('current_question_index_for_answer', 0)
+    
+    # Handle both Update object and Message object
+    if hasattr(update_or_message, 'message'):
+        message = update_or_message.message
+    else:
+        message = update_or_message
+    
+    if current_index >= len(questions):
+        # All questions processed
+        test_id = context.user_data['current_test_id']
+        test = test_manager.get_test(test_id)
+        
+        keyboard = [
+            [KeyboardButton("✅ Testni tugatish")],
+            [KeyboardButton("◀️ Ortga")]
+        ]
+        reply_markup = ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
+        
+        await message.reply_text(
+            f"✅ Barcha savollar qo'shildi!\n\n"
+            f"📋 Test: {test['name']}\n"
+            f"📝 Savollar soni: {len(test['questions'])} ta\n\n"
+            "Testni tugatish uchun '✅ Testni tugatish' tugmasini bosing:",
+            reply_markup=reply_markup
+        )
+        
+        context.user_data['creating_test'] = None
+        context.user_data['uploaded_questions'] = []
+        context.user_data['current_question_index_for_answer'] = 0
+        return
+    
+    question = questions[current_index]
+    
+    # Build options text and inline keyboard
+    options_text = f"❓ *Savol #{current_index + 1}:*\n\n{question['text']}\n\n*Javob variantlari:*\n"
+    keyboard = []
+    
+    for i, option in enumerate(question['options']):
+        options_text += f"{chr(65 + i)}. {option}\n"
+        keyboard.append([InlineKeyboardButton(f"{chr(65 + i)}. {option}", callback_data=f"set_correct_{current_index}_{i}")])
+    
+    options_text += "\n✅ To'g'ri javobni tanlang:"
+    reply_markup = InlineKeyboardMarkup(keyboard)
+    
+    await message.reply_text(
+        options_text,
+        parse_mode='Markdown',
+        reply_markup=reply_markup
+    )
 
 
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
