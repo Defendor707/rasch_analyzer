@@ -46,18 +46,20 @@ async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
 
     welcome_message = (
-        f"👋 Assalomu alaykum, {user.first_name}!\n\n"
-        "📝 Test botiga xush kelibsiz!\n\n"
-        "Bu bot orqali siz:\n"
-        "• 📚 Ommaviy testlarni topishingiz\n"
-        "• ✍️ Testlarni ishlashingiz\n"
-        "• 📊 Natijalaringizni ko'rishingiz\n"
-        "• 🔍 Testlarni qidirishingiz mumkin\n\n"
-        "Boshlash uchun quyidagi tugmalardan foydalaning!"
+        f"👋 Salom, *{user.first_name}*!\n\n"
+        "📝 *Test Platformasi* - Online test tizimi\n\n"
+        "✨ *Imkoniyatlar:*\n"
+        "• 📚 Testlarni topish va ishlash\n"
+        "• 📊 Natijalarni ko'rish\n"
+        "• 🎯 Bilimingizni sinash\n\n"
+        "🚀 *Boshlash:*\n"
+        "Quyidagi tugmalardan birini tanlang!\n\n"
+        "💡 Yordam kerakmi? → /help"
     )
 
     await update.message.reply_text(
         welcome_message,
+        parse_mode='Markdown',
         reply_markup=get_main_keyboard()
     )
 

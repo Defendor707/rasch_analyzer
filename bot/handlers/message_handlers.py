@@ -67,18 +67,24 @@ async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         full_name = update.effective_user.first_name or "foydalanuvchi"
 
     welcome_message = (
-        f"👋 Assalomu alaykum, {full_name}!\n\n"
-        "🎓 Rasch analiyzer botga xush kelibsiz!\n\n"
-        "📝 Matritsani yuboring yoki /namuna buyrug'i bilan namuna tahlilni ko'ring\n\n"
-        "/help commandasini yuborib foydalanish yo'riqnomasi bilan tanishing."
+        f"👋 Assalomu alaykum, *{full_name}*!\n\n"
+        "🎓 *Rasch Analyzer* - Professional test tahlil tizimi\n\n"
+        "📊 *Nima qila olasiz?*\n"
+        "• Excel/CSV fayllarni tahlil qilish\n"
+        "• Test yaratish va o'tkazish\n"
+        "• Talabgorlarni boshqarish\n"
+        "• PDF hisobotlar olish\n\n"
+        "💡 *Boshlash:*\n"
+        "📁 Fayl yuboring yoki\n"
+        "📝 Test yarating\n\n"
+        "📖 Yordam: /help | Namuna: /namuna"
     )
 
-    file_info_message = (
-        "📊 Excel (.xls, .xlsx, .csv) faylni yuborishingiz mumkin!"
+    await update.message.reply_text(
+        welcome_message, 
+        parse_mode='Markdown',
+        reply_markup=get_main_keyboard()
     )
-
-    await update.message.reply_text(welcome_message, reply_markup=get_main_keyboard())
-    await update.message.reply_text(file_info_message)
 
 
 async def perform_test_rasch_analysis(message, context, test_id: str):
