@@ -2332,6 +2332,34 @@ async def handle_test_input(update: Update, context: ContextTypes.DEFAULT_TYPE, 
             await update.message.reply_text("❌ Iltimos, raqam kiriting!")
             return True
     
+    elif creating_state == WAITING_FOR_QUESTION_COUNT:
+        try:
+            question_count = int(text)
+            if question_count <= 0:
+                await update.message.reply_text("❌ Savollar soni musbat son bo'lishi kerak!")
+                return True
+            
+            # Initialize PDF questions with default options
+            pdf_questions = []
+            for i in range(question_count):
+                pdf_questions.append({
+                    'index': i,
+                    'options': ['A', 'B', 'C', 'D'],  # Default options
+                    'correct_answer': None
+                })
+            
+            context.user_data['pdf_questions'] = pdf_questions
+            context.user_data['current_pdf_question_index'] = 0
+            context.user_data['creating_test'] = WAITING_FOR_PDF_CORRECT_ANSWER
+            
+            # Show first question with answer options
+            await show_pdf_question_answer_selector(update, context)
+            return True
+            
+        except ValueError:
+            await update.message.reply_text("❌ Iltimos, raqam kiriting!")
+            return True
+    
     return False
 
 
@@ -2444,6 +2472,142 @@ async def handle_question_file_upload(update: Update, context: ContextTypes.DEFA
             f"❌ Faylni qayta ishlashda xatolik: {str(e)}\n\n"
             "Iltimos, fayl formatini tekshirib qayta yuboring."
         )
+
+
+async def handle_pdf_question_file_upload(update: Update, context: ContextTypes.DEFAULT_TYPE, document):
+    """Handle uploaded PDF file containing test questions"""
+    user_id = update.effective_user.id
+    
+    await update.message.reply_text("📄 PDF fayl yuklanmoqda...")
+    
+    try:
+        file = await context.bot.get_file(document.file_id)
+        upload_dir = "data/uploads"
+        os.makedirs(upload_dir, exist_ok=True)
+        file_path = os.path.join(upload_dir, f"pdf_questions_{user_id}_{document.file_name}")
+        await file.download_to_drive(file_path)
+        
+        # Extract text from PDF using PyMuPDF
+        pdf_document = fitz.open(file_path)
+        pdf_text = ""
+        for page_num in range(len(pdf_document)):
+            page = pdf_document[page_num]
+            pdf_text += page.get_text()
+        pdf_document.close()
+        
+        # Save PDF text to context
+        context.user_data['pdf_text'] = pdf_text
+        
+        # Cleanup
+        os.remove(file_path)
+        
+        if not pdf_text.strip():
+            await update.message.reply_text(
+                "❌ PDF fayldan matn topilmadi!\n\n"
+                "Iltimos, matnli PDF faylini yuboring."
+            )
+            return
+        
+        # Ask for number of questions
+        context.user_data['creating_test'] = WAITING_FOR_QUESTION_COUNT
+        await update.message.reply_text(
+            f"✅ PDF fayl muvaffaqiyatli yuklandi!\n\n"
+            f"📝 Testda nechta savol bor?\n\n"
+            f"Savollar sonini kiriting (masalan: 30):"
+        )
+        
+    except Exception as e:
+        logger.error(f"Error processing PDF file: {str(e)}")
+        await update.message.reply_text(
+            f"❌ PDF faylni qayta ishlashda xatolik: {str(e)}\n\n"
+            "Iltimos, faylni tekshirib qayta yuboring."
+        )
+
+
+async def show_pdf_question_answer_selector(update_or_message, context: ContextTypes.DEFAULT_TYPE):
+    """Show inline keyboard for selecting correct answer for PDF questions"""
+    pdf_questions = context.user_data.get('pdf_questions', [])
+    current_index = context.user_data.get('current_pdf_question_index', 0)
+    
+    # Handle both Update object and Message object
+    if hasattr(update_or_message, 'message'):
+        message = update_or_message.message
+    else:
+        message = update_or_message
+    
+    if current_index >= len(pdf_questions):
+        # All questions processed - save to test
+        test_id = context.user_data['current_test_id']
+        
+        for q in pdf_questions:
+            if q['correct_answer'] is None:
+                await message.reply_text(
+                    "❌ Barcha savollar uchun to'g'ri javob tanlanmagan!\n\n"
+                    "Iltimos, testni qaytadan yaratib ko'ring."
+                )
+                return
+            
+            question_data = {
+                'text': f"Savol {q['index'] + 1}",
+                'options': q['options'],
+                'correct_answer': q['correct_answer'],
+                'points': 1
+            }
+            test_manager.add_question(test_id, question_data)
+        
+        # Automatically activate the test
+        test_manager.activate_test(test_id)
+        test = test_manager.get_test(test_id)
+        
+        await message.reply_text(
+            f"✅ *Test yaratish tugallandi va avtomatik faollashtirildi!*\n\n"
+            f"📋 {test['name']}\n"
+            f"📚 Fan: {test['subject']}\n"
+            f"📝 Savollar: {len(test['questions'])} ta\n"
+            f"📊 Status: ✅ Faol\n\n"
+            f"Test talabgorlarda ko'rinadi.\n\n"
+            f"Test havolasi:\n"
+            f"https://t.me/{context.bot.username}?start=test_{test_id}",
+            parse_mode='Markdown',
+            reply_markup=get_main_keyboard()
+        )
+        
+        # Clear temp data
+        context.user_data['creating_test'] = None
+        context.user_data['pdf_questions'] = []
+        context.user_data['current_pdf_question_index'] = 0
+        context.user_data['pdf_text'] = None
+        return
+    
+    question = pdf_questions[current_index]
+    
+    # Build inline keyboard with answer options and + button
+    keyboard = []
+    for i, option in enumerate(question['options']):
+        keyboard.append([InlineKeyboardButton(
+            f"{option}",
+            callback_data=f"pdf_correct_{current_index}_{i}"
+        )])
+    
+    # Add + button to add more options
+    keyboard.append([InlineKeyboardButton(
+        "➕ Variant qo'shish",
+        callback_data=f"add_pdf_option_{current_index}"
+    )])
+    
+    reply_markup = InlineKeyboardMarkup(keyboard)
+    
+    options_text = f"❓ *Savol #{current_index + 1}*\n\n"
+    options_text += f"Savollar soni: {len(pdf_questions)} ta\n\n"
+    options_text += "✅ To'g'ri javobni tanlang:\n\n"
+    for i, option in enumerate(question['options']):
+        options_text += f"{option}\n"
+    
+    await message.reply_text(
+        options_text,
+        parse_mode='Markdown',
+        reply_markup=reply_markup
+    )
 
 
 async def show_question_for_correct_answer(update_or_message, context: ContextTypes.DEFAULT_TYPE):
