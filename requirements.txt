@@ -7,3 +7,6 @@ girth==0.8.0
 matplotlib
 seaborn
 pytz
+PyMuPDF==1.23.8
+PyMuPDF==1.23.8
+telegram
