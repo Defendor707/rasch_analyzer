@@ -84,6 +84,13 @@ async def run_teacher_bot():
     
     await application.updater.start_polling(drop_pending_updates=True)
     
+    # Wait a bit for student bot to initialize
+    await asyncio.sleep(2)
+    
+    # Store student bot application in bot_data for access from handlers
+    application.bot_data['student_bot_app'] = student_bot_app
+    logger.info("Student bot application saqlandi")
+    
     # Set up scheduler for checking expired tests
     scheduler = AsyncIOScheduler()
     
@@ -92,6 +99,7 @@ async def run_teacher_bot():
         check_and_finalize_expired_tests,
         trigger=IntervalTrigger(hours=1),
         args=[application],
+        kwargs={'student_bot_app': student_bot_app},
         id='check_expired_tests',
         name='Check and finalize expired tests',
         replace_existing=True
@@ -101,6 +109,7 @@ async def run_teacher_bot():
     scheduler.add_job(
         check_and_finalize_expired_tests,
         args=[application],
+        kwargs={'student_bot_app': student_bot_app},
         id='check_expired_tests_startup',
         name='Check expired tests on startup'
     )
@@ -119,6 +128,8 @@ async def run_teacher_bot():
 
 async def run_student_bot():
     """Run student bot"""
+    global student_bot_app
+    
     from student_bot.handlers.student_handlers import (
         start_command,
         help_command,
@@ -136,6 +147,7 @@ async def run_student_bot():
     logger.info("Talabgor boti ishga tushmoqda...")
     
     application = Application.builder().token(bot_token).build()
+    student_bot_app = application  # Store globally for scheduler
     
     async def error_handler(update: object, context: ContextTypes.DEFAULT_TYPE):
         """Log errors caused by updates"""
@@ -169,8 +181,13 @@ async def run_student_bot():
         await application.shutdown()
 
 
+# Global variable to store student bot application
+student_bot_app = None
+
 async def main():
     """Run both bots concurrently"""
+    global student_bot_app
+    
     logger.info("Ikkala bot ham ishga tushmoqda...")
     
     # Create tasks for both bots

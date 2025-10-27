@@ -10,12 +10,13 @@ from .user_data import UserDataManager
 logger = logging.getLogger(__name__)
 
 
-async def check_and_finalize_expired_tests(application: Application) -> None:
+async def check_and_finalize_expired_tests(application: Application, student_bot_app: Application = None) -> None:
     """
     Check for expired tests and send analysis results to teachers
     
     Args:
-        application: Telegram bot application instance
+        application: Telegram bot application instance (teacher bot)
+        student_bot_app: Student bot application instance for sending certificates
     """
     test_manager = TestManager()
     expired_test_ids = test_manager.get_expired_tests()
@@ -28,7 +29,7 @@ async def check_and_finalize_expired_tests(application: Application) -> None:
     
     for test_id in expired_test_ids:
         try:
-            await process_and_send_test_results(application, test_id)
+            await process_and_send_test_results(application, test_id, student_bot_app=student_bot_app)
         except Exception as e:
             logger.error(f"Test {test_id} natijalarini yuborishda xatolik: {e}")
             continue
@@ -65,14 +66,15 @@ async def send_certificate_to_student(application: Application, student_id: int,
         return False
 
 
-async def process_and_send_test_results(application: Application, test_id: str) -> None:
+async def process_and_send_test_results(application: Application, test_id: str, student_bot_app: Application = None) -> None:
     """
     Process test results, perform Rasch analysis, and send to teacher
     Also sends certificates to all students
     
     Args:
-        application: Telegram bot application instance
+        application: Telegram bot application instance (teacher bot)
         test_id: Test identifier
+        student_bot_app: Student bot application instance for sending certificates
     """
     test_manager = TestManager()
     user_data_manager = UserDataManager()
@@ -248,9 +250,12 @@ async def process_and_send_test_results(application: Application, test_id: str) 
                             filename=f"cert_{test_id}_{student_id}"
                         )
                         
-                        # Send certificate to student
-                        if await send_certificate_to_student(application, student_id, cert_path, test['name']):
-                            certificates_sent += 1
+                        # Send certificate to student using student bot
+                        if student_bot_app:
+                            if await send_certificate_to_student(student_bot_app, student_id, cert_path, test['name']):
+                                certificates_sent += 1
+                        else:
+                            logger.warning(f"Student bot application topilmadi, sertifikat yuborilmadi: {student_id}")
                     except Exception as cert_error:
                         logger.error(f"Talabgor {student_id} uchun sertifikat yaratishda xatolik: {cert_error}")
         

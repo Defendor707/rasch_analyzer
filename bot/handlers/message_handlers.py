@@ -992,10 +992,13 @@ async def handle_callback_query(update: Update, context: ContextTypes.DEFAULT_TY
         from bot.utils.test_scheduler import process_and_send_test_results
         
         try:
-            await process_and_send_test_results(context.application, test_id)
+            # Get student bot application from bot_data
+            student_bot_app = context.application.bot_data.get('student_bot_app')
+            await process_and_send_test_results(context.application, test_id, student_bot_app=student_bot_app)
             await query.edit_message_text(
                 "✅ Test yakunlandi va natijalar yuborildi!\n\n"
-                "Rasch tahlili PDF fayllarini yuqorida ko'rishingiz mumkin."
+                "Rasch tahlili PDF fayllarini yuqorida ko'rishingiz mumkin.\n"
+                "Talabgorlarga sertifikatlar yuborildi."
             )
         except Exception as e:
             logger.error(f"Manual finalize error: {e}")
