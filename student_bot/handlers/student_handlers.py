@@ -348,25 +348,43 @@ async def show_question(update: Update, context: ContextTypes.DEFAULT_TYPE):
     elif remaining_minutes < 10:
         time_icon = "🟡"
     
+    # Check if this is a text answer question (only 1 option)
+    is_text_answer = len(question['options']) == 1
+    
     question_text = (
         f"❓ *Savol {question_index + 1}/{len(test['questions'])}*\n"
         f"{time_icon} Qolgan vaqt: {remaining_minutes} daqiqa\n"
         f"{progress_bar} {answered_count}/{len(test['questions'])}\n\n"
         f"{question['text']}\n\n"
     )
-
-    keyboard = []
-    current_answer = answers[question_index]
     
-    for i, option in enumerate(question['options']):
-        mark = "✅ " if current_answer == i else ""
-        keyboard.append([
-            InlineKeyboardButton(
-                f"{mark}{chr(65 + i)}) {option}",
-                callback_data=f"answer_{question_index}_{i}"
-            )
-        ])
+    if is_text_answer:
+        # Text answer question - show instruction to type
+        current_answer = answers[question_index]
+        if current_answer != -1:
+            # Show current answer
+            stored_answer = context.user_data.get('text_answers', {}).get(str(question_index), '')
+            question_text += f"✅ *Sizning javobingiz:* {stored_answer}\n\n"
+        
+        question_text += "✍️ *Javobingizni chatga yozing:*\n"
+        question_text += "Matn yoki raqam yozishingiz mumkin.\n\n"
+    
+    keyboard = []
+    
+    if not is_text_answer:
+        # Multiple choice question - show option buttons
+        current_answer = answers[question_index]
+        
+        for i, option in enumerate(question['options']):
+            mark = "✅ " if current_answer == i else ""
+            keyboard.append([
+                InlineKeyboardButton(
+                    f"{mark}{chr(65 + i)}) {option}",
+                    callback_data=f"answer_{question_index}_{i}"
+                )
+            ])
 
+    # Navigation buttons
     nav_buttons = []
     if question_index > 0:
         nav_buttons.append(InlineKeyboardButton("◀️ Oldingi", callback_data=f"nav_prev"))
@@ -376,10 +394,17 @@ async def show_question(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if nav_buttons:
         keyboard.append(nav_buttons)
     
+    # Review and cancel buttons
     keyboard.append([
         InlineKeyboardButton("📝 Javoblarni ko'rish", callback_data="review_answers"),
         InlineKeyboardButton("❌ Bekor qilish", callback_data="cancel_test")
     ])
+    
+    # Check if all questions answered - suggest completion
+    if answered_count == len(test['questions']):
+        keyboard.insert(-1, [
+            InlineKeyboardButton("✅ Barcha savollar javoblandi - Tugatish", callback_data="confirm_submit")
+        ])
 
     reply_markup = InlineKeyboardMarkup(keyboard)
 
@@ -413,6 +438,7 @@ async def review_answers(update: Update, context: ContextTypes.DEFAULT_TYPE):
     
     test_id = context.user_data.get('current_test_id')
     answers = context.user_data.get('answers', [])
+    text_answers = context.user_data.get('text_answers', {})
     
     test = test_manager.get_test(test_id)
     if not test:
@@ -420,6 +446,7 @@ async def review_answers(update: Update, context: ContextTypes.DEFAULT_TYPE):
     
     answered_count = sum(1 for a in answers if a != -1)
     unanswered = len(answers) - answered_count
+    unanswered_indices = [i for i, a in enumerate(answers) if a == -1]
     
     review_text = (
         f"📝 *Javoblaringiz*\n\n"
@@ -430,13 +457,31 @@ async def review_answers(update: Update, context: ContextTypes.DEFAULT_TYPE):
     for i, answer_idx in enumerate(answers):
         if answer_idx != -1:
             question = test['questions'][i]
-            answer_text = question['options'][answer_idx]
-            review_text += f"{i+1}. {chr(65 + answer_idx)}) {answer_text[:30]}...\n"
+            # Check if it's a text answer
+            if len(question['options']) == 1:
+                # Text answer
+                text_answer = text_answers.get(str(i), question['options'][0])
+                review_text += f"{i+1}. ✍️ {text_answer[:30]}...\n"
+            else:
+                # Multiple choice
+                answer_text = question['options'][answer_idx]
+                review_text += f"{i+1}. {chr(65 + answer_idx)}) {answer_text[:30]}...\n"
         else:
             review_text += f"{i+1}. ❌ Javob berilmagan\n"
     
-    keyboard = [
-        [InlineKeyboardButton("✅ Testni yakunlash", callback_data="confirm_submit")],
+    keyboard = []
+    
+    # If there are unanswered questions, add button to go to first unanswered
+    if unanswered_indices:
+        first_unanswered = unanswered_indices[0]
+        keyboard.append([
+            InlineKeyboardButton(
+                f"❓ {first_unanswered + 1}-savolga o'tish", 
+                callback_data=f"goto_{first_unanswered}"
+            )
+        ])
+    
+    keyboard.append([InlineKeyboardButton("✅ Testni yakunlash", callback_data="confirm_submit")],
         [InlineKeyboardButton("◀️ Testga qaytish", callback_data="back_to_test")]
     ]
     reply_markup = InlineKeyboardMarkup(keyboard)
@@ -498,13 +543,27 @@ async def finish_test(update: Update, context: ContextTypes.DEFAULT_TYPE, auto_s
     context.user_data['test_started_at'] = None
 
     test = test_manager.get_test(test_id)
+    text_answers = context.user_data.get('text_answers', {})
+    context.user_data['text_answers'] = {}  # Clear text answers
     correct_answers = []
     incorrect_answers = []
     
     for i, answer_idx in enumerate(answers):
         question = test['questions'][i]
         correct_idx = question['correct_answer']
-        if answer_idx == correct_idx:
+        
+        # Check if it's a text answer question
+        if len(question['options']) == 1 and answer_idx != -1:
+            # Text answer - compare the text
+            correct_text = question['options'][0].strip().lower()
+            user_text = text_answers.get(str(i), '').strip().lower()
+            
+            if user_text == correct_text:
+                correct_answers.append(i + 1)
+            else:
+                incorrect_answers.append(i + 1)
+        elif answer_idx == correct_idx:
+            # Multiple choice - compare index
             correct_answers.append(i + 1)
         elif answer_idx != -1:
             incorrect_answers.append(i + 1)
@@ -635,6 +694,7 @@ async def confirm_cancel(update: Update, context: ContextTypes.DEFAULT_TYPE):
     context.user_data['current_question_index'] = 0
     context.user_data['answers'] = []
     context.user_data['test_started_at'] = None
+    context.user_data['text_answers'] = {}
     
     await query.edit_message_text(
         "❌ Test bekor qilindi.\n\n"
@@ -725,6 +785,11 @@ async def handle_callback_query(update: Update, context: ContextTypes.DEFAULT_TY
     elif query.data == 'force_submit':
         await finish_test(update, context)
     
+    elif query.data.startswith('goto_'):
+        question_index = int(query.data.replace('goto_', ''))
+        context.user_data['current_question_index'] = question_index
+        await show_question(update, context)
+    
     elif query.data.startswith('subject_filter_'):
         subject = query.data.replace('subject_filter_', '')
         await query.answer(f"📚 {subject}")
@@ -752,6 +817,35 @@ async def handle_callback_query(update: Update, context: ContextTypes.DEFAULT_TY
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Handle regular text messages"""
     message_text = update.message.text
+    
+    # Check if user is taking a test and current question is text answer
+    if context.user_data.get('taking_test'):
+        test_id = context.user_data.get('current_test_id')
+        question_index = context.user_data.get('current_question_index', 0)
+        
+        test = test_manager.get_test(test_id)
+        if test:
+            question = test['questions'][question_index]
+            
+            # Check if this is a text answer question (only 1 option)
+            if len(question['options']) == 1:
+                # Save the text answer
+                answers = context.user_data.get('answers', [-1] * len(test['questions']))
+                answers[question_index] = 0  # Mark as answered (index 0 since only 1 option)
+                context.user_data['answers'] = answers
+                
+                # Store the actual text answer
+                text_answers = context.user_data.get('text_answers', {})
+                text_answers[str(question_index)] = message_text
+                context.user_data['text_answers'] = text_answers
+                
+                # Show confirmation and current question
+                await update.message.reply_text(
+                    f"✅ Javob qabul qilindi: {message_text}\n\n"
+                    f"Keyingi savolga o'tish uchun tugmani bosing."
+                )
+                await show_question(update, context)
+                return
 
     if context.user_data.get('searching_tests'):
         context.user_data['searching_tests'] = False

@@ -64,5 +64,274 @@
       }
     },
     "pdf_file_path": "data/uploads/pdf_files/test_pdf_7537966029_20251027_134900_Akademik yozuv 100 (1).pdf"
+  },
+  "test_7537966029_20251027_142435": {
+    "teacher_id": 7537966029,
+    "name": "1",
+    "subject": "Matematika",
+    "start_date": "",
+    "start_time": "",
+    "duration": 60,
+    "questions": [
+      {
+        "id": 1,
+        "text": "Savol 1",
+        "options": [
+          "A",
+          "B",
+          "C",
+          "D"
+        ],
+        "correct_answer": 0,
+        "points": 1
+      },
+      {
+        "id": 2,
+        "text": "Savol 2",
+        "options": [
+          "A",
+          "B",
+          "C",
+          "D"
+        ],
+        "correct_answer": 1,
+        "points": 1
+      },
+      {
+        "id": 3,
+        "text": "Savol 3",
+        "options": [
+          "A",
+          "B",
+          "C",
+          "D"
+        ],
+        "correct_answer": 1,
+        "points": 1
+      },
+      {
+        "id": 4,
+        "text": "Savol 4",
+        "options": [
+          "A",
+          "B",
+          "C",
+          "D"
+        ],
+        "correct_answer": 1,
+        "points": 1
+      },
+      {
+        "id": 5,
+        "text": "Savol 5",
+        "options": [
+          "A",
+          "B",
+          "C",
+          "D"
+        ],
+        "correct_answer": 1,
+        "points": 1
+      },
+      {
+        "id": 6,
+        "text": "Savol 6",
+        "options": [
+          "A",
+          "B",
+          "C",
+          "D"
+        ],
+        "correct_answer": 1,
+        "points": 1
+      },
+      {
+        "id": 7,
+        "text": "Savol 7",
+        "options": [
+          "A",
+          "B",
+          "C",
+          "D"
+        ],
+        "correct_answer": 0,
+        "points": 1
+      },
+      {
+        "id": 8,
+        "text": "Savol 8",
+        "options": [
+          "A",
+          "B",
+          "C",
+          "D"
+        ],
+        "correct_answer": 3,
+        "points": 1
+      },
+      {
+        "id": 9,
+        "text": "Savol 9",
+        "options": [
+          "A",
+          "B",
+          "C",
+          "D"
+        ],
+        "correct_answer": 0,
+        "points": 1
+      },
+      {
+        "id": 10,
+        "text": "Savol 10",
+        "options": [
+          "1"
+        ],
+        "correct_answer": 0,
+        "points": 1
+      },
+      {
+        "id": 11,
+        "text": "Savol 11",
+        "options": [
+          "it"
+        ],
+        "correct_answer": 0,
+        "points": 1
+      },
+      {
+        "id": 12,
+        "text": "Savol 12",
+        "options": [
+          "A",
+          "B",
+          "C",
+          "D"
+        ],
+        "correct_answer": 0,
+        "points": 1
+      },
+      {
+        "id": 13,
+        "text": "Savol 13",
+        "options": [
+          "A",
+          "B",
+          "C",
+          "D"
+        ],
+        "correct_answer": 1,
+        "points": 1
+      }
+    ],
+    "created_at": "2025-10-27T14:24:35.255523",
+    "is_active": true,
+    "allow_retake": false,
+    "participants": {
+      "7537966029": {
+        "student_id": 7537966029,
+        "answers": {
+          "0": 0,
+          "1": 1,
+          "2": 2,
+          "3": 0,
+          "4": 1,
+          "5": 3,
+          "6": -1,
+          "7": 0,
+          "8": 2,
+          "9": 0,
+          "10": 0,
+          "11": 3,
+          "12": 2
+        },
+        "score": 5,
+        "max_score": 13,
+        "percentage": 38.46153846153847,
+        "results": [
+          {
+            "question_id": 1,
+            "student_answer": 0,
+            "correct_answer": 0,
+            "correct": true
+          },
+          {
+            "question_id": 2,
+            "student_answer": 1,
+            "correct_answer": 1,
+            "correct": true
+          },
+          {
+            "question_id": 3,
+            "student_answer": 2,
+            "correct_answer": 1,
+            "correct": false
+          },
+          {
+            "question_id": 4,
+            "student_answer": 0,
+            "correct_answer": 1,
+            "correct": false
+          },
+          {
+            "question_id": 5,
+            "student_answer": 1,
+            "correct_answer": 1,
+            "correct": true
+          },
+          {
+            "question_id": 6,
+            "student_answer": 3,
+            "correct_answer": 1,
+            "correct": false
+          },
+          {
+            "question_id": 7,
+            "student_answer": -1,
+            "correct_answer": 0,
+            "correct": false
+          },
+          {
+            "question_id": 8,
+            "student_answer": 0,
+            "correct_answer": 3,
+            "correct": false
+          },
+          {
+            "question_id": 9,
+            "student_answer": 2,
+            "correct_answer": 0,
+            "correct": false
+          },
+          {
+            "question_id": 10,
+            "student_answer": 0,
+            "correct_answer": 0,
+            "correct": true
+          },
+          {
+            "question_id": 11,
+            "student_answer": 0,
+            "correct_answer": 0,
+            "correct": true
+          },
+          {
+            "question_id": 12,
+            "student_answer": 3,
+            "correct_answer": 0,
+            "correct": false
+          },
+          {
+            "question_id": 13,
+            "student_answer": 2,
+            "correct_answer": 1,
+            "correct": false
+          }
+        ],
+        "submitted": true,
+        "submitted_at": "2025-10-27T19:27:53.589467+05:00"
+      }
+    },
+    "pdf_file_path": "data/uploads/pdf_files/test_pdf_7537966029_20251027_142447_Akademik yozuv 100 (1).pdf"
   }
 }
