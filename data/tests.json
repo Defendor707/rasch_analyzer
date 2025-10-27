@@ -217,8 +217,9 @@
       }
     ],
     "created_at": "2025-10-27T09:13:37.153991",
-    "is_active": true,
+    "is_active": false,
     "allow_retake": false,
-    "participants": []
+    "participants": [],
+    "finalized_at": "2025-10-27T14:17:22.762454+05:00"
   }
 }
