@@ -172,29 +172,73 @@ class PDFReportGenerator:
         min_measure = float(np.min(all_measures) - 1)
         max_measure = float(np.max(all_measures) + 1)
 
-        plt.figure(figsize=(10, 8))
+        plt.figure(figsize=(12, 6))
 
-        # Plot persons
-        plt.scatter(valid_person_ability, np.zeros_like(valid_person_ability) - 0.1,
-                    marker='o', color='blue', label='Persons', alpha=0.7, s=50)
-        for i, txt in enumerate(valid_person_names):
-            plt.annotate(txt, (valid_person_ability[i], -0.1), textcoords="offset points", 
-                        xytext=(0, -15), ha='left', fontsize=7, rotation=-45)
+        # Sort items by difficulty for better label placement
+        sorted_indices = np.argsort(valid_item_difficulty)
+        sorted_item_difficulty = valid_item_difficulty[sorted_indices]
+        sorted_item_names = valid_item_names[sorted_indices]
 
-        # Plot items
-        plt.scatter(valid_item_difficulty, np.zeros_like(valid_item_difficulty) + 0.1,
-                    marker='s', color='red', label='Items', alpha=0.7, s=50)
-        for i, txt in enumerate(valid_item_names):
-            plt.annotate(txt, (valid_item_difficulty[i], 0.1), textcoords="offset points", 
-                        xytext=(0, 15), ha='right', fontsize=7, rotation=45)
+        # Calculate vertical offsets for items to avoid overlap
+        item_y_offsets = np.zeros(len(sorted_item_difficulty))
+        min_distance = 0.15
+        
+        for i in range(1, len(sorted_item_difficulty)):
+            if sorted_item_difficulty[i] - sorted_item_difficulty[i-1] < min_distance:
+                item_y_offsets[i] = item_y_offsets[i-1] + 0.08
+                if item_y_offsets[i] > 0.3:
+                    item_y_offsets[i] = 0
+            else:
+                item_y_offsets[i] = 0
 
-        plt.yticks([])  # Hide y-axis ticks
-        plt.xlabel("Logit Scale (Ability/Difficulty)")
-        plt.title("Wright Map (Item-Person Map)")
+        # Plot items with varying heights
+        for i in range(len(sorted_item_difficulty)):
+            y_pos = 0.1 + item_y_offsets[i]
+            plt.scatter(sorted_item_difficulty[i], y_pos,
+                       marker='s', color='red', alpha=0.7, s=50)
+            plt.annotate(sorted_item_names[i], (sorted_item_difficulty[i], y_pos), 
+                        textcoords="offset points", xytext=(0, 5), 
+                        ha='center', fontsize=6, rotation=90)
+
+        # Sort persons by ability for better label placement
+        sorted_person_indices = np.argsort(valid_person_ability)
+        sorted_person_ability = valid_person_ability[sorted_person_indices]
+        sorted_person_names = valid_person_names[sorted_person_indices]
+
+        # Calculate vertical offsets for persons to avoid overlap
+        person_y_offsets = np.zeros(len(sorted_person_ability))
+        
+        for i in range(1, len(sorted_person_ability)):
+            if sorted_person_ability[i] - sorted_person_ability[i-1] < min_distance:
+                person_y_offsets[i] = person_y_offsets[i-1] + 0.08
+                if person_y_offsets[i] > 0.3:
+                    person_y_offsets[i] = 0
+            else:
+                person_y_offsets[i] = 0
+
+        # Plot persons with varying heights
+        for i in range(len(sorted_person_ability)):
+            y_pos = -0.1 - person_y_offsets[i]
+            plt.scatter(sorted_person_ability[i], y_pos,
+                       marker='o', color='blue', alpha=0.7, s=50)
+            plt.annotate(sorted_person_names[i], (sorted_person_ability[i], y_pos), 
+                        textcoords="offset points", xytext=(0, -5), 
+                        ha='center', fontsize=6, rotation=-90)
+
+        plt.yticks([])
+        plt.xlabel("Logit Scale (Ability/Difficulty)", fontsize=11)
+        plt.title("Wright Map (Item-Person Map)", fontsize=13)
         plt.xlim(min_measure, max_measure)
-        plt.ylim(-0.5, 0.5)
-        plt.grid(True, linestyle='--', alpha=0.6)
-        plt.legend(loc='upper right')
+        plt.ylim(-0.6, 0.6)
+        plt.axhline(y=0, color='gray', linestyle='-', linewidth=0.5, alpha=0.5)
+        plt.grid(True, linestyle='--', alpha=0.4, axis='x')
+        
+        from matplotlib.patches import Patch
+        legend_elements = [
+            Patch(facecolor='blue', label='Persons'),
+            Patch(facecolor='red', label='Items')
+        ]
+        plt.legend(handles=legend_elements, loc='upper right')
 
         try:
             os.makedirs(self.output_dir, exist_ok=True)
@@ -235,6 +279,75 @@ class PDFReportGenerator:
             return chart_filename
         except Exception as e:
             logger.error(f"Error saving T-score distribution: {e}")
+            plt.close()
+            return None
+
+    def _create_grade_distribution(self, results: Dict[str, Any]) -> str:
+        """Creates and saves the grade distribution bar chart as an image."""
+        person_stats = results.get('person_statistics', {})
+        individual_data = person_stats.get('individual', [])
+
+        if len(individual_data) == 0:
+            raise ValueError("Missing person statistics for grade distribution.")
+
+        # Count grades based on T-scores
+        grade_counts = {'A+': 0, 'A': 0, 'B+': 0, 'B': 0, 'C+': 0, 'C': 0, 'NC': 0}
+        
+        for person in individual_data:
+            t_score = person['t_score']
+            if np.isnan(t_score):
+                continue
+                
+            if t_score >= 70:
+                grade_counts['A+'] += 1
+            elif t_score >= 65:
+                grade_counts['A'] += 1
+            elif t_score >= 60:
+                grade_counts['B+'] += 1
+            elif t_score >= 55:
+                grade_counts['B'] += 1
+            elif t_score >= 50:
+                grade_counts['C+'] += 1
+            elif t_score >= 46:
+                grade_counts['C'] += 1
+            else:
+                grade_counts['NC'] += 1
+
+        grades = list(grade_counts.keys())
+        counts = list(grade_counts.values())
+        
+        # Define colors for each grade
+        colors_map = {
+            'A+': '#2ECC71', 'A': '#3498DB', 'B+': '#9B59B6',
+            'B': '#F39C12', 'C+': '#E67E22', 'C': '#E74C3C', 'NC': '#95A5A6'
+        }
+        bar_colors = [colors_map[g] for g in grades]
+
+        plt.figure(figsize=(7, 4))
+        bars = plt.bar(grades, counts, color=bar_colors, edgecolor='black', alpha=0.8)
+        
+        # Add value labels on top of bars
+        for bar in bars:
+            height = bar.get_height()
+            if height > 0:
+                plt.text(bar.get_x() + bar.get_width()/2., height,
+                        f'{int(height)}',
+                        ha='center', va='bottom', fontsize=10, fontweight='bold')
+        
+        plt.title("Darajalar Taqsimoti", fontsize=14, fontweight='bold')
+        plt.xlabel("Daraja", fontsize=11)
+        plt.ylabel("Talabgorlar Soni", fontsize=11)
+        plt.grid(True, linestyle='--', alpha=0.3, axis='y')
+        plt.tight_layout()
+
+        try:
+            os.makedirs(self.output_dir, exist_ok=True)
+            chart_filename = os.path.join(self.output_dir, "grade_distribution.png")
+            plt.savefig(chart_filename, bbox_inches='tight', dpi=150)
+            plt.close()
+            return chart_filename
+        except Exception as e:
+            logger.error(f"Error saving grade distribution: {e}")
             plt.close()
             return None
 
@@ -385,6 +498,20 @@ class PDFReportGenerator:
         except Exception as e:
             logger.error(f"Error creating Wright map: {e}")
             story.append(Paragraph("Wright Map yaratishda xatolik yuz berdi.", styles['Normal']))
+            story.append(Spacer(1, 0.2 * inch))
+
+        # Add Grade Distribution Chart
+        story.append(Paragraph("Darajalar Taqsimoti", heading_style))
+        try:
+            grade_chart_path = self._create_grade_distribution(results)
+            if grade_chart_path and os.path.exists(grade_chart_path):
+                img = Image(grade_chart_path, width=6*inch, height=3.5*inch)
+                story.append(img)
+                story.append(Spacer(1, 0.2 * inch))
+                chart_files_to_cleanup.append(grade_chart_path)
+        except Exception as e:
+            logger.error(f"Error creating grade distribution: {e}")
+            story.append(Paragraph("Darajalar taqsimoti grafigini yaratishda xatolik yuz berdi.", styles['Normal']))
             story.append(Spacer(1, 0.2 * inch))
 
         story.append(Spacer(1, 0.4 * inch))
