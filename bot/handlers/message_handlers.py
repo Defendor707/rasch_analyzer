@@ -68,16 +68,14 @@ async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     welcome_message = (
         f"👋 Assalomu alaykum, *{full_name}*!\n\n"
-        "🎓 *Rasch Analyzer* - Professional test tahlil tizimi\n\n"
-        "📊 *Nima qila olasiz?*\n"
-        "• Excel/CSV fayllarni tahlil qilish\n"
-        "• Test yaratish va o'tkazish\n"
-        "• Talabgorlarni boshqarish\n"
-        "• PDF hisobotlar olish\n\n"
-        "💡 *Boshlash:*\n"
-        "📁 Fayl yuboring yoki\n"
-        "📝 Test yarating\n\n"
-        "📖 Yordam: /help | Namuna: /namuna"
+        "🎓 *Rasch Analyzer*\n"
+        "Professional test tahlil tizimi\n\n"
+        "📊 Excel/CSV fayllarni tahlil qiling\n"
+        "📝 Test yarating va natijalarni ko'ring\n"
+        "👥 Talabgorlarni boshqaring\n"
+        "📄 PDF hisobotlar oling\n\n"
+        "🚀 Boshlash: Fayl yuboring\n\n"
+        "Yordam: /help | Namuna: /namuna"
     )
 
     await update.message.reply_text(
