@@ -331,6 +331,18 @@ async def handle_document(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
 
     file_extension = os.path.splitext(document.file_name)[1].lower()
+    
+    # Check if user is uploading PDF questions file for test
+    creating_state = context.user_data.get('creating_test')
+    if creating_state == WAITING_FOR_PDF_QUESTION_FILE:
+        if file_extension != '.pdf':
+            await update.message.reply_text(
+                "❌ Iltimos, PDF faylini yuboring!"
+            )
+            return
+        await handle_pdf_question_file_upload(update, context, document)
+        return
+    
     if file_extension not in ['.csv', '.xlsx', '.xls']:
         await update.message.reply_text(
             "❌ Noto'g'ri fayl formati!\n\n"
@@ -339,7 +351,6 @@ async def handle_document(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
     
     # Check if user is uploading questions file for test
-    creating_state = context.user_data.get('creating_test')
     if creating_state == WAITING_FOR_QUESTION_FILE:
         await handle_question_file_upload(update, context, document, file_extension)
         return
@@ -716,6 +727,25 @@ async def handle_callback_query(update: Update, context: ContextTypes.DEFAULT_TY
     
     # Handle question upload method choice
     elif query.data == 'upload_questions_file':
+        keyboard = [
+            [InlineKeyboardButton("📄 PDF fayl yuklash", callback_data='upload_pdf_questions')],
+            [InlineKeyboardButton("📊 Excel/CSV yuklash", callback_data='upload_excel_questions')]
+        ]
+        reply_markup = InlineKeyboardMarkup(keyboard)
+        await query.message.reply_text(
+            "📁 Savollar faylini qanday yuklashni tanlang:",
+            reply_markup=reply_markup
+        )
+    
+    elif query.data == 'upload_pdf_questions':
+        context.user_data['creating_test'] = WAITING_FOR_PDF_QUESTION_FILE
+        await query.message.reply_text(
+            "📄 Test savollarini o'z ichiga olgan PDF faylni yuboring.\n\n"
+            "PDF yuklangandan so'ng, testda nechta savol borligini so'raymiz.\n"
+            "Keyin har bir savol uchun to'g'ri javobni tanlaysiz."
+        )
+    
+    elif query.data == 'upload_excel_questions':
         context.user_data['creating_test'] = WAITING_FOR_QUESTION_FILE
         await query.message.reply_text(
             "📁 Savollar faylini yuboring\n\n"
