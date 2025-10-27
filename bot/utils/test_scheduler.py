@@ -34,9 +34,41 @@ async def check_and_finalize_expired_tests(application: Application) -> None:
             continue
 
 
+async def send_certificate_to_student(application: Application, student_id: int, certificate_path: str, test_name: str) -> bool:
+    """
+    Send certificate to student via Telegram
+    
+    Args:
+        application: Telegram bot application instance
+        student_id: Student's Telegram ID
+        certificate_path: Path to certificate PDF
+        test_name: Name of the test
+        
+    Returns:
+        Success status
+    """
+    try:
+        with open(certificate_path, 'rb') as cert_file:
+            await application.bot.send_document(
+                chat_id=student_id,
+                document=cert_file,
+                filename=f"{test_name}_sertifikat.pdf",
+                caption=f"🎓 <b>Tabriklaymiz!</b>\n\n"
+                        f"<b>{test_name}</b> testi uchun sertifikatingiz tayyor.\n\n"
+                        f"Natijalaringiz bilan tanishing va o'z darajangizni ko'ring!",
+                parse_mode='HTML'
+            )
+        logger.info(f"Sertifikat yuborildi: {student_id}")
+        return True
+    except Exception as e:
+        logger.error(f"Sertifikat yuborishda xatolik {student_id}: {e}")
+        return False
+
+
 async def process_and_send_test_results(application: Application, test_id: str) -> None:
     """
     Process test results, perform Rasch analysis, and send to teacher
+    Also sends certificates to all students
     
     Args:
         application: Telegram bot application instance
@@ -169,6 +201,65 @@ async def process_and_send_test_results(application: Application, test_id: str) 
                 )
         
         logger.info(f"Test {test_id} natijalari o'qituvchi {teacher_id} ga yuborildi")
+        
+        # Send certificates to all students
+        await application.bot.send_message(
+            chat_id=teacher_id,
+            text="📜 Talabgorlarga sertifikatlar yuborilmoqda...",
+            parse_mode='Markdown'
+        )
+        
+        individual_results = analysis_results.get('person_statistics', {}).get('individual', [])
+        student_ids = results_data.get('student_ids', [])
+        
+        certificates_sent = 0
+        for idx, person_result in enumerate(individual_results):
+            if idx < len(student_ids):
+                student_id = student_ids[idx]
+                
+                # Get student's raw score from test results
+                participants = test.get('participants', {})
+                student_score_data = None
+                
+                if isinstance(participants, dict):
+                    student_score_data = participants.get(str(student_id))
+                elif isinstance(participants, list):
+                    for p in participants:
+                        if p.get('student_id') == student_id:
+                            student_score_data = p
+                            break
+                
+                if student_score_data:
+                    score = student_score_data.get('score', 0)
+                    max_score = student_score_data.get('max_score', n_questions)
+                    percentage = student_score_data.get('percentage', 0)
+                    
+                    # Generate certificate
+                    try:
+                        cert_path = pdf_generator.generate_certificate(
+                            student_name=f"Talabgor {student_id}",
+                            test_name=test['name'],
+                            subject=test['subject'],
+                            score=score,
+                            max_score=max_score,
+                            percentage=percentage,
+                            theta=person_result.get('ability', 0.0),
+                            t_score=person_result.get('t_score', 50.0),
+                            filename=f"cert_{test_id}_{student_id}"
+                        )
+                        
+                        # Send certificate to student
+                        if await send_certificate_to_student(application, student_id, cert_path, test['name']):
+                            certificates_sent += 1
+                    except Exception as cert_error:
+                        logger.error(f"Talabgor {student_id} uchun sertifikat yaratishda xatolik: {cert_error}")
+        
+        # Notify teacher about certificates
+        await application.bot.send_message(
+            chat_id=teacher_id,
+            text=f"✅ {certificates_sent} ta sertifikat talabgorlarga yuborildi!",
+            parse_mode='Markdown'
+        )
         
     except Exception as e:
         logger.error(f"Test {test_id} tahlilida xatolik: {e}")
