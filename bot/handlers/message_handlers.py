@@ -886,6 +886,44 @@ async def handle_callback_query(update: Update, context: ContextTypes.DEFAULT_TY
             # Show next question using the message from callback
             await show_question_for_correct_answer(MessageWrapper(query.message), context)
     
+    # Handle PDF question correct answer selection
+    elif query.data.startswith('pdf_correct_'):
+        parts = query.data.split('_')
+        question_index = int(parts[2])
+        answer_index = int(parts[3])
+        
+        pdf_questions = context.user_data.get('pdf_questions', [])
+        if question_index < len(pdf_questions):
+            # Set correct answer
+            pdf_questions[question_index]['correct_answer'] = answer_index
+            
+            selected_option = pdf_questions[question_index]['options'][answer_index]
+            await query.answer(f"✅ To'g'ri javob: {selected_option}")
+            
+            # Move to next question
+            context.user_data['current_pdf_question_index'] = question_index + 1
+            
+            # Show next question - pass message directly
+            await show_pdf_question_answer_selector(query.message, context)
+    
+    # Handle adding more options to PDF question
+    elif query.data.startswith('add_pdf_option_'):
+        parts = query.data.split('_')
+        question_index = int(parts[3])
+        
+        pdf_questions = context.user_data.get('pdf_questions', [])
+        if question_index < len(pdf_questions):
+            question = pdf_questions[question_index]
+            
+            # Add next letter option (E, F, G, etc.)
+            next_letter = chr(65 + len(question['options']))
+            question['options'].append(next_letter)
+            
+            await query.answer(f"➕ Variant qo'shildi: {next_letter}")
+            
+            # Refresh the keyboard with new option - pass message directly
+            await show_pdf_question_answer_selector(query.message, context)
+    
     elif query.data.startswith('test_results_'):
         test_id = query.data.replace('test_results_', '')
         test = test_manager.get_test(test_id)

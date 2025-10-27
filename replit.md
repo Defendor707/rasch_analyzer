@@ -11,7 +11,16 @@ Telegram bot for performing Rasch model analysis on dichotomous test data. The b
 - **Reports:** ReportLab PDF generation
 
 ## Recent Changes
-- **October 26, 2025 (Latest Update)**: Made test time restrictions optional
+- **October 27, 2025 (Latest Update)**: Added PDF file upload for test creation with dynamic answer options
+  - Teachers can now upload PDF files containing test questions
+  - System asks for the number of questions in the PDF
+  - For each question, inline keyboard displays A, B, C, D buttons plus "+" button
+  - Clicking "+" adds additional answer options (E, F, G, etc.)
+  - After selecting all correct answers, test automatically activates
+  - Test becomes immediately visible to students
+  - Streamlined test creation process for teachers with existing PDF materials
+  - PyMuPDF library added for PDF text extraction
+- **October 26, 2025**: Made test time restrictions optional
   - Only test name is now mandatory during test creation
   - Added inline keyboard choice: "Do you want to set time restrictions?"
   - If "Yes" - asks for start date, start time, and duration
