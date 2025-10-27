@@ -2452,13 +2452,12 @@ async def handle_test_input(update: Update, context: ContextTypes.DEFAULT_TYPE, 
         
         for answer_data in parsed_answers:
             if answer_data['is_text_answer']:
-                # Text-based answer
+                # Text-based answer - show as single option
                 question_data = {
                     'text': f"Savol {answer_data['question_num']}",
-                    'options': [],  # No options for text answers
-                    'correct_answer': answer_data['text_answer'],
-                    'points': 1,
-                    'is_text_answer': True
+                    'options': [answer_data['text_answer']],  # Single option with the text
+                    'correct_answer': 0,  # Always 0 since there's only one option
+                    'points': 1
                 }
             else:
                 # Letter-based answer with options
@@ -2467,8 +2466,7 @@ async def handle_test_input(update: Update, context: ContextTypes.DEFAULT_TYPE, 
                     'text': f"Savol {answer_data['question_num']}",
                     'options': option_labels,
                     'correct_answer': answer_data['correct_answer'],
-                    'points': 1,
-                    'is_text_answer': False
+                    'points': 1
                 }
             
             test_manager.add_question(test_id, question_data)
