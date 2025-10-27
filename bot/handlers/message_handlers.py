@@ -944,13 +944,14 @@ async def handle_callback_query(update: Update, context: ContextTypes.DEFAULT_TY
                 keyboard = []
                 
                 if not is_finalized:
-                    # For tests without time limit - show manual finalize button
+                    # For tests without time limit - show finalize and show results button
                     if not has_time_limit:
-                        keyboard.append([InlineKeyboardButton("📊 Natijalarni qayta ishlash va ko'rsatish", callback_data=f"manual_finalize_{test_id}")])
-                    
-                    # For time-limited tests - show analysis and finalize buttons
-                    keyboard.append([InlineKeyboardButton("📈 Rasch tahlili", callback_data=f"rasch_analysis_{test_id}")])
-                    keyboard.append([InlineKeyboardButton("🔚 Testni yakunlash", callback_data=f"finalize_test_{test_id}")])
+                        keyboard.append([InlineKeyboardButton("📊 Natijalarni ko'rsatish", callback_data=f"manual_finalize_{test_id}")])
+                        keyboard.append([InlineKeyboardButton("🔚 Testni yakunlash (natijalar yuborilmaydi)", callback_data=f"finalize_test_{test_id}")])
+                    else:
+                        # For time-limited tests - show analysis and finalize buttons
+                        keyboard.append([InlineKeyboardButton("📈 Rasch tahlili", callback_data=f"rasch_analysis_{test_id}")])
+                        keyboard.append([InlineKeyboardButton("🔚 Testni yakunlash", callback_data=f"finalize_test_{test_id}")])
                 else:
                     # Test already finalized - show re-analysis option
                     keyboard.append([InlineKeyboardButton("🔄 Rasch tahlilini qayta amalga oshirish", callback_data=f"rasch_analysis_{test_id}")])

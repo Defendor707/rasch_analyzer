@@ -63,6 +63,9 @@ class DatabaseConnection:
         """Barcha jadvallarni yaratish"""
         if not self._initialized:
             await self.initialize()
+        
+        if not self.engine:
+            raise RuntimeError("Database engine mavjud emas!")
             
         logger.info("Database jadvallari yaratilmoqda...")
         
@@ -75,6 +78,9 @@ class DatabaseConnection:
         """DIQQAT: Barcha jadvallarni o'chirish!"""
         if not self._initialized:
             await self.initialize()
+        
+        if not self.engine:
+            raise RuntimeError("Database engine mavjud emas!")
             
         logger.warning("DIQQAT: Barcha jadvallar o'chirilmoqda...")
         
@@ -85,7 +91,7 @@ class DatabaseConnection:
         
     def get_session(self) -> AsyncSession:
         """Yangi session olish"""
-        if not self._initialized:
+        if not self._initialized or not self.session_maker:
             raise RuntimeError("Database initialize qilinmagan! Avval initialize() ni chaqiring")
         
         return self.session_maker()
