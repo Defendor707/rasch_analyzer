@@ -30,7 +30,8 @@ The bot operates using a Python backend with the `python-telegram-bot` framework
 ### Feature Specifications
 - **Core Analysis**: Performs Rasch analysis on dichotomous data (0/1 format).
 - **Report Generation**: Produces PDF reports with item parameters, person abilities, reliability statistics, and normalized section T-scores.
-- **Test Creation**: Teachers can upload PDFs, define questions, set answers, and configure time restrictions.
+- **Test Creation**: Teachers can upload PDFs and submit all answers in a compact text format (e.g., "1a2b3c32a+33b++43(ayb)"), supporting variable option counts (4-26 options A-Z) and text-based answers.
+- **Answer Format**: Supports standard 4-option questions (A,B,C,D), extended options with "+" notation (5 options: "32a+", 6 options: "33b++"), and text answers using parentheses ("43(ayb)", "44(alisher Navoiy)").
 - **Student Interface**: Provides test navigation (previous/next), real-time timer, progress bar, answer review, and detailed results.
 - **Admin Features**: Includes a comprehensive admin panel for payment configuration, balance monitoring (`/balance` command), and user management.
 - **Contact/Community**: Dedicated sections for contacting admin (Telegram, Email) and accessing community channels.
