@@ -69,15 +69,18 @@ async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     welcome_message = (
         f"👋 Assalomu alaykum, *{full_name}*!\n\n"
         "🎓 Rasch Analyzer Botga xush kelibsiz!\n\n"
-        "/help buyrug'i orqali bot bilan tanishib chiqing!\n"
-        "Keyin alohida\n\n"
-        "📊 Excel faylni yuborishingiz mumkin"
+        "/help buyrug'i orqali bot bilan tanishib chiqing!"
     )
 
     await update.message.reply_text(
         welcome_message, 
         parse_mode='Markdown',
         reply_markup=get_main_keyboard()
+    )
+    
+    # Send second message separately
+    await update.message.reply_text(
+        "📊 Excel faylni yuborishingiz mumkin"
     )
 
 
