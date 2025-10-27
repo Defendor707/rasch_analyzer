@@ -1021,3 +1021,201 @@ class PDFReportGenerator:
         doc.build(story)
 
         return filepath
+    
+    def generate_certificate(
+        self, 
+        student_name: str,
+        test_name: str,
+        subject: str,
+        score: int,
+        max_score: int,
+        percentage: float,
+        theta: float,
+        t_score: float,
+        filename: str = None
+    ) -> str:
+        """
+        Generate a professional certificate for student test results
+        
+        Args:
+            student_name: Student's full name or ID
+            test_name: Name of the test
+            subject: Subject name
+            score: Number of correct answers
+            max_score: Total number of questions
+            percentage: Percentage score
+            theta: Ability estimate (Rasch theta)
+            t_score: T-score
+            filename: Output filename (without extension)
+            
+        Returns:
+            Path to generated PDF
+        """
+        if filename is None:
+            timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+            filename = f"certificate_{timestamp}"
+        
+        filepath = os.path.join(self.output_dir, f"{filename}.pdf")
+        
+        # Create document
+        doc = SimpleDocTemplate(filepath, pagesize=A4)
+        story = []
+        styles = getSampleStyleSheet()
+        
+        # Custom styles for certificate
+        title_style = ParagraphStyle(
+            'CertTitle',
+            parent=styles['Heading1'],
+            fontSize=28,
+            textColor=colors.HexColor('#2C3E50'),
+            alignment=TA_CENTER,
+            spaceAfter=20,
+            fontName='Helvetica-Bold'
+        )
+        
+        subtitle_style = ParagraphStyle(
+            'CertSubtitle',
+            parent=styles['Normal'],
+            fontSize=16,
+            textColor=colors.HexColor('#34495E'),
+            alignment=TA_CENTER,
+            spaceAfter=30
+        )
+        
+        name_style = ParagraphStyle(
+            'StudentName',
+            parent=styles['Heading2'],
+            fontSize=22,
+            textColor=colors.HexColor('#2980B9'),
+            alignment=TA_CENTER,
+            spaceAfter=20,
+            fontName='Helvetica-Bold'
+        )
+        
+        info_style = ParagraphStyle(
+            'InfoStyle',
+            parent=styles['Normal'],
+            fontSize=12,
+            textColor=colors.HexColor('#2C3E50'),
+            alignment=TA_CENTER,
+            spaceAfter=10
+        )
+        
+        # Determine grade based on percentage
+        if percentage >= 90:
+            grade = "A (A'lo)"
+            grade_color = colors.HexColor('#27AE60')
+        elif percentage >= 80:
+            grade = "B (Yaxshi)"
+            grade_color = colors.HexColor('#2ECC71')
+        elif percentage >= 70:
+            grade = "C (Qoniqarli)"
+            grade_color = colors.HexColor('#F39C12')
+        elif percentage >= 60:
+            grade = "D (O'rtacha)"
+            grade_color = colors.HexColor('#E67E22')
+        else:
+            grade = "F (Qoniqarsiz)"
+            grade_color = colors.HexColor('#E74C3C')
+        
+        # Ability level based on theta
+        if theta >= 2.0:
+            ability = "Juda yuqori"
+        elif theta >= 1.0:
+            ability = "Yuqori"
+        elif theta >= 0:
+            ability = "O'rtacha"
+        elif theta >= -1.0:
+            ability = "O'rtachadan past"
+        else:
+            ability = "Past"
+        
+        # Add spacing from top
+        story.append(Spacer(1, 1.0 * inch))
+        
+        # Certificate title
+        story.append(Paragraph("🎓 SERTIFIKAT 🎓", title_style))
+        story.append(Paragraph("TEST NATIJALARI", subtitle_style))
+        
+        # Student name
+        story.append(Paragraph(f"<b>{student_name}</b>", name_style))
+        
+        story.append(Spacer(1, 0.3 * inch))
+        
+        # Test info
+        story.append(Paragraph(f"<b>Test:</b> {test_name}", info_style))
+        story.append(Paragraph(f"<b>Fan:</b> {subject}", info_style))
+        
+        story.append(Spacer(1, 0.4 * inch))
+        
+        # Results table
+        results_data = [
+            ['Ko\'rsatkich', 'Qiymat'],
+            ['To\'g\'ri javoblar', f'{score}/{max_score}'],
+            ['Natija (foiz)', f'{percentage:.1f}%'],
+            ['Daraja', grade],
+            ['Qobiliyat darajasi', ability],
+            ['T-Score', f'{t_score:.1f}'],
+            ['Theta (θ)', f'{theta:.2f}']
+        ]
+        
+        results_table = Table(results_data, colWidths=[3*inch, 2*inch])
+        results_table.setStyle(TableStyle([
+            ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#34495E')),
+            ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+            ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+            ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+            ('FONTSIZE', (0, 0), (-1, 0), 12),
+            ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
+            ('TOPPADDING', (0, 0), (-1, 0), 12),
+            ('BACKGROUND', (0, 1), (-1, -1), colors.HexColor('#ECF0F1')),
+            ('GRID', (0, 0), (-1, -1), 1, colors.grey),
+            ('FONTSIZE', (0, 1), (-1, -1), 11),
+            ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, colors.HexColor('#F8F9FA')]),
+            ('BACKGROUND', (1, 3), (1, 3), grade_color),
+            ('TEXTCOLOR', (1, 3), (1, 3), colors.white),
+            ('FONTNAME', (1, 3), (1, 3), 'Helvetica-Bold'),
+        ]))
+        
+        story.append(results_table)
+        
+        story.append(Spacer(1, 0.5 * inch))
+        
+        # Explanation
+        explanation_style = ParagraphStyle(
+            'Explanation',
+            parent=styles['Normal'],
+            fontSize=9,
+            textColor=colors.HexColor('#7F8C8D'),
+            alignment=TA_CENTER,
+            leftIndent=50,
+            rightIndent=50
+        )
+        
+        story.append(Paragraph(
+            "<b>Tushuntirish:</b><br/>"
+            "• <b>T-Score:</b> Standartlashtirilgan ball (o'rtacha=50, standart og'ish=10)<br/>"
+            "• <b>Theta (θ):</b> Rasch modeli bo'yicha qobiliyat darajasi<br/>"
+            "• Yuqori theta qiymati yuqori qobiliyatni bildiradi",
+            explanation_style
+        ))
+        
+        story.append(Spacer(1, 0.8 * inch))
+        
+        # Footer with date
+        footer_style = ParagraphStyle(
+            'Footer',
+            parent=styles['Normal'],
+            fontSize=10,
+            textColor=colors.HexColor('#95A5A6'),
+            alignment=TA_CENTER
+        )
+        
+        current_date = datetime.now().strftime('%d.%m.%Y')
+        story.append(Paragraph(f"Sana: {current_date}", footer_style))
+        
+        # Build PDF
+        doc.build(story)
+        
+        logger.info(f"Sertifikat yaratildi: {filepath}")
+        return filepath
