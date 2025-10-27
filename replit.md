@@ -40,9 +40,11 @@ The bot operates using a Python backend with the `python-telegram-bot` framework
 - **Contact/Community**: Dedicated sections for contacting admin (Telegram, Email) and accessing community channels.
 
 ### System Design Choices
-- **Modularity**: The codebase is structured into `handlers`, `utils`, and separate modules for `rasch_analysis`, `pdf_generator`, and `payment_manager`.
-- **Data Persistence**: Payment data and test configurations are persisted using JSON-based databases.
+- **Modularity**: The codebase is structured into `handlers`, `utils`, `database`, and separate modules for `rasch_analysis`, `pdf_generator`, and `payment_manager`.
+- **Data Persistence**: Now uses PostgreSQL database for all data storage (migrated from JSON files). Database includes tables for users, students, tests, test_results, payments, payment_config, and system_logs.
 - **Workflow**: The bot follows a clear workflow for file upload → optional payment → analysis → PDF delivery.
+- **Error Monitoring**: Implemented Telegram-based error alerting system that notifies admins immediately when errors occur.
+- **Backup System**: Automated database backup to JSON files with Git integration for disaster recovery.
 
 ## External Dependencies
 - `python-telegram-bot` (20.7): Telegram Bot API interaction.
@@ -52,3 +54,29 @@ The bot operates using a Python backend with the `python-telegram-bot` framework
 - `openpyxl` (3.1.2): Support for Excel file formats.
 - `PyMuPDF`: PDF text extraction for test creation.
 - `python-dotenv` (1.0.0): Environment variable management.
+- `asyncpg`: Async PostgreSQL database driver.
+- `sqlalchemy[asyncio]`: SQL toolkit and ORM with async support.
+- `apscheduler`: Background job scheduler for automated tasks.
+
+## Database Architecture (PostgreSQL)
+**Recent Changes (2025-10-27):**
+- Migrated from JSON files to PostgreSQL for improved performance and reliability
+- Database tables: `users`, `students`, `tests`, `test_results`, `payments`, `payment_config`, `system_logs`
+- Implemented async database operations for better scalability
+- Added automated backup system that exports to JSON and commits to Git
+- Error logging now saved to database with full traceback and metadata
+
+**Database Access:**
+- Location: `bot/database/` directory
+- Schema: `bot/database/schema.py`
+- Managers: `bot/database/managers.py` (UserManager, StudentManager, TestManager, etc.)
+- Migration: `bot/database/migrate_json_to_postgres.py` (one-time migration from JSON)
+- Backup: `bot/database/backup_to_git.py` (automated backup to Git)
+
+## Error Monitoring
+**Telegram Alert System:**
+- All errors are automatically logged to database
+- Admin users receive immediate Telegram notifications when errors occur
+- Notifications include: error type, timestamp, user info, traceback
+- Configure admin IDs in `data/payment_config.json` under `admin_ids`
+- See `ADMIN_SETUP.md` for configuration instructions

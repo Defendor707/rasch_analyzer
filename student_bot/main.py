@@ -17,6 +17,9 @@ from student_bot.handlers.student_handlers import (
     handle_message,
     handle_callback_query
 )
+import sys
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+from bot.utils.error_notifier import error_notifier
 
 load_dotenv()
 
@@ -27,11 +30,19 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 
-async def error_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
+async def error_handler(update: object, context: ContextTypes.DEFAULT_TYPE):
     """Log errors caused by updates"""
     logger.error(f"Update {update} caused error {context.error}")
     
-    if update and update.effective_message:
+    if context.error:
+        await error_notifier.notify_error(
+            context=context,
+            error=context.error,
+            update=update if isinstance(update, Update) else None,
+            custom_message="Talabgor botida xatolik"
+        )
+    
+    if update and isinstance(update, Update) and update.effective_message:
         await update.effective_message.reply_text(
             "❌ Uzr, xatolik yuz berdi. Iltimos, qayta urinib ko'ring."
         )
@@ -44,6 +55,13 @@ async def main():
     if not bot_token:
         logger.error("STUDENT_BOT_TOKEN topilmadi! .env faylda STUDENT_BOT_TOKEN o'rnatilganligini tekshiring.")
         return
+    
+    from bot.utils.payment_manager import PaymentManager
+    payment_manager = PaymentManager()
+    config = payment_manager.load_config()
+    admin_ids = config.get('admin_ids', [])
+    error_notifier.set_admin_ids(admin_ids)
+    logger.info(f"Talabgor bot error notifier sozlandi. Admin IDs: {admin_ids}")
     
     application = Application.builder().token(bot_token).build()
     

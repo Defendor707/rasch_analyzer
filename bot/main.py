@@ -26,6 +26,7 @@ from bot.handlers.payment_handlers import (
     show_bot_balance,
     admin_panel_command
 )
+from bot.utils.error_notifier import error_notifier
 
 load_dotenv()
 
@@ -40,6 +41,13 @@ async def error_handler(update: object, context: ContextTypes.DEFAULT_TYPE):
     """Log errors caused by updates"""
     logger.error(f"Update {update} caused error {context.error}")
     
+    if context.error:
+        await error_notifier.notify_error(
+            context=context,
+            error=context.error,
+            update=update if isinstance(update, Update) else None
+        )
+    
     if update and isinstance(update, Update) and update.effective_message:
         await update.effective_message.reply_text(
             "❌ Uzr, xatolik yuz berdi. Iltimos, qayta urinib ko'ring."
@@ -53,6 +61,13 @@ async def main():
     if not bot_token:
         logger.error("BOT_TOKEN topilmadi! .env faylda BOT_TOKEN o'rnatilganligini tekshiring.")
         return
+    
+    from bot.utils.payment_manager import PaymentManager
+    payment_manager = PaymentManager()
+    config = payment_manager.load_config()
+    admin_ids = config.get('admin_ids', [])
+    error_notifier.set_admin_ids(admin_ids)
+    logger.info(f"Error notifier sozlandi. Admin IDs: {admin_ids}")
     
     application = Application.builder().token(bot_token).build()
     

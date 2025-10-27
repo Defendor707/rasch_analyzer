@@ -9,3 +9,6 @@ seaborn
 pytz
 PyMuPDF==1.23.8
 apscheduler
+asyncpg
+sqlalchemy[asyncio]
+telegram
