@@ -37,10 +37,10 @@ async def run_teacher_bot():
     )
     from telegram.ext import CommandHandler, MessageHandler, CallbackQueryHandler, PreCheckoutQueryHandler, filters, ContextTypes
     
-    async def error_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    async def error_handler(update: object, context: ContextTypes.DEFAULT_TYPE):
         """Log errors caused by updates"""
         logger.error(f"Update {update} caused error {context.error}")
-        if update and update.effective_message:
+        if isinstance(update, Update) and update.effective_message:
             await update.effective_message.reply_text(
                 "❌ Uzr, xatolik yuz berdi. Iltimos, qayta urinib ko'ring."
             )
@@ -73,15 +73,7 @@ async def run_teacher_bot():
     
     logger.info("O'qituvchi boti ishga tushdi!")
     
-    await application.initialize()
-    await application.start()
-    await application.updater.start_polling(drop_pending_updates=True)
-    
-    try:
-        await asyncio.Event().wait()
-    finally:
-        await application.stop()
-        await application.shutdown()
+    await application.run_polling(drop_pending_updates=True)
 
 
 async def run_student_bot():
@@ -104,10 +96,10 @@ async def run_student_bot():
     
     application = Application.builder().token(bot_token).build()
     
-    async def error_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    async def error_handler(update: object, context: ContextTypes.DEFAULT_TYPE):
         """Log errors caused by updates"""
         logger.error(f"Update {update} caused error {context.error}")
-        if update and update.effective_message:
+        if isinstance(update, Update) and update.effective_message:
             await update.effective_message.reply_text(
                 "❌ Uzr, xatolik yuz berdi. Iltimos, qayta urinib ko'ring."
             )
@@ -120,15 +112,7 @@ async def run_student_bot():
     
     logger.info("Talabgor boti ishga tushdi!")
     
-    await application.initialize()
-    await application.start()
-    await application.updater.start_polling(drop_pending_updates=True)
-    
-    try:
-        await asyncio.Event().wait()
-    finally:
-        await application.stop()
-        await application.shutdown()
+    await application.run_polling(drop_pending_updates=True)
 
 
 async def main():
