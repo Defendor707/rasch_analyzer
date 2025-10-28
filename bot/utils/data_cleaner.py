@@ -302,24 +302,34 @@ class DataCleaner:
                 # FAQAT strong numeric evidence bo'lsa savol deb topiladi
                 # Aks holda, o'chiriladi (metadata deb hisoblanadi)
                 
-                # Strong numeric evidence tekshiruvi
+                # QATTIQ binary validation - FAQAT 0 va 1 qabul qilinadi
                 has_strong_numeric_evidence = False
                 try:
-                    # Agar ustunda ko'p raqamlar bo'lsa va binary pattern bo'lsa
+                    # Raqamga aylantirish
                     numeric_data = pd.to_numeric(col_data, errors='coerce')
-                    non_null_count = numeric_data.notna().sum()
-                    total_count = len(col_data)
+                    non_null_data = numeric_data.dropna()
                     
-                    if non_null_count / total_count >= 0.7:  # 70%+ raqam
-                        unique_vals = numeric_data.dropna().unique()
-                        if len(unique_vals) <= 10:  # Kam unique qiymatlar
-                            # 0/1 pattern tekshiruvi
-                            binary_values = np.isin(unique_vals, [0, 1, 0.0, 1.0]).sum()
-                            if binary_values >= 2:  # Kamida 0 va 1 bor
+                    if len(non_null_data) > 0:
+                        # FAQAT 0 va 1 qiymatlarini tekshirish
+                        is_binary = np.isin(non_null_data.values, [0, 1, 0.0, 1.0]).all()
+                        
+                        if is_binary:
+                            # Kamida 0 va 1 ikkalasi ham mavjud bo'lishi kerak
+                            unique_vals = non_null_data.unique()
+                            has_zero = any(v in [0, 0.0] for v in unique_vals)
+                            has_one = any(v in [1, 1.0] for v in unique_vals)
+                            
+                            if has_zero and has_one:
                                 has_strong_numeric_evidence = True
-                                logger.info(f"🔍 {col_name} → STRONG NUMERIC: {binary_values} binary values")
+                                logger.info(f"🔍 {col_name} → BINARY VALID: faqat 0 va 1 qiymatlari")
+                            else:
+                                logger.info(f"⚠️ {col_name} → Faqat {unique_vals} qiymatlari (0 va 1 kerak)")
+                        else:
+                            # 0 va 1 dan boshqa qiymatlar bor
+                            invalid_values = non_null_data[~np.isin(non_null_data.values, [0, 1, 0.0, 1.0])]
+                            logger.info(f"❌ {col_name} → 0/1 dan tashqari qiymatlar: {invalid_values.unique()[:5]}")
                 except Exception as e:
-                    logger.warning(f"Numeric check xatolik {col_name}: {e}")
+                    logger.warning(f"Binary validation xatolik {col_name}: {e}")
                 
                 if has_strong_numeric_evidence:
                     # Strong evidence bor - savol ustuni
@@ -400,12 +410,25 @@ class DataCleaner:
         binary_ratio = binary_values / total_values if total_values > 0 else 0
         
         if binary_ratio < self.min_binary_ratio:
+            # Qaysi ustumlarda muammo borligini aniqlash
+            problem_columns = []
+            for col in response_columns:
+                col_data = pd.to_numeric(df[col], errors='coerce').dropna()
+                if len(col_data) > 0:
+                    is_binary = np.isin(col_data.values, [0, 1, 0.0, 1.0]).all()
+                    if not is_binary:
+                        invalid_vals = col_data[~np.isin(col_data.values, [0, 1, 0.0, 1.0])].unique()[:3]
+                        problem_columns.append(f"{col}: {invalid_vals}")
+            
+            problem_details = "\n   • ".join(problem_columns[:5]) if problem_columns else "Noma'lum"
+            
             return False, (
-                f"⚠️ Ogohlantirish: Faqat {binary_ratio*100:.1f}% qiymatlar 0 yoki 1. "
-                f"Rasch analizi uchun dikotomik (0/1) ma'lumotlar kerak."
+                f"⚠️ Ogohlantirish: Faqat {binary_ratio*100:.1f}% qiymatlar 0 yoki 1.\n"
+                f"Rasch analizi uchun FAQAT 0 va 1 qiymatlar kerak!\n\n"
+                f"Muammoli ustunlar:\n   • {problem_details}"
             )
         
-        return True, f"✅ Ma'lumotlar to'g'ri: {binary_ratio*100:.1f}% dikotomik"
+        return True, f"✅ Ma'lumotlar to'g'ri: {binary_ratio*100:.1f}% dikotomik (0/1)"
     
     def _standardize_column_names(self, df: pd.DataFrame, metadata: Dict) -> pd.DataFrame:
         """Ustun nomlarini standart formatga keltirish"""
