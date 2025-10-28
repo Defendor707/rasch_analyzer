@@ -454,8 +454,19 @@ class DataCleaner:
         savol_counter = 1
         participant_counter = 1
         
+        # preserved_columns ichida asl ustun obyektlari bor, ularni nomga aylantirish kerak
+        preserved_column_names = []
+        for pcol in preserved_columns:
+            if isinstance(pcol, str):
+                preserved_column_names.append(pcol)
+            else:
+                # Agar pcol ustun nomi emas, balki ustun obyekti bo'lsa
+                preserved_column_names.append(str(pcol))
+        
         for col in old_columns:
-            if col in preserved_columns:
+            # col va preserved_column_names ichidagi qiymatlarni to'g'ri solishtirish
+            col_str = str(col)
+            if col_str in preserved_column_names or col in preserved_columns:
                 # Ism-familiya ustuni
                 if participant_counter == 1:
                     new_columns.append('Talabgor')
