@@ -1,0 +1,62 @@
+# Git
+.git
+.gitignore
+.gitattributes
+
+# Python
+__pycache__
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+ENV/
+*.egg-info/
+dist/
+build/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+logs/
+
+# Environment
+.env
+.env.local
+
+# Documentation
+*.md
+!README.md
+
+# Deployment files
+deploy/
+ORACLE_DEPLOYMENT_GUIDE.md
+
+# Backups
+backups/
+*.sql
+*.tar.gz
+*.zip
+
+# Test files
+test_*.py
+r_models/
+
+# Temporary files
+tmp/
+temp/
+*.tmp
+
+# Data files (optional - agar kerak bo'lsa include qilishingiz mumkin)
+# data/
