@@ -171,10 +171,34 @@ class DataCleaner:
             
             # 1.1: Birinchi ustun - agar ID yoki metadata bo'lmasa, ism-familiya
             if col_idx == 0:
-                # Agar birinchi ustun ID, code, raqam bo'lsa, o'chirish kerak
+                # Agar birinchi ustun ID, code, raqam, T/r, № bo'lsa, o'chirish kerak
                 is_id_column = any(id_kw in col_name_lower for id_kw in ['id', 'code', 'raqam', 'uuid', 'guid'])
                 
-                if not is_id_column:
+                # YANGI: T/r, №, N kabi tartib raqam ustunlarini aniqlash
+                is_row_number = False
+                row_number_patterns = ['t/r', 't.r', '№', 'n', '#', 'row', 'index', 'tartib']
+                for pattern in row_number_patterns:
+                    if col_name_lower == pattern or col_name_lower.startswith(pattern + ' '):
+                        is_row_number = True
+                        break
+                
+                # Agar raqam ketma-ketligi bo'lsa ham tartib raqam deb topiladi
+                if not is_row_number and not is_id_column:
+                    try:
+                        numeric_data = pd.to_numeric(col_data, errors='coerce').dropna()
+                        if len(numeric_data) >= 3:
+                            # 1, 2, 3, ... yoki 0, 1, 2, ... kabi ketma-ketlik
+                            is_sequential = all(
+                                numeric_data.iloc[i+1] - numeric_data.iloc[i] == 1 
+                                for i in range(min(10, len(numeric_data)-1))
+                            )
+                            if is_sequential:
+                                is_row_number = True
+                                logger.info(f"🔍 {col_name} → Ketma-ket raqamlar (1,2,3,...)")
+                    except:
+                        pass
+                
+                if not is_id_column and not is_row_number:
                     detected_name_columns.append(col)
                     metadata['detected_name_columns'].append({
                         'column': col_name,
@@ -182,6 +206,16 @@ class DataCleaner:
                         'confidence': 'high'
                     })
                     logger.info(f"✅ {col_name} → ISM (birinchi ustun)")
+                    continue
+                elif is_row_number:
+                    # Tartib raqam ustuni - o'chirish kerak
+                    columns_to_remove.append(col)
+                    metadata['removed_columns'].append({
+                        'name': col_name,
+                        'reason': 'Tartib raqam ustuni (T/r, №, va h.k.)',
+                        'type': 'row_number_column'
+                    })
+                    logger.info(f"❌ {col_name} → O'CHIRILDI (tartib raqam)")
                     continue
                 else:
                     # ID ustuni - o'chirish kerak
