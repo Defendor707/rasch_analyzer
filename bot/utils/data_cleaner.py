@@ -195,18 +195,31 @@ class DataCleaner:
                     continue
             
             # 1.2: Keyword matching - ism-familiya uchun
+            # FAQAT birinchi ism-familiya ustunini qabul qilish
             name_keyword_found = False
             for keyword in self.participant_name_keywords:
                 if keyword in col_name_lower:
-                    detected_name_columns.append(col)
-                    metadata['detected_name_columns'].append({
-                        'column': col_name,
-                        'reason': f'Keyword topildi: "{keyword}"',
-                        'confidence': 'high'
-                    })
-                    logger.info(f"✅ {col_name} → ISM (keyword: {keyword})")
-                    name_keyword_found = True
-                    break
+                    # Agar allaqachon ism ustuni topilgan bo'lsa, buni metadata deb hisoblash
+                    if len(detected_name_columns) > 0:
+                        columns_to_remove.append(col)
+                        metadata['removed_columns'].append({
+                            'name': col_name,
+                            'reason': f'Ikkinchi ism ustuni (birinchisi: {detected_name_columns[0]})',
+                            'type': 'duplicate_name_column'
+                        })
+                        logger.info(f"❌ {col_name} → O'CHIRILDI (duplikat ism ustuni)")
+                        name_keyword_found = True
+                        break
+                    else:
+                        detected_name_columns.append(col)
+                        metadata['detected_name_columns'].append({
+                            'column': col_name,
+                            'reason': f'Keyword topildi: "{keyword}"',
+                            'confidence': 'high'
+                        })
+                        logger.info(f"✅ {col_name} → ISM (keyword: {keyword})")
+                        name_keyword_found = True
+                        break
             
             if name_keyword_found:
                 continue
