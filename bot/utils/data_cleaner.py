@@ -34,7 +34,7 @@ class DataCleaner:
             'talabgor', 'talabgor_ismi', 'o\'quvchi', 'oquvchi', 
             'abituriyent', 'ism', 'familiya', 'f.i.o', 'fio',
             'ism-familiya', 'ismfamiliya', 'ismi', 'familyasi',
-            'to\'liq ism', 'toliq_ism',
+            'to\'liq ism', 'toliq_ism', 'foydalanuvchi', 'user',
             # Inglizcha
             'student', 'participant', 'name', 'full name', 
             'fullname', 'full_name', 'student_name', 'learner',
