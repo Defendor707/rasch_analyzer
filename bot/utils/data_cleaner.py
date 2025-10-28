@@ -19,7 +19,7 @@ class DataCleaner:
             # O'zbekcha
             'savol', 'savol_', 'so\'roq', 'soroq', 'test', 'topshiriq',
             # Inglizcha
-            'question', 'q', 'item', 'problem', 'task', 'quiz',
+            'question', 'item', 'problem', 'task', 'quiz',
             # Fanlar
             'matematik', 'mantiq', 'fizika', 'kimyo', 'biologiya',
             'ingliz', 'ona tili', 'adabiyot', 'tarix', 'geografiya',
@@ -45,9 +45,9 @@ class DataCleaner:
         
         # O'CHIRISH KERAK BO'LGAN USTUNLAR UCHUN KEYWORDS
         self.removable_metadata_keywords = [
-            'email', 'e-mail', 'time', 'date', 'timestamp',
+            'email', 'e-mail', 'time', 'date', 'timestamp', 'vaqt',
             'telegram', '@', 'phone', 'tel', 'created', 'updated',
-            'id', 'uuid', 'guid', 'code', 'key', 'session',
+            'id', 'uuid', 'guid', 'code', 'key', 'session', 'raqam',
             'duration', 'ip', 'address', 'score', 'ball', 'natija'
         ]
         
@@ -169,16 +169,30 @@ class DataCleaner:
             # 1. ISM-FAMILIYA USTUNLARINI ANIQLASH
             # ===========================================
             
-            # 1.1: Birinchi ustun har doim ism-familiya (default)
+            # 1.1: Birinchi ustun - agar ID yoki metadata bo'lmasa, ism-familiya
             if col_idx == 0:
-                detected_name_columns.append(col)
-                metadata['detected_name_columns'].append({
-                    'column': col_name,
-                    'reason': 'Birinchi ustun (default)',
-                    'confidence': 'high'
-                })
-                logger.info(f"✅ {col_name} → ISM (birinchi ustun)")
-                continue
+                # Agar birinchi ustun ID, code, raqam bo'lsa, o'chirish kerak
+                is_id_column = any(id_kw in col_name_lower for id_kw in ['id', 'code', 'raqam', 'uuid', 'guid'])
+                
+                if not is_id_column:
+                    detected_name_columns.append(col)
+                    metadata['detected_name_columns'].append({
+                        'column': col_name,
+                        'reason': 'Birinchi ustun (default)',
+                        'confidence': 'high'
+                    })
+                    logger.info(f"✅ {col_name} → ISM (birinchi ustun)")
+                    continue
+                else:
+                    # ID ustuni - o'chirish kerak
+                    columns_to_remove.append(col)
+                    metadata['removed_columns'].append({
+                        'name': col_name,
+                        'reason': 'ID ustuni (birinchi ustun)',
+                        'type': 'id_column'
+                    })
+                    logger.info(f"❌ {col_name} → O'CHIRILDI (ID ustuni)")
+                    continue
             
             # 1.2: Keyword matching - ism-familiya uchun
             name_keyword_found = False
@@ -232,19 +246,7 @@ class DataCleaner:
                 is_question_column = True
                 detection_reason = f"Qisqa nom + raqam: {col_name}"
             
-            # 2.6: Binary data check - agar ko'p qiymati 0 yoki 1 bo'lsa
-            if not is_question_column:
-                try:
-                    numeric_data = pd.to_numeric(col_data, errors='coerce')
-                    if numeric_data.notna().sum() / len(col_data) > 0.7:  # 70% raqam
-                        unique_vals = numeric_data.dropna().unique()
-                        if len(unique_vals) <= 10:  # Kam unique qiymatlar
-                            binary_count = np.isin(unique_vals, [0, 1, 0.0, 1.0]).sum()
-                            if binary_count >= len(unique_vals) * 0.5:  # 50% binary
-                                is_question_column = True
-                                detection_reason = f"Binary data (0/1): {binary_count}/{len(unique_vals)} unique"
-                except Exception:
-                    pass
+            # 2.6: REMOVED - bu check fallback'da bajariladi (strong evidence bilan)
             
             if is_question_column:
                 detected_question_columns.append(col)
@@ -296,14 +298,47 @@ class DataCleaner:
                 })
                 logger.info(f"❌ {col_name} → O'CHIRILDI ({remove_reason})")
             else:
-                # Agar hech narsa aniqlanmagan bo'lsa, default savol ustuni deb hisoblash
-                detected_question_columns.append(col)
-                metadata['detected_question_columns'].append({
-                    'column': col_name,
-                    'reason': 'Default (aniqlanmadi)',
-                    'confidence': 'low'
-                })
-                logger.info(f"⚠️ {col_name} → SAVOL (default, aniqlanmadi)")
+                # FALLBACK: Agar hech narsa aniqlanmagan bo'lsa
+                # FAQAT strong numeric evidence bo'lsa savol deb topiladi
+                # Aks holda, o'chiriladi (metadata deb hisoblanadi)
+                
+                # Strong numeric evidence tekshiruvi
+                has_strong_numeric_evidence = False
+                try:
+                    # Agar ustunda ko'p raqamlar bo'lsa va binary pattern bo'lsa
+                    numeric_data = pd.to_numeric(col_data, errors='coerce')
+                    non_null_count = numeric_data.notna().sum()
+                    total_count = len(col_data)
+                    
+                    if non_null_count / total_count >= 0.7:  # 70%+ raqam
+                        unique_vals = numeric_data.dropna().unique()
+                        if len(unique_vals) <= 10:  # Kam unique qiymatlar
+                            # 0/1 pattern tekshiruvi
+                            binary_values = np.isin(unique_vals, [0, 1, 0.0, 1.0]).sum()
+                            if binary_values >= 2:  # Kamida 0 va 1 bor
+                                has_strong_numeric_evidence = True
+                                logger.info(f"🔍 {col_name} → STRONG NUMERIC: {binary_values} binary values")
+                except Exception as e:
+                    logger.warning(f"Numeric check xatolik {col_name}: {e}")
+                
+                if has_strong_numeric_evidence:
+                    # Strong evidence bor - savol ustuni
+                    detected_question_columns.append(col)
+                    metadata['detected_question_columns'].append({
+                        'column': col_name,
+                        'reason': 'Strong numeric evidence (binary pattern)',
+                        'confidence': 'medium'
+                    })
+                    logger.info(f"✅ {col_name} → SAVOL (strong numeric evidence)")
+                else:
+                    # Evidence yo'q - metadata deb hisoblash va o'chirish
+                    columns_to_remove.append(col)
+                    metadata['removed_columns'].append({
+                        'name': col_name,
+                        'reason': 'Noma\'lum ustun (no keyword match, no numeric evidence)',
+                        'type': 'unknown_metadata'
+                    })
+                    logger.info(f"❌ {col_name} → O'CHIRILDI (noma'lum ustun)")
         
         # O'chirish kerak bo'lgan ustunlarni o'chirish
         if columns_to_remove:
