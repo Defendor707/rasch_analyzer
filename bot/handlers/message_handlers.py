@@ -1733,8 +1733,6 @@ def get_settings_keyboard(user_id: int = None):
         [KeyboardButton("📚 Mutaxassislik fanini tanlash")],
         [KeyboardButton("📊 Fan bo'limlari bo'yicha natijalash")],
         [KeyboardButton("✍️ Yozma ish funksiyasi")],
-        [KeyboardButton("🧹 File Analyzer")],
-        [KeyboardButton("🤖 Auto File Analyzer")],
         [KeyboardButton("🧽 Auto File Cleaner")],
         [KeyboardButton("◀️ Ortga")]
     ]
@@ -2048,7 +2046,7 @@ async def handle_students(update: Update, context: ContextTypes.DEFAULT_TYPE):
 def get_other_keyboard(is_admin=False):
     """Create keyboard for 'Boshqa' section"""
     keyboard = [
-        [KeyboardButton("📁 File Analyzer")],
+        [KeyboardButton("📁 File Cleaner")],
         [KeyboardButton("📝 Ommaviy test o'tkazish")],
         [KeyboardButton("💳 To'lovlar tarixi"), KeyboardButton("📊 Statistika")]
     ]
@@ -2243,16 +2241,16 @@ async def handle_admin_message(update: Update, context: ContextTypes.DEFAULT_TYP
         )
 
 
-async def handle_file_analyzer(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Handle File Analyzer button - enable full cleaning mode"""
+async def handle_file_cleaner(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Handle File Cleaner button - enable full cleaning mode"""
     user_id = update.effective_user.id
 
-    # Enable File Analyzer mode with full cleaning
+    # Enable File Cleaner mode with full cleaning
     user_data_manager.update_user_field(user_id, 'file_analyzer_mode', True)
     user_data_manager.update_user_field(user_id, 'file_analyzer_operation', 'full_clean')
 
-    analyzer_text = (
-        "📁 *File Analyzer yoqildi*\n\n"
+    cleaner_text = (
+        "📁 *File Cleaner yoqildi*\n\n"
         "🧹 Faylni to'liq tozalash va standartlashtirish:\n\n"
         "✓ Ortiqcha sarlavhalarni olib tashlayman\n"
         "✓ ID, email, vaqt kabi ustunlarni o'chirayman\n"
@@ -2264,7 +2262,7 @@ async def handle_file_analyzer(update: Update, context: ContextTypes.DEFAULT_TYP
         "📤 *Excel (.xlsx, .xls) yoki CSV (.csv) faylni yuboring*\n\n"
         "🔙 Chiqish uchun /start yoki 'Ortga' tugmasini bosing"
     )
-    await update.message.reply_text(analyzer_text, parse_mode='Markdown')
+    await update.message.reply_text(cleaner_text, parse_mode='Markdown')
 
 
 async def handle_back(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -3329,8 +3327,8 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     elif message_text == "ℹ️ Boshqa":
         await handle_other(update, context)
     # Handle 'Boshqa' section buttons
-    elif message_text == "📁 File Analyzer":
-        await handle_file_analyzer(update, context)
+    elif message_text == "📁 File Cleaner":
+        await handle_file_cleaner(update, context)
     elif message_text == "📝 Ommaviy test o'tkazish":
         await handle_public_test(update, context)
     elif message_text == "📊 Statistika":
@@ -3360,8 +3358,6 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await handle_section_results(update, context)
     elif message_text == "✍️ Yozma ish funksiyasi":
         await handle_writing_task(update, context)
-    elif message_text == "🤖 Auto File Analyzer":
-        await handle_auto_file_analyzer(update, context)
     elif message_text == "🧽 Auto File Cleaner":
         await handle_auto_file_cleaner(update, context)
     # Handle test creation buttons
