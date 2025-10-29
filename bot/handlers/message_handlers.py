@@ -13,6 +13,7 @@ from bot.utils.test_manager import TestManager
 from bot.utils.payment_manager import PaymentManager
 from bot.utils.answer_parser import parse_answer_string, generate_option_labels, format_answer_example
 import logging
+import numpy as np
 
 logger = logging.getLogger(__name__)
 
@@ -610,7 +611,7 @@ async def perform_analysis_after_payment(message, context: ContextTypes.DEFAULT_
                         return
 
                     # Continue with analysis (don't return, let it flow to analyzer below)
-                    await message.reply_text("✅ Fayl muvaffaqiyatli tozlandi! Rasch tahlili boshlanmoqda...")
+                    await message.reply_text("✅ Fayl muvaffaqiyatli tozalandi! Rasch tahlili boshlanmoqda...")
 
                 except Exception as clean_error:
                     logger.error(f"Auto clean error: {clean_error}")
@@ -715,6 +716,74 @@ async def perform_analysis_after_payment(message, context: ContextTypes.DEFAULT_
 
         # Update status message to 100%
         await status_message.edit_text("✅ *Tahlil yakunlandi!*\n\n▰▰▰▰▰▰▰▰▰▰ 100%\n_Natijalar yuborilmoqda..._", parse_mode='Markdown')
+
+        # Send quick summary before sending PDFs
+        person_stats = results.get('person_statistics', {})
+        individual_data = person_stats.get('individual', [])
+
+        if individual_data:
+            n_persons = len(individual_data)
+
+            # Calculate statistics
+            scores = [p['raw_score'] for p in individual_data if not np.isnan(p['raw_score'])]
+            t_scores = [p['t_score'] for p in individual_data if not np.isnan(p['t_score'])]
+
+            if scores and t_scores:
+                avg_score = sum(scores) / len(scores)
+                max_score_val = max(scores)
+                min_score_val = min(scores)
+                avg_t_score = sum(t_scores) / len(t_scores)
+
+                # Calculate percentages based on T-scores
+                percentages = [(t/65)*100 for t in t_scores]
+                # Cap percentages
+                percentages = [min(100, max(0 if p < 70 else p, p)) for p in percentages]
+                avg_percentage = sum(percentages) / len(percentages)
+
+                # Grade distribution
+                grade_counts = {'A+': 0, 'A': 0, 'B+': 0, 'B': 0, 'C+': 0, 'C': 0, 'NC': 0}
+                for t in t_scores:
+                    if t >= 70:
+                        grade_counts['A+'] += 1
+                    elif t >= 65:
+                        grade_counts['A'] += 1
+                    elif t >= 60:
+                        grade_counts['B+'] += 1
+                    elif t >= 55:
+                        grade_counts['B'] += 1
+                    elif t >= 50:
+                        grade_counts['C+'] += 1
+                    elif t >= 46:
+                        grade_counts['C'] += 1
+                    else:
+                        grade_counts['NC'] += 1
+
+                # Create summary message
+                summary_text = (
+                    f"📊 *Tahlil Natijalari - Qisqacha*\n"
+                    f"━━━━━━━━━━━━━━━━━━━━\n\n"
+                    f"👥 *Umumiy ma'lumot:*\n"
+                    f"  • Talabgorlar: {n_persons} ta\n"
+                    f"  • Savollar: {results.get('n_items', 0)} ta\n"
+                    f"  • Ishonchlilik: {results.get('reliability', 0):.3f}\n\n"
+                    f"📈 *Ball ko'rsatkichlari:*\n"
+                    f"  • O'rtacha ball: {avg_score:.1f}/{results.get('n_items', 0)}\n"
+                    f"  • Eng yuqori: {max_score_val}\n"
+                    f"  • Eng past: {min_score_val}\n\n"
+                    f"🎯 *T-Score va Foiz:*\n"
+                    f"  • O'rtacha T-Score: {avg_t_score:.1f}\n"
+                    f"  • O'rtacha natija: {avg_percentage:.1f}%\n\n"
+                    f"🏆 *Darajalar taqsimoti:*\n"
+                )
+
+                for grade, count in grade_counts.items():
+                    if count > 0:
+                        percentage = (count / n_persons) * 100
+                        summary_text += f"  • {grade}: {count} ta ({percentage:.1f}%)\n"
+
+                summary_text += "\n━━━━━━━━━━━━━━━━━━━━\n📄 Batafsil natijalar PDF faylda yuborilmoqda..."
+
+                await message.reply_text(summary_text, parse_mode='Markdown')
 
         # Send general statistics PDF
         if general_pdf_path and os.path.exists(general_pdf_path):
@@ -1081,27 +1150,27 @@ async def handle_callback_query(update: Update, context: ContextTypes.DEFAULT_TY
             results_sent = await TestResultManager.check_results_sent(test_id)
 
             participants = test.get('participants', {})
-            
+
             # Qisqacha statistika hisoblash
             total_participants = len(participants)
             if total_participants > 0:
                 scores = []
                 percentages = []
-                
+
                 # Handle both dict and list formats
                 participant_list = participants.values() if isinstance(participants, dict) else participants
-                
+
                 for p in participant_list:
                     if isinstance(p, dict):
                         scores.append(p.get('score', 0))
                         percentages.append(p.get('percentage', 0))
-                
+
                 if scores:
                     avg_score = sum(scores) / len(scores)
                     max_score_val = max(scores)
                     min_score_val = min(scores)
                     avg_percentage = sum(percentages) / len(percentages)
-                    
+
                     # Darajalar statistikasi
                     grade_counts = {'A+': 0, 'A': 0, 'B+': 0, 'B': 0, 'C+': 0, 'C': 0, 'NC': 0}
                     for perc in percentages:
@@ -1119,7 +1188,7 @@ async def handle_callback_query(update: Update, context: ContextTypes.DEFAULT_TY
                             grade_counts['C'] += 1
                         else:
                             grade_counts['NC'] += 1
-                    
+
                     # Qisqacha xabar
                     summary_text = (
                         f"📊 *{test['name']}*\n"
@@ -1133,11 +1202,11 @@ async def handle_callback_query(update: Update, context: ContextTypes.DEFAULT_TY
                         f"  • Eng past: {min_score_val}\n\n"
                         f"🎯 *Darajalar taqsimoti:*\n"
                     )
-                    
+
                     for grade, count in grade_counts.items():
                         if count > 0:
                             summary_text += f"  • {grade}: {count} ta\n"
-                    
+
                     summary_text += "\n━━━━━━━━━━━━━━━━━━━━\n"
                 else:
                     summary_text = f"📊 *{test['name']}*\n\nIshtirokchilar: {total_participants} ta\n\n"
