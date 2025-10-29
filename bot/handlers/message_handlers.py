@@ -536,27 +536,112 @@ async def perform_analysis_after_payment(message, context: ContextTypes.DEFAULT_
 
         # Check if we have valid data
         if numeric_data.empty or numeric_data.shape[0] < 2 or numeric_data.shape[1] < 2:
-            # Create inline keyboard with auto-clean option
-            keyboard = [
-                [InlineKeyboardButton("🧹 Faylni avtomatik tozalash", callback_data='auto_clean_file')],
-                [InlineKeyboardButton("❌ Bekor qilish", callback_data='cancel_clean')]
-            ]
-            reply_markup = InlineKeyboardMarkup(keyboard)
+            # Check if auto file cleaner is enabled
+            user_id = message.chat.id
+            user_data = user_data_manager.get_user_data(user_id)
+            auto_cleaner_enabled = user_data.get('auto_file_cleaner', False)
             
-            await message.reply_text(
-                "❌ Ma'lumotlar formatida xatolik!\n\n"
-                "Faylingiz talabga javob bermayapti. Sabablari:\n"
-                "• Talabgor ismlari ustuni mavjud (faqat 0/1 ma'lumotlar kerak)\n"
-                "• Qo'shimcha metadata ustunlar bor\n"
-                "• Bo'sh yoki noto'g'ri formatdagi ustunlar\n\n"
-                "✅ Yechim: File Analyzer orqali avtomatik tozalash",
-                reply_markup=reply_markup
-            )
-            
-            # Save file path for auto-clean
-            context.user_data['pending_clean_file'] = file_path
-            context.user_data['pending_clean_filename'] = context.user_data.get('pending_analysis_filename', 'file')
-            return
+            if auto_cleaner_enabled:
+                # AUTO CLEAN MODE: Automatically clean the file and retry analysis
+                await message.reply_text(
+                    "🧽 Auto File Cleaner yoqilgan!\n\n"
+                    "⏳ Fayl avtomatik tozalanmoqda va qayta tahlil qilinmoqda..."
+                )
+                
+                try:
+                    # Read original file again
+                    if file_extension == '.csv':
+                        try:
+                            original_data = pd.read_csv(file_path)
+                        except Exception:
+                            original_data = pd.read_csv(file_path, encoding='latin-1')
+                    else:
+                        original_data = pd.read_excel(file_path)
+                    
+                    # Clean the file using DataCleaner
+                    cleaner = DataCleaner()
+                    cleaned_data, metadata = cleaner.clean_data(original_data)
+                    
+                    # Save cleaned file temporarily
+                    upload_dir = "data/uploads"
+                    os.makedirs(upload_dir, exist_ok=True)
+                    cleaned_file_path = os.path.join(upload_dir, f"auto_cleaned_{user_id}_{context.user_data.get('pending_analysis_filename', 'file')}")
+                    
+                    if file_extension == '.csv':
+                        cleaned_data.to_csv(cleaned_file_path, index=False)
+                    else:
+                        cleaned_data.to_excel(cleaned_file_path, index=False, engine='openpyxl')
+                    
+                    # Send cleaning report
+                    report = cleaner.get_cleaning_report(metadata)
+                    await message.reply_text(f"✅ Avtomatik tozalash muvaffaqiyatli!\n\n{report}")
+                    
+                    # Now use cleaned data for analysis
+                    # Remove participant column from cleaned data
+                    if len(cleaned_data.columns) > 0:
+                        first_col = cleaned_data.columns[0]
+                        first_col_lower = str(first_col).lower()
+                        if any(keyword in first_col_lower for keyword in ['talabgor', 'name', 'ism', 'student', 'participant']):
+                            cleaned_data = cleaned_data.drop(columns=[first_col])
+                            logger.info(f"✅ Tozalangan fayldan talabgor ustuni olib tashlandi: {first_col}")
+                    
+                    # Convert to numeric
+                    for col in cleaned_data.columns:
+                        cleaned_data[col] = pd.to_numeric(cleaned_data[col], errors='coerce')
+                    
+                    cleaned_data = cleaned_data.dropna(how='all', axis=0)
+                    cleaned_data = cleaned_data.dropna(how='all', axis=1)
+                    
+                    # Update file_path to cleaned version
+                    if os.path.exists(file_path):
+                        os.remove(file_path)
+                    file_path = cleaned_file_path
+                    data = cleaned_data
+                    numeric_data = cleaned_data
+                    
+                    # Check again
+                    if numeric_data.empty or numeric_data.shape[0] < 2 or numeric_data.shape[1] < 2:
+                        await message.reply_text(
+                            "❌ Tozalashdan keyin ham ma'lumotlar yetarli emas!\n\n"
+                            "Iltimos, faylingizni tekshiring va qayta yuboring."
+                        )
+                        if os.path.exists(cleaned_file_path):
+                            os.remove(cleaned_file_path)
+                        return
+                    
+                    # Continue with analysis (don't return, let it flow to analyzer below)
+                    await message.reply_text("✅ Fayl muvaffaqiyatli tozlandi! Rasch tahlili boshlanmoqda...")
+                    
+                except Exception as clean_error:
+                    logger.error(f"Auto clean error: {clean_error}")
+                    await message.reply_text(
+                        f"❌ Avtomatik tozalashda xatolik: {str(clean_error)}\n\n"
+                        "Iltimos, faylni qo'lda tozalang: ⚙️ Sozlamalar → 🧹 File Analyzer"
+                    )
+                    return
+            else:
+                # AUTO CLEANER DISABLED: Show error with manual clean option
+                keyboard = [
+                    [InlineKeyboardButton("🧹 Faylni avtomatik tozalash", callback_data='auto_clean_file')],
+                    [InlineKeyboardButton("❌ Bekor qilish", callback_data='cancel_clean')]
+                ]
+                reply_markup = InlineKeyboardMarkup(keyboard)
+                
+                await message.reply_text(
+                    "❌ Ma'lumotlar formatida xatolik!\n\n"
+                    "Faylingiz talabga javob bermayapti. Sabablari:\n"
+                    "• Talabgor ismlari ustuni mavjud (faqat 0/1 ma'lumotlar kerak)\n"
+                    "• Qo'shimcha metadata ustunlar bor\n"
+                    "• Bo'sh yoki noto'g'ri formatdagi ustunlar\n\n"
+                    "✅ Yechim: File Analyzer orqali avtomatik tozalash\n\n"
+                    "💡 Maslahat: Auto File Cleaner'ni yoqing (⚙️ Sozlamalar → 🧽 Auto File Cleaner)",
+                    reply_markup=reply_markup
+                )
+                
+                # Save file path for auto-clean
+                context.user_data['pending_clean_file'] = file_path
+                context.user_data['pending_clean_filename'] = context.user_data.get('pending_analysis_filename', 'file')
+                return
 
         analyzer = RaschAnalyzer()
         results = analyzer.fit(numeric_data)
@@ -1190,6 +1275,116 @@ async def handle_callback_query(update: Update, context: ContextTypes.DEFAULT_TY
         )
         await query.answer("❌ Yozma ish funksiyasi o'chirildi!")
 
+    # Handle auto file analyzer toggle
+    elif query.data == 'auto_analyzer_on':
+        user_data_manager.update_user_field(user_id, 'auto_file_analyzer', True)
+
+        analyzer_text = (
+            f"🤖 *Auto File Analyzer*\n\n"
+            f"Hozirgi holat: ✅ *Yoqilgan*\n\n"
+            f"Bu funksiya fayl yuborilganda avtomatik:\n"
+            f"• ✅ Yoqilgan: Fayl avtomatik tahlil qilinadi\n"
+            f"• ❌ O'chirilgan: Fayl tahlil qilinmaydi (faqat saqlanadi)\n\n"
+            f"Funksiyani yoqish yoki o'chirish uchun quyidagi tugmalardan birini tanlang:"
+        )
+
+        keyboard = [
+            [
+                InlineKeyboardButton("✔️ Yoqilgan", callback_data='auto_analyzer_on'),
+                InlineKeyboardButton("❌ O'chirish", callback_data='auto_analyzer_off')
+            ]
+        ]
+        reply_markup = InlineKeyboardMarkup(keyboard)
+
+        await query.edit_message_text(
+            analyzer_text,
+            parse_mode='Markdown',
+            reply_markup=reply_markup
+        )
+        await query.answer("✅ Auto File Analyzer yoqildi!")
+
+    elif query.data == 'auto_analyzer_off':
+        user_data_manager.update_user_field(user_id, 'auto_file_analyzer', False)
+
+        analyzer_text = (
+            f"🤖 *Auto File Analyzer*\n\n"
+            f"Hozirgi holat: ❌ *O'chirilgan*\n\n"
+            f"Bu funksiya fayl yuborilganda avtomatik:\n"
+            f"• ✅ Yoqilgan: Fayl avtomatik tahlil qilinadi\n"
+            f"• ❌ O'chirilgan: Fayl tahlil qilinmaydi (faqat saqlanadi)\n\n"
+            f"Funksiyani yoqish yoki o'chirish uchun quyidagi tugmalardan birini tanlang:"
+        )
+
+        keyboard = [
+            [
+                InlineKeyboardButton("✅ Yoqish", callback_data='auto_analyzer_on'),
+                InlineKeyboardButton("✖️ O'chirilgan", callback_data='auto_analyzer_off')
+            ]
+        ]
+        reply_markup = InlineKeyboardMarkup(keyboard)
+
+        await query.edit_message_text(
+            analyzer_text,
+            parse_mode='Markdown',
+            reply_markup=reply_markup
+        )
+        await query.answer("❌ Auto File Analyzer o'chirildi!")
+
+    # Handle auto file cleaner toggle
+    elif query.data == 'auto_cleaner_on':
+        user_data_manager.update_user_field(user_id, 'auto_file_cleaner', True)
+
+        cleaner_text = (
+            f"🧽 *Auto File Cleaner*\n\n"
+            f"Hozirgi holat: ✅ *Yoqilgan*\n\n"
+            f"Bu funksiya tahlil qilayotganda:\n"
+            f"• ✅ Yoqilgan: Talabga javob bermasa avtomatik tozalaydi\n"
+            f"• ❌ O'chirilgan: Xato xabari chiqaradi\n\n"
+            f"Funksiyani yoqish yoki o'chirish uchun quyidagi tugmalardan birini tanlang:"
+        )
+
+        keyboard = [
+            [
+                InlineKeyboardButton("✔️ Yoqilgan", callback_data='auto_cleaner_on'),
+                InlineKeyboardButton("❌ O'chirish", callback_data='auto_cleaner_off')
+            ]
+        ]
+        reply_markup = InlineKeyboardMarkup(keyboard)
+
+        await query.edit_message_text(
+            cleaner_text,
+            parse_mode='Markdown',
+            reply_markup=reply_markup
+        )
+        await query.answer("✅ Auto File Cleaner yoqildi!")
+
+    elif query.data == 'auto_cleaner_off':
+        user_data_manager.update_user_field(user_id, 'auto_file_cleaner', False)
+
+        cleaner_text = (
+            f"🧽 *Auto File Cleaner*\n\n"
+            f"Hozirgi holat: ❌ *O'chirilgan*\n\n"
+            f"Bu funksiya tahlil qilayotganda:\n"
+            f"• ✅ Yoqilgan: Talabga javob bermasa avtomatik tozalaydi\n"
+            f"• ❌ O'chirilgan: Xato xabari chiqaradi\n\n"
+            f"Funksiyani yoqish yoki o'chirish uchun quyidagi tugmalardan birini tanlang:"
+        )
+
+        keyboard = [
+            [
+                InlineKeyboardButton("✅ Yoqish", callback_data='auto_cleaner_on'),
+                InlineKeyboardButton("✖️ O'chirilgan", callback_data='auto_cleaner_off')
+            ]
+        ]
+        reply_markup = InlineKeyboardMarkup(keyboard)
+
+        await query.edit_message_text(
+            cleaner_text,
+            parse_mode='Markdown',
+            reply_markup=reply_markup
+        )
+        await query.answer("❌ Auto File Cleaner o'chirildi!")
+
     # Handle send message to admin
     elif query.data == 'send_message_to_admin':
         context.user_data['sending_message_to_admin'] = True
@@ -1539,6 +1734,8 @@ def get_settings_keyboard(user_id: int = None):
         [KeyboardButton("📊 Fan bo'limlari bo'yicha natijalash")],
         [KeyboardButton("✍️ Yozma ish funksiyasi")],
         [KeyboardButton("🧹 File Analyzer")],
+        [KeyboardButton("🤖 Auto File Analyzer")],
+        [KeyboardButton("🧽 Auto File Cleaner")],
         [KeyboardButton("◀️ Ortga")]
     ]
     return ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
@@ -1722,6 +1919,90 @@ async def handle_writing_task(update: Update, context: ContextTypes.DEFAULT_TYPE
 
     await update.message.reply_text(
         writing_text,
+        parse_mode='Markdown',
+        reply_markup=reply_markup
+    )
+
+
+async def handle_auto_file_analyzer(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Handle Auto File Analyzer button"""
+    user_id = update.effective_user.id
+    user_data = user_data_manager.get_user_data(user_id)
+
+    # Get current state (default is off)
+    auto_analyzer_enabled = user_data.get('auto_file_analyzer', False)
+
+    status_icon = "✅" if auto_analyzer_enabled else "❌"
+    status_text = "Yoqilgan" if auto_analyzer_enabled else "O'chirilgan"
+
+    analyzer_text = (
+        f"🤖 *Auto File Analyzer*\n\n"
+        f"Hozirgi holat: {status_icon} *{status_text}*\n\n"
+        f"Bu funksiya fayl yuborilganda avtomatik:\n"
+        f"• ✅ Yoqilgan: Fayl avtomatik tahlil qilinadi\n"
+        f"• ❌ O'chirilgan: Fayl tahlil qilinmaydi (faqat saqlanadi)\n\n"
+        f"Funksiyani yoqish yoki o'chirish uchun quyidagi tugmalardan birini tanlang:"
+    )
+
+    # Create inline keyboard
+    keyboard = [
+        [
+            InlineKeyboardButton(
+                "✅ Yoqish" if not auto_analyzer_enabled else "✔️ Yoqilgan",
+                callback_data='auto_analyzer_on'
+            ),
+            InlineKeyboardButton(
+                "❌ O'chirish" if auto_analyzer_enabled else "✖️ O'chirilgan",
+                callback_data='auto_analyzer_off'
+            )
+        ]
+    ]
+    reply_markup = InlineKeyboardMarkup(keyboard)
+
+    await update.message.reply_text(
+        analyzer_text,
+        parse_mode='Markdown',
+        reply_markup=reply_markup
+    )
+
+
+async def handle_auto_file_cleaner(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Handle Auto File Cleaner button"""
+    user_id = update.effective_user.id
+    user_data = user_data_manager.get_user_data(user_id)
+
+    # Get current state (default is off)
+    auto_cleaner_enabled = user_data.get('auto_file_cleaner', False)
+
+    status_icon = "✅" if auto_cleaner_enabled else "❌"
+    status_text = "Yoqilgan" if auto_cleaner_enabled else "O'chirilgan"
+
+    cleaner_text = (
+        f"🧽 *Auto File Cleaner*\n\n"
+        f"Hozirgi holat: {status_icon} *{status_text}*\n\n"
+        f"Bu funksiya tahlil qilayotganda:\n"
+        f"• ✅ Yoqilgan: Talabga javob bermasa avtomatik tozalaydi\n"
+        f"• ❌ O'chirilgan: Xato xabari chiqaradi\n\n"
+        f"Funksiyani yoqish yoki o'chirish uchun quyidagi tugmalardan birini tanlang:"
+    )
+
+    # Create inline keyboard
+    keyboard = [
+        [
+            InlineKeyboardButton(
+                "✅ Yoqish" if not auto_cleaner_enabled else "✔️ Yoqilgan",
+                callback_data='auto_cleaner_on'
+            ),
+            InlineKeyboardButton(
+                "❌ O'chirish" if auto_cleaner_enabled else "✖️ O'chirilgan",
+                callback_data='auto_cleaner_off'
+            )
+        ]
+    ]
+    reply_markup = InlineKeyboardMarkup(keyboard)
+
+    await update.message.reply_text(
+        cleaner_text,
         parse_mode='Markdown',
         reply_markup=reply_markup
     )
@@ -3079,6 +3360,10 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await handle_section_results(update, context)
     elif message_text == "✍️ Yozma ish funksiyasi":
         await handle_writing_task(update, context)
+    elif message_text == "🤖 Auto File Analyzer":
+        await handle_auto_file_analyzer(update, context)
+    elif message_text == "🧽 Auto File Cleaner":
+        await handle_auto_file_cleaner(update, context)
     # Handle test creation buttons
     elif message_text == "➕ Yangi test yaratish":
         await handle_create_test(update, context)
