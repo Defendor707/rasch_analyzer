@@ -61,7 +61,7 @@ class AIAnalyzer:
             avg_se = sum(se_values) / len(se_values) if se_values else 0
             
             # Item difficulty analysis
-            if item_difficulties and len(item_difficulties) > 0:
+            if isinstance(item_difficulties, (list, np.ndarray)) and len(item_difficulties) > 0:
                 avg_item_diff = float(np.mean(item_difficulties))
                 item_diff_sd = float(np.std(item_difficulties))
                 easiest_items = sorted(enumerate(item_difficulties), key=lambda x: x[1])[:3]
@@ -118,8 +118,8 @@ class AIAnalyzer:
 • O'rtacha Standard Error: {avg_se:.3f}
 
 📝 **SAVOL TAHLILI**
-{"• Eng oson savollar: " + ", ".join([f"{item_names[i]} (β={item_difficulties[i]:.2f})" for i, _ in easiest_items[:3]]) if easiest_items else "Ma'lumot yo'q"}
-{"• Eng qiyin savollar: " + ", ".join([f"{item_names[i]} (β={item_difficulties[i]:.2f})" for i, _ in hardest_items[:3]]) if hardest_items else "Ma'lumot yo'q"}
+• Eng oson savollar: {", ".join([f"{item_names[i]} (β={item_difficulties[i]:.2f})" for i, _ in easiest_items[:3]]) if len(easiest_items) > 0 else "Ma'lumot yo'q"}
+• Eng qiyin savollar: {", ".join([f"{item_names[i]} (β={item_difficulties[i]:.2f})" for i, _ in hardest_items[:3]]) if len(hardest_items) > 0 else "Ma'lumot yo'q"}
 
 🏆 **NATIJALAR TAQSIMOTI**
 • A-daraja (A+/A): {grade_counts['A+']+grade_counts['A']} ta ({excellent_pct:.1f}%)
