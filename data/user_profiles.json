@@ -10,7 +10,7 @@
     "writing_task_enabled": false,
     "section_questions": {},
     "file_analyzer_mode": false,
-    "file_analyzer_operation": "full_clean",
+    "file_analyzer_operation": null,
     "auto_file_analyzer": false,
     "auto_file_cleaner": true
   },

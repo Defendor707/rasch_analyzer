@@ -176,16 +176,16 @@ class PDFReportGenerator:
         # Create figure with two subplots
         fig, (ax_persons, ax_items) = plt.subplots(1, 2, figsize=(14, 10), 
                                                      gridspec_kw={'width_ratios': [1.2, 1]})
-
+        
         # ============== LEFT: PERSONS (Histogram) ==============
         # Create histogram bins
         bin_width = 0.3
         bins = np.arange(min_measure, max_measure + bin_width, bin_width)
-
+        
         # Plot horizontal histogram
         counts, bin_edges = np.histogram(valid_person_ability, bins=bins)
         bin_centers = (bin_edges[:-1] + bin_edges[1:]) / 2
-
+        
         # Draw histogram bars horizontally
         for i, (center, count) in enumerate(zip(bin_centers, counts)):
             if count > 0:
@@ -195,7 +195,7 @@ class PDFReportGenerator:
                     ax_persons.text(x_pos, center, 'X', 
                                   fontsize=12, ha='center', va='center',
                                   color='#2E86AB', fontweight='bold')
-
+        
         # Person axis formatting
         ax_persons.set_ylim(min_measure, max_measure)
         ax_persons.set_xlim(-2, 0.5)
@@ -207,19 +207,19 @@ class PDFReportGenerator:
         ax_persons.grid(True, axis='y', linestyle='--', alpha=0.3)
         ax_persons.axhline(y=0, color='black', linestyle='-', linewidth=1.5, alpha=0.7)
         ax_persons.invert_xaxis()
-
+        
         # Add mean line for persons
         mean_ability = np.mean(valid_person_ability)
         ax_persons.axhline(y=mean_ability, color='#A23B72', linestyle='--', 
                           linewidth=2, alpha=0.7, label=f'O\'rtacha: {mean_ability:.2f}')
         ax_persons.legend(loc='lower left', fontsize=9)
-
+        
         # ============== RIGHT: ITEMS ==============
         # Sort items by difficulty
         sorted_indices = np.argsort(valid_item_difficulty)
         sorted_difficulty = valid_item_difficulty[sorted_indices]
         sorted_names = valid_item_names[sorted_indices]
-
+        
         # Plot items with smart label placement
         plotted_items = []
         for i, (diff, name) in enumerate(zip(sorted_difficulty, sorted_names)):
@@ -230,18 +230,18 @@ class PDFReportGenerator:
                     x_offset = prev_offset + 0.15
                     if x_offset > 0.6:
                         x_offset = 0
-
+            
             plotted_items.append((diff, x_offset))
-
+            
             # Draw item marker
             x_pos = 0.1 + x_offset
             ax_items.scatter(x_pos, diff, marker='s', s=120, 
                            color='#E63946', alpha=0.8, edgecolors='darkred', linewidths=1.5)
-
+            
             # Add item label
             ax_items.text(x_pos + 0.12, diff, name, 
                          fontsize=9, va='center', ha='left', fontweight='bold')
-
+        
         # Items axis formatting
         ax_items.set_ylim(min_measure, max_measure)
         ax_items.set_xlim(-0.2, 2.5)
@@ -252,17 +252,17 @@ class PDFReportGenerator:
         ax_items.set_title('SAVOLLAR', fontsize=14, fontweight='bold', pad=15)
         ax_items.grid(True, axis='y', linestyle='--', alpha=0.3)
         ax_items.axhline(y=0, color='black', linestyle='-', linewidth=1.5, alpha=0.7)
-
+        
         # Add mean line for items
         mean_difficulty = np.mean(valid_item_difficulty)
         ax_items.axhline(y=mean_difficulty, color='#F77F00', linestyle='--', 
                         linewidth=2, alpha=0.7, label=f'O\'rtacha: {mean_difficulty:.2f}')
         ax_items.legend(loc='lower right', fontsize=9)
-
+        
         # Main title
         fig.suptitle('Wright Map (Item-Person Map)', 
                     fontsize=16, fontweight='bold', y=0.98)
-
+        
         # Add statistics text
         stats_text = (
             f"Talabgorlar: {len(valid_person_ability)} | "
@@ -272,9 +272,9 @@ class PDFReportGenerator:
         )
         fig.text(0.5, 0.02, stats_text, ha='center', fontsize=10, 
                 style='italic', bbox=dict(boxstyle='round', facecolor='wheat', alpha=0.3))
-
+        
         plt.tight_layout(rect=[0, 0.04, 1, 0.96])
-
+        
         try:
             os.makedirs(self.output_dir, exist_ok=True)
             chart_filename = os.path.join(self.output_dir, "wright_map.png")
@@ -328,12 +328,12 @@ class PDFReportGenerator:
 
         # Count grades based on T-scores
         grade_counts = {'A+': 0, 'A': 0, 'B+': 0, 'B': 0, 'C+': 0, 'C': 0, 'NC': 0}
-
+        
         for person in individual_data:
             t_score = person['t_score']
             if np.isnan(t_score):
                 continue
-
+                
             if t_score >= 70:
                 grade_counts['A+'] += 1
             elif t_score >= 65:
@@ -351,7 +351,7 @@ class PDFReportGenerator:
 
         grades = list(grade_counts.keys())
         counts = list(grade_counts.values())
-
+        
         # Define colors for each grade
         colors_map = {
             'A+': '#2ECC71', 'A': '#3498DB', 'B+': '#9B59B6',
@@ -361,7 +361,7 @@ class PDFReportGenerator:
 
         plt.figure(figsize=(7, 4))
         bars = plt.bar(grades, counts, color=bar_colors, edgecolor='black', alpha=0.8)
-
+        
         # Add value labels on top of bars
         for bar in bars:
             height = bar.get_height()
@@ -369,7 +369,7 @@ class PDFReportGenerator:
                 plt.text(bar.get_x() + bar.get_width()/2., height,
                         f'{int(height)}',
                         ha='center', va='bottom', fontsize=10, fontweight='bold')
-
+        
         plt.title("Darajalar Taqsimoti", fontsize=14, fontweight='bold')
         plt.xlabel("Daraja", fontsize=11)
         plt.ylabel("Talabgorlar Soni", fontsize=11)
@@ -386,75 +386,6 @@ class PDFReportGenerator:
             logger.error(f"Error saving grade distribution: {e}")
             plt.close()
             return None
-            
-    def _add_item_quality_section(self, pdf_story: List[Any], results: Dict[str, Any]):
-        """Adds a section to the PDF report classifying item quality."""
-        styles = getSampleStyleSheet()
-        heading_style = ParagraphStyle(
-            'CustomHeading',
-            parent=styles['Heading2'],
-            fontSize=14,
-            textColor=colors.HexColor('#34495E'),
-            spaceAfter=12,
-            spaceBefore=12
-        )
-        
-        pdf_story.append(Paragraph("Savollar Sifatini Tasniflash", heading_style))
-
-        item_difficulty = results.get('item_difficulty')
-        item_names = results.get('item_names')
-
-        if item_difficulty is None or item_names is None or len(item_difficulty) != len(item_names):
-            pdf_story.append(Paragraph("Savollar sifatini tasniflash uchun yetarli ma'lumot yo'q.", styles['Normal']))
-            return
-
-        # Define thresholds for classification
-        # These are illustrative; may need tuning based on Rasch model conventions
-        VERY_EASY_THRESHOLD = -1.5  # Difficulty less than this is very easy
-        VERY_HARD_THRESHOLD = 1.5   # Difficulty greater than this is very hard
-
-        # Classify items
-        classification_data = [['Savol', 'Qiyinchilik (β)', 'Sifat']]
-        
-        for name, diff in zip(item_names, item_difficulty):
-            if np.isnan(diff):
-                quality = "Ma'lumot yo'q"
-                quality_color = colors.grey
-            elif diff < VERY_EASY_THRESHOLD:
-                quality = "Juda oson"
-                quality_color = colors.HexColor('#2ECC71') # Green
-            elif diff > VERY_HARD_THRESHOLD:
-                quality = "Juda qiyin"
-                quality_color = colors.HexColor('#E74C3C') # Red
-            else:
-                quality = "Standart"
-                quality_color = colors.HexColor('#3498DB') # Blue
-
-            classification_data.append([
-                str(name),
-                f"{diff:.3f}",
-                Paragraph(f'<font color="{quality_color.rgb}">{quality}</font>', styles['Normal'])
-            ])
-
-        # Create table
-        col_widths = [2.5*inch, 1.5*inch, 1.5*inch]
-        table = Table(classification_data, colWidths=col_widths)
-        table.setStyle(TableStyle([
-            ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#3498DB')),
-            ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
-            ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
-            ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
-            ('FONTSIZE', (0, 0), (-1, 0), 11),
-            ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
-            ('BACKGROUND', (0, 1), (-1, -1), colors.HexColor('#ECF0F1')),
-            ('GRID', (0, 0), (-1, -1), 0.5, colors.grey),
-            ('FONTSIZE', (0, 1), (-1, -1), 9),
-            ('VALIGN', (0, 1), (-1, -1), 'MIDDLE'),
-            ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, colors.HexColor('#F8F9FA')])
-        ]))
-        pdf_story.append(table)
-        pdf_story.append(Spacer(1, 0.3 * inch))
-
 
     def generate_report(self, results: Dict[str, Any], filename: Optional[str] = None) -> str:
         """
@@ -622,10 +553,6 @@ class PDFReportGenerator:
             story.append(Paragraph("Darajalar taqsimoti grafigini yaratishda xatolik yuz berdi.", styles['Normal']))
             story.append(Spacer(1, 0.2 * inch))
 
-        # Call item quality section in report generation
-        # Add item quality classification
-        self._add_item_quality_section(story, results)
-
         story.append(Spacer(1, 0.4 * inch))
 
         footer_style = ParagraphStyle(
@@ -641,7 +568,7 @@ class PDFReportGenerator:
         ))
 
         doc.build(story)
-
+        
         # Clean up temporary chart files after PDF is built
         for chart_file in chart_files_to_cleanup:
             try:
@@ -921,7 +848,7 @@ class PDFReportGenerator:
         ))
 
         doc.build(story)
-
+        
         # Clean up temporary chart files after PDF is built
         for chart_file in chart_files_to_cleanup:
             try:
@@ -1143,7 +1070,7 @@ class PDFReportGenerator:
         doc.build(story)
 
         return filepath
-
+    
     def generate_certificate(
         self, 
         student_name: str,
@@ -1158,7 +1085,7 @@ class PDFReportGenerator:
     ) -> str:
         """
         Generate a professional certificate for student test results
-
+        
         Args:
             student_name: Student's full name or ID
             test_name: Name of the test
@@ -1169,21 +1096,21 @@ class PDFReportGenerator:
             theta: Ability estimate (Rasch theta)
             t_score: T-score
             filename: Output filename (without extension)
-
+            
         Returns:
             Path to generated PDF
         """
         if filename is None:
             timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
             filename = f"certificate_{timestamp}"
-
+        
         filepath = os.path.join(self.output_dir, f"{filename}.pdf")
-
+        
         # Create document
         doc = SimpleDocTemplate(filepath, pagesize=A4)
         story = []
         styles = getSampleStyleSheet()
-
+        
         # Custom styles for certificate
         title_style = ParagraphStyle(
             'CertTitle',
@@ -1194,7 +1121,7 @@ class PDFReportGenerator:
             spaceAfter=20,
             fontName='Helvetica-Bold'
         )
-
+        
         subtitle_style = ParagraphStyle(
             'CertSubtitle',
             parent=styles['Normal'],
@@ -1203,7 +1130,7 @@ class PDFReportGenerator:
             alignment=TA_CENTER,
             spaceAfter=30
         )
-
+        
         name_style = ParagraphStyle(
             'StudentName',
             parent=styles['Heading2'],
@@ -1213,7 +1140,7 @@ class PDFReportGenerator:
             spaceAfter=20,
             fontName='Helvetica-Bold'
         )
-
+        
         info_style = ParagraphStyle(
             'InfoStyle',
             parent=styles['Normal'],
@@ -1222,7 +1149,7 @@ class PDFReportGenerator:
             alignment=TA_CENTER,
             spaceAfter=10
         )
-
+        
         # Determine grade based on percentage
         if percentage >= 90:
             grade = "A (A'lo)"
@@ -1239,7 +1166,7 @@ class PDFReportGenerator:
         else:
             grade = "F (Qoniqarsiz)"
             grade_color = colors.HexColor('#E74C3C')
-
+        
         # Ability level based on theta
         if theta >= 2.0:
             ability = "Juda yuqori"
@@ -1251,25 +1178,25 @@ class PDFReportGenerator:
             ability = "O'rtachadan past"
         else:
             ability = "Past"
-
+        
         # Add spacing from top
         story.append(Spacer(1, 1.0 * inch))
-
+        
         # Certificate title
         story.append(Paragraph("🎓 SERTIFIKAT 🎓", title_style))
         story.append(Paragraph("TEST NATIJALARI", subtitle_style))
-
+        
         # Student name
         story.append(Paragraph(f"<b>{student_name}</b>", name_style))
-
+        
         story.append(Spacer(1, 0.3 * inch))
-
+        
         # Test info
         story.append(Paragraph(f"<b>Test:</b> {test_name}", info_style))
         story.append(Paragraph(f"<b>Fan:</b> {subject}", info_style))
-
+        
         story.append(Spacer(1, 0.4 * inch))
-
+        
         # Results table
         results_data = [
             ['Ko\'rsatkich', 'Qiymat'],
@@ -1280,7 +1207,7 @@ class PDFReportGenerator:
             ['T-Score', f'{t_score:.1f}'],
             ['Theta (θ)', f'{theta:.2f}']
         ]
-
+        
         results_table = Table(results_data, colWidths=[3*inch, 2*inch])
         results_table.setStyle(TableStyle([
             ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#34495E')),
@@ -1298,11 +1225,11 @@ class PDFReportGenerator:
             ('TEXTCOLOR', (1, 3), (1, 3), colors.white),
             ('FONTNAME', (1, 3), (1, 3), 'Helvetica-Bold'),
         ]))
-
+        
         story.append(results_table)
-
+        
         story.append(Spacer(1, 0.5 * inch))
-
+        
         # Explanation
         explanation_style = ParagraphStyle(
             'Explanation',
@@ -1313,7 +1240,7 @@ class PDFReportGenerator:
             leftIndent=50,
             rightIndent=50
         )
-
+        
         story.append(Paragraph(
             "<b>Tushuntirish:</b><br/>"
             "• <b>T-Score:</b> Standartlashtirilgan ball (o'rtacha=50, standart og'ish=10)<br/>"
@@ -1321,9 +1248,9 @@ class PDFReportGenerator:
             "• Yuqori theta qiymati yuqori qobiliyatni bildiradi",
             explanation_style
         ))
-
+        
         story.append(Spacer(1, 0.8 * inch))
-
+        
         # Footer with date
         footer_style = ParagraphStyle(
             'Footer',
@@ -1332,12 +1259,12 @@ class PDFReportGenerator:
             textColor=colors.HexColor('#95A5A6'),
             alignment=TA_CENTER
         )
-
+        
         current_date = datetime.now().strftime('%d.%m.%Y')
         story.append(Paragraph(f"Sana: {current_date}", footer_style))
-
+        
         # Build PDF
         doc.build(story)
-
+        
         logger.info(f"Sertifikat yaratildi: {filepath}")
         return filepath
