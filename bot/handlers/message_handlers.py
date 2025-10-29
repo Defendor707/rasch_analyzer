@@ -917,19 +917,32 @@ async def perform_analysis_after_payment(message, context: ContextTypes.DEFAULT_
         )
 
         # AI Analysis
-        ai_analyzer = AIAnalyzer()
-        if ai_analyzer.is_available():
+        try:
+            ai_analyzer = AIAnalyzer()
+            if ai_analyzer.is_available():
+                await message.reply_text(
+                    "🤖 AI natijalarni tahlil qilmoqda...",
+                    parse_mode='Markdown'
+                )
+                
+                ai_opinion = ai_analyzer.analyze_test_results(results)
+                
+                await message.reply_text(
+                    f"🤖 *AI Fikri*\n"
+                    f"━━━━━━━━━━━━━━━━━━━━\n\n"
+                    f"{ai_opinion}",
+                    parse_mode='Markdown'
+                )
+            else:
+                logger.info("AI analyzer not available (API key not set)")
+                await message.reply_text(
+                    "ℹ️ AI tahlili hozirda mavjud emas (API kalit sozlanmagan)",
+                    parse_mode='Markdown'
+                )
+        except Exception as ai_error:
+            logger.warning(f"AI analysis failed: {str(ai_error)}")
             await message.reply_text(
-                "🤖 AI natijalarni tahlil qilmoqda...",
-                parse_mode='Markdown'
-            )
-            
-            ai_opinion = ai_analyzer.analyze_test_results(results)
-            
-            await message.reply_text(
-                f"🤖 *AI Fikri*\n"
-                f"━━━━━━━━━━━━━━━━━━━━\n\n"
-                f"{ai_opinion}",
+                "ℹ️ AI tahlili amalga oshmadi",
                 parse_mode='Markdown'
             )
 

@@ -27,6 +27,7 @@ The bot operates using a Python backend with the `python-telegram-bot` framework
 - **Auto-Complete Suggestion**: When all questions are answered, the system automatically suggests test completion with a prominent button, while also providing navigation to unanswered questions if any remain.
 - **Data Handling**: Employs `pandas` for data manipulation, including automatic numeric conversion and handling mixed data types with error coercion. A dedicated "File Analyzer" mode allows users to clean and standardize data (e.g., renaming columns to "Savol_1"). **Evalbee Format Support (2025-10-29):** The File Analyzer now automatically detects and processes Evalbee exported files, extracting only the "Q X Marks" columns (student scores 0/1) while removing "Q X Options", "Q X Key", and all metadata columns (Total Marks, Grade, Rank, Correct Answers, etc.). This enables seamless Rasch analysis of Evalbee test results. **Smart Name Detection (2025-10-29):** Implemented intelligent participant name column detection using 8 criteria: column name keywords (+30 pts), data type analysis (+20), unique value ratio (+20), text length analysis (+15), non-numeric content (+15), non-binary data (+10), first column bonus (+10), and null value analysis (+10). The system scores each column (max 130 points) and selects the best candidate, providing confidence levels (very_high: 60+, high: 40-59, medium: 20-39, low: 0-19). This eliminates reliance on positional assumptions and significantly improves accuracy across diverse file formats.
 - **Payment System**: Integrated with Telegram Stars for per-analysis payments, managed by a `PaymentManager` that handles invoice creation, pre-checkout, and successful payment callbacks. An admin panel allows toggling between free and paid modes and configuring pricing.
+- **AI-Powered Analysis (2025-10-29)**: Integrated DeepSeek AI to provide intelligent test result analysis. After PDF reports are delivered, the AI analyzes test statistics and provides: (1) Overall assessment of test performance, (2) Identification of key weaknesses and problems, (3) Specific recommendations for teachers, (4) Suggested next steps. The AI communicates in Uzbek and provides professional, constructive feedback. Implemented in `bot/utils/ai_analyzer.py` using OpenAI-compatible API.
 - **Error Handling**: Enhanced error handling provides clear messages, guiding users when data needs cleaning or is improperly formatted.
 - **Multi-bot architecture**: Separate bots for teacher and student functionalities, ensuring distinct workflows.
 
@@ -58,6 +59,7 @@ The bot operates using a Python backend with the `python-telegram-bot` framework
 - `asyncpg`: Async PostgreSQL database driver.
 - `sqlalchemy[asyncio]`: SQL toolkit and ORM with async support.
 - `apscheduler`: Background job scheduler for automated tasks.
+- `openai`: OpenAI-compatible API client for DeepSeek AI integration.
 
 ## Data Storage
 **Current Status (2025-10-29):**
