@@ -26,3 +26,4 @@ reportlab==4.0.7
 seaborn
 sqlalchemy[asyncio]
 telegram
+xlrd
