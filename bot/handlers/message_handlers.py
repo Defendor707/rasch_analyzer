@@ -262,7 +262,7 @@ async def sample_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         # Generate general statistics report
         general_pdf_path = pdf_generator.generate_report(
             results,
-            filename=f"namuna_umumiy_{user_id}"
+            filename="statistika"
         )
 
         # Get section questions if configured
@@ -273,7 +273,7 @@ async def sample_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         # Generate person results report
         person_pdf_path = pdf_generator.generate_person_results_report(
             results,
-            filename=f"namuna_talabgorlar_{user_id}",
+            filename="talabgorlar-statistikasi",
             section_questions=section_questions if section_results_enabled else None
         )
 
@@ -307,7 +307,7 @@ async def sample_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         if section_results_enabled and section_questions:
             section_pdf_path = pdf_generator.generate_section_results_report(
                 results,
-                filename=f"namuna_bulimlar_{user_id}",
+                filename="bulimlar-statistikasi",
                 section_questions=section_questions
             )
 
@@ -659,7 +659,7 @@ async def perform_analysis_after_payment(message, context: ContextTypes.DEFAULT_
         # Generate general statistics report
         general_pdf_path = pdf_generator.generate_report(
             results,
-            filename=f"umumiy_statistika_{user_id}"
+            filename="statistika"
         )
 
         # Get section questions if configured
@@ -709,7 +709,7 @@ async def perform_analysis_after_payment(message, context: ContextTypes.DEFAULT_
         # Generate person results report
         person_pdf_path = pdf_generator.generate_person_results_report(
             results,
-            filename=f"talabgorlar_natijalari_{user_id}",
+            filename="talabgorlar-statistikasi",
             section_questions=section_questions if section_results_enabled else None
         )
 
@@ -737,7 +737,7 @@ async def perform_analysis_after_payment(message, context: ContextTypes.DEFAULT_
         if section_results_enabled and section_questions:
             section_pdf_path = pdf_generator.generate_section_results_report(
                 results,
-                filename=f"bulimlar_natijalari_{user_id}",
+                filename="bulimlar-statistikasi",
                 section_questions=section_questions
             )
 
@@ -1555,7 +1555,7 @@ async def handle_section_questions_input(update: Update, context: ContextTypes.D
             # Generate section results in separate PDF
             section_pdf_path = pdf_generator.generate_section_results_report(
                 pending_results,
-                filename=f"bulimlar_natijalari_{user_id}",
+                filename="bulimlar-statistikasi",
                 section_questions=section_questions
             )
 

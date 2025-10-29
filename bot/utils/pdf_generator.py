@@ -399,7 +399,10 @@ class PDFReportGenerator:
             Path to generated PDF file
         """
         if filename is None:
-            filename = f"rasch_analysis_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
+            filename = f"statistika"
+        elif not filename.startswith('statistika'):
+            # If custom filename provided, keep it but simplify
+            filename = "statistika"
 
         if not filename.endswith('.pdf'):
             filename = filename + '.pdf'
@@ -589,7 +592,10 @@ class PDFReportGenerator:
             Path to generated PDF file
         """
         if filename is None:
-            filename = f"person_results_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
+            filename = f"talabgorlar-statistikasi"
+        elif not filename.startswith('talabgorlar'):
+            # If custom filename provided, simplify it
+            filename = "talabgorlar-statistikasi"
 
         if not filename.endswith('.pdf'):
             filename = filename + '.pdf'
@@ -862,7 +868,10 @@ class PDFReportGenerator:
             Path to generated PDF file
         """
         if filename is None:
-            filename = f"section_results_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
+            filename = f"bulimlar-statistikasi"
+        elif not filename.startswith('bulimlar'):
+            # If custom filename provided, simplify it
+            filename = "bulimlar-statistikasi"
 
         if not filename.endswith('.pdf'):
             filename = filename + '.pdf'
