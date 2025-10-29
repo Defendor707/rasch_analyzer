@@ -383,8 +383,19 @@ async def handle_document(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 except Exception:
                     data = pd.read_csv(file_path, encoding='latin-1')
             elif file_extension == '.xls':
-                # Use xlrd engine for old Excel format
-                data = pd.read_excel(file_path, engine='xlrd')
+                # Try xlrd engine first for old Excel format
+                try:
+                    data = pd.read_excel(file_path, engine='xlrd')
+                except Exception as xlrd_error:
+                    # If xlrd fails, try openpyxl as fallback
+                    logger.warning(f"xlrd failed for .xls file, trying openpyxl: {str(xlrd_error)}")
+                    try:
+                        data = pd.read_excel(file_path, engine='openpyxl')
+                    except Exception as openpyxl_error:
+                        raise Exception(
+                            f"Faylni o'qib bo'lmadi. xlrd xatoligi: {str(xlrd_error)}. "
+                            f"openpyxl xatoligi: {str(openpyxl_error)}"
+                        )
             else:
                 # Use openpyxl engine for new Excel format (.xlsx)
                 data = pd.read_excel(file_path, engine='openpyxl')
@@ -2651,8 +2662,19 @@ async def handle_question_file_upload(update: Update, context: ContextTypes.DEFA
             except Exception:
                 data = pd.read_csv(file_path, encoding='latin-1')
         elif file_extension == '.xls':
-            # Use xlrd engine for old Excel format
-            data = pd.read_excel(file_path, engine='xlrd')
+            # Try xlrd engine first for old Excel format
+            try:
+                data = pd.read_excel(file_path, engine='xlrd')
+            except Exception as xlrd_error:
+                # If xlrd fails, try openpyxl as fallback
+                logger.warning(f"xlrd failed for .xls file, trying openpyxl: {str(xlrd_error)}")
+                try:
+                    data = pd.read_excel(file_path, engine='openpyxl')
+                except Exception as openpyxl_error:
+                    raise Exception(
+                        f"Faylni o'qib bo'lmadi. xlrd xatoligi: {str(xlrd_error)}. "
+                        f"openpyxl xatoligi: {str(openpyxl_error)}"
+                    )
         else:
             # Use openpyxl engine for new Excel format (.xlsx)
             data = pd.read_excel(file_path, engine='openpyxl')
