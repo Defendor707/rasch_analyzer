@@ -9,8 +9,10 @@
     "section_results_enabled": false,
     "writing_task_enabled": false,
     "section_questions": {},
-    "file_analyzer_mode": false,
-    "file_analyzer_operation": "full_clean"
+    "file_analyzer_mode": true,
+    "file_analyzer_operation": "full_clean",
+    "auto_file_analyzer": false,
+    "auto_file_cleaner": true
   },
   "7916658442": {
     "first_name": "",
