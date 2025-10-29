@@ -2117,14 +2117,55 @@ async def handle_public_test(update: Update, context: ContextTypes.DEFAULT_TYPE)
 
 async def handle_statistics(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Handle Statistics button"""
+    user_id = update.effective_user.id
+    
+    # Get user's students count
+    students = student_data_manager.get_all_students(user_id)
+    students_count = len(students)
+    
+    # Get user's tests statistics
+    user_tests = test_manager.get_teacher_tests(user_id)
+    total_tests = len(user_tests)
+    active_tests = sum(1 for test in user_tests if test.get('is_active', False))
+    finalized_tests = sum(1 for test in user_tests if test.get('finalized_at') is not None)
+    
+    # Calculate total participants across all tests
+    total_participants = 0
+    for test in user_tests:
+        total_participants += len(test.get('participants', {}))
+    
+    # Get payment history count
+    payment_history = payment_manager.get_user_payments(user_id)
+    total_analyses = len(payment_history)
+    
+    # Get user profile data
+    user_data = user_data_manager.get_user_data(user_id)
+    subject = user_data.get('subject', 'Tanlanmagan')
+    
     stats_text = (
-        "📊 *Statistika*\n\n"
-        "Bu yerda siz:\n"
-        "• Umumiy tahlil statistikasini\n"
-        "• Talabgorlar o'sish dinamikasini\n"
-        "• Test natijalarini ko'rishingiz mumkin\n\n"
-        "🔜 Tez orada faollashtiriladi!"
+        f"📊 *Sizning statistikangiz*\n\n"
+        f"👤 *Profil:*\n"
+        f"  📚 Fan: {subject}\n\n"
+        f"👥 *O'quvchilar:*\n"
+        f"  • Jami: {students_count} ta\n\n"
+        f"📝 *Testlar:*\n"
+        f"  • Jami: {total_tests} ta\n"
+        f"  • Faol: {active_tests} ta\n"
+        f"  • Yakunlangan: {finalized_tests} ta\n"
+        f"  • Ishtirokchilar: {total_participants} ta\n\n"
+        f"📈 *Tahlillar:*\n"
+        f"  • Amalga oshirilgan: {total_analyses} ta\n"
     )
+    
+    # Add recent activity if available
+    if user_tests:
+        recent_test = user_tests[-1]
+        stats_text += (
+            f"\n📌 *Oxirgi test:*\n"
+            f"  📋 {recent_test['name']}\n"
+            f"  📅 {recent_test['created_at'][:10]}\n"
+        )
+    
     await update.message.reply_text(stats_text, parse_mode='Markdown')
 
 
