@@ -446,12 +446,6 @@ async def handle_document(update: Update, context: ContextTypes.DEFAULT_TYPE):
             return
 
     # NORMAL MODE: Check payment and analyze the file
-    # Add reaction to the file message
-    try:
-        await update.message.set_reaction("👌")
-    except Exception as e:
-        logger.warning(f"Reaksiya qo'shishda xatolik: {e}")
-    
     await update.message.reply_text("⏳ Fayl qabul qilindi...")
 
     try:
