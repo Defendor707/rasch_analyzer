@@ -27,3 +27,4 @@ seaborn
 sqlalchemy[asyncio]
 telegram
 xlrd
+openai
