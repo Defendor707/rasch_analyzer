@@ -153,6 +153,22 @@ async def perform_test_rasch_analysis(message, context, test_id: str):
             filename=f"test_{test_id}_talabgorlar_{user_id}"
         )
 
+        # Get item quality classification
+        from bot.utils.rasch_analysis import RaschAnalyzer
+        temp_analyzer = RaschAnalyzer()
+        classifications = temp_analyzer.classify_item_quality(results)
+        
+        # Build quality summary
+        quality_summary = []
+        if classifications['very_easy']:
+            quality_summary.append(f"🟢 Juda oson: {len(classifications['very_easy'])} ta")
+        if classifications['very_hard']:
+            quality_summary.append(f"🔴 Juda qiyin: {len(classifications['very_hard'])} ta")
+        if classifications['problematic']:
+            quality_summary.append(f"⚠️ Muammoli: {len(classifications['problematic'])} ta")
+        
+        quality_text = "\n".join(quality_summary) if quality_summary else "✅ Barcha savollar standart"
+        
         await message.reply_text(
             f"✅ *Rasch tahlili tugallandi!*\n\n"
             f"📋 Test: {test_results['test_name']}\n"
@@ -160,6 +176,7 @@ async def perform_test_rasch_analysis(message, context, test_id: str):
             f"👥 Talabgorlar: {results['n_persons']}\n"
             f"📝 Savollar: {results['n_items']}\n"
             f"📈 Reliability: {results['reliability']:.3f}\n\n"
+            f"*Savol sifati:*\n{quality_text}\n\n"
             f"PDF hisobotlar yuborilmoqda...",
             parse_mode='Markdown'
         )

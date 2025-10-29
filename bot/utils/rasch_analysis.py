@@ -241,6 +241,70 @@ class RaschAnalyzer:
         
         return se_array
     
+    def classify_item_quality(self, results: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Classify items based on difficulty and discrimination
+        Returns dict with item classifications
+        """
+        item_difficulties = results.get('item_difficulty', [])
+        item_names = results.get('item_names', [])
+        item_means = results['descriptive_stats']['item_means']
+        
+        classifications = {
+            'very_easy': [],      # β < -1.5
+            'easy': [],           # -1.5 <= β < -0.5
+            'medium': [],         # -0.5 <= β <= 0.5
+            'hard': [],           # 0.5 < β <= 1.5
+            'very_hard': [],      # β > 1.5
+            'problematic': []     # Items with mean < 0.2 or > 0.8
+        }
+        
+        for i, (item_name, difficulty) in enumerate(zip(item_names, item_difficulties)):
+            mean_score = item_means[item_name]
+            
+            # Classify by difficulty
+            if difficulty < -1.5:
+                classifications['very_easy'].append({
+                    'name': item_name,
+                    'difficulty': difficulty,
+                    'mean': mean_score
+                })
+            elif difficulty < -0.5:
+                classifications['easy'].append({
+                    'name': item_name,
+                    'difficulty': difficulty,
+                    'mean': mean_score
+                })
+            elif difficulty <= 0.5:
+                classifications['medium'].append({
+                    'name': item_name,
+                    'difficulty': difficulty,
+                    'mean': mean_score
+                })
+            elif difficulty <= 1.5:
+                classifications['hard'].append({
+                    'name': item_name,
+                    'difficulty': difficulty,
+                    'mean': mean_score
+                })
+            else:
+                classifications['very_hard'].append({
+                    'name': item_name,
+                    'difficulty': difficulty,
+                    'mean': mean_score
+                })
+            
+            # Mark problematic items (too easy or too hard based on raw scores)
+            if mean_score < 0.2 or mean_score > 0.8:
+                classifications['problematic'].append({
+                    'name': item_name,
+                    'difficulty': difficulty,
+                    'mean': mean_score,
+                    'issue': 'Juda oson' if mean_score > 0.8 else 'Juda qiyin'
+                })
+        
+        return classifications
+    
     def get_summary(self, results: Dict[str, Any]) -> str:
         """Generate a text summary of the analysis"""
         summary = []
