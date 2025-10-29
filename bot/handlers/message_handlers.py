@@ -508,8 +508,25 @@ async def perform_analysis_after_payment(message, context: ContextTypes.DEFAULT_
         else:
             data = pd.read_excel(file_path)
 
+        # Birinchi ustun "Talabgor" bo'lsa, uni olib tashlash kerak
+        # File Analyzer tozalangan faylda birinchi ustun har doim ism ustuni
+        participant_column = None
+        if len(data.columns) > 0:
+            first_col = data.columns[0]
+            first_col_lower = str(first_col).lower()
+            # Agar birinchi ustun ism ustuni bo'lsa (raqam emas)
+            if any(keyword in first_col_lower for keyword in ['talabgor', 'name', 'ism', 'student', 'participant', 'foydalanuvchi']):
+                participant_column = first_col
+                logger.info(f"✅ Talabgor ustuni aniqlandi va olib tashlanadi: {first_col}")
+        
+        # Faqat javob ustunlarini olish (talabgor ustunisiz)
+        if participant_column:
+            response_data = data.drop(columns=[participant_column])
+        else:
+            response_data = data
+        
         # Convert all columns to numeric, handling errors
-        numeric_data = data.copy()
+        numeric_data = response_data.copy()
         for col in numeric_data.columns:
             numeric_data[col] = pd.to_numeric(numeric_data[col], errors='coerce')
 
