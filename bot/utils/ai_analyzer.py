@@ -61,42 +61,26 @@ class AIAnalyzer:
                 else:
                     grade_counts['NC'] += 1
             
-            prompt = f"""Test natijalarini tahlil qilib, o'zbek tilida xulosaviy fikr va tavsiyalar bering.
+            prompt = f"""Test natijalari:
+👥 {n_persons} talaba | 📝 {n_items} savol | 📊 Reliability: {reliability:.3f}
+📈 O'rtacha: {avg_score:.1f}/{n_items} | T-Score: {avg_t_score:.1f}
+🏆 A+/A: {grade_counts['A+']+grade_counts['A']} | ⚠️ NC: {grade_counts['NC']}
 
-Test ma'lumotlari:
-- Talabgorlar soni: {n_persons}
-- Savollar soni: {n_items}
-- Ishonchlilik (Reliability): {reliability:.3f}
-- O'rtacha ball: {avg_score:.1f}/{n_items}
-- Eng yuqori ball: {max_score}
-- Eng past ball: {min_score}
-- O'rtacha T-Score: {avg_t_score:.1f}
+JUDA QISQA (5-7 qator) va ANIQ yozing:
+1️⃣ Test holati: yaxshi/o'rtacha/yomon? Nima uchun?
+2️⃣ ENG MUHIM muammo (bitta!)
+3️⃣ ASOSIY tavsiya (bitta!)
 
-Darajalar taqsimoti:
-- A+ (70+): {grade_counts['A+']} ta ({grade_counts['A+']/n_persons*100:.1f}%)
-- A (65-69): {grade_counts['A']} ta ({grade_counts['A']/n_persons*100:.1f}%)
-- B+ (60-64): {grade_counts['B+']} ta ({grade_counts['B+']/n_persons*100:.1f}%)
-- B (55-59): {grade_counts['B']} ta ({grade_counts['B']/n_persons*100:.1f}%)
-- C+ (50-54): {grade_counts['C+']} ta ({grade_counts['C+']/n_persons*100:.1f}%)
-- C (46-49): {grade_counts['C']} ta ({grade_counts['C']/n_persons*100:.1f}%)
-- NC (<46): {grade_counts['NC']} ta ({grade_counts['NC']/n_persons*100:.1f}%)
-
-Quyidagilarni o'zbek tilida ta'minlang:
-1. Umumiy baho (test qanchalik yaxshi o'tgani)
-2. Asosiy kamchiliklar va muammolar
-3. O'qituvchi uchun aniq tavsiyalar
-4. Keyingi qadamlar
-
-Javobingiz qisqa, aniq va amaliy bo'lsin (maksimum 800 so'z). Professional va konstruktiv yondashuvda bo'ling."""
+Emoji ishlatib, sodda va qiziq yozing. Rasmiy emas, do'stona."""
 
             response = self.client.chat.completions.create(
                 model="deepseek-chat",
                 messages=[
-                    {"role": "system", "content": "Siz ta'lim sohasida tajribali pedagog va test tahlilchisisiz. O'zbek tilida professional va konstruktiv fikr bildirasiz."},
+                    {"role": "system", "content": "Siz do'stona pedagog bo'lib, qisqa va aniq fikr bildirasiz. Emoji ishlatib, sodda tilda gaplashing. Ortiqcha rasmiyatsiz!"},
                     {"role": "user", "content": prompt}
                 ],
-                temperature=0.7,
-                max_tokens=2000
+                temperature=0.8,
+                max_tokens=400
             )
             
             ai_opinion = response.choices[0].message.content
