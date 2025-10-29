@@ -520,8 +520,11 @@ async def perform_analysis_after_payment(message, context: ContextTypes.DEFAULT_
                 participant_column = first_col
                 logger.info(f"✅ Talabgor ustuni aniqlandi va olib tashlanadi: {first_col}")
 
-        # Faqat javob ustunlarini olish (talabgor ustunisiz)
+        # Talabgor ism-familiyalarini saqlab qolish
+        person_names = None
         if participant_column:
+            person_names = data[participant_column].tolist()
+            logger.info(f"✅ {len(person_names)} ta talabgor ismlari saqlandi")
             response_data = data.drop(columns=[participant_column])
         else:
             response_data = data
@@ -578,11 +581,14 @@ async def perform_analysis_after_payment(message, context: ContextTypes.DEFAULT_
                     await message.reply_text(f"✅ Avtomatik tozalash muvaffaqiyatli!\n\n{report}")
 
                     # Now use cleaned data for analysis
-                    # Remove participant column from cleaned data
+                    # Remove participant column from cleaned data and save names
+                    person_names = None
                     if len(cleaned_data.columns) > 0:
                         first_col = cleaned_data.columns[0]
                         first_col_lower = str(first_col).lower()
                         if any(keyword in first_col_lower for keyword in ['talabgor', 'name', 'ism', 'student', 'participant']):
+                            person_names = cleaned_data[first_col].tolist()
+                            logger.info(f"✅ {len(person_names)} ta talabgor ismlari saqlandi")
                             cleaned_data = cleaned_data.drop(columns=[first_col])
                             logger.info(f"✅ Tozalangan fayldan talabgor ustuni olib tashlandi: {first_col}")
 
@@ -648,7 +654,7 @@ async def perform_analysis_after_payment(message, context: ContextTypes.DEFAULT_
         status_message = await message.reply_text("⏳ Tahlil qilinmoqda...\n\n▰▱▱▱▱▱▱▱▱▱ 10%\n_Ma'lumotlar o'qilmoqda..._", parse_mode='Markdown')
 
         analyzer = RaschAnalyzer()
-        results = analyzer.fit(numeric_data)
+        results = analyzer.fit(numeric_data, person_names=person_names)
 
         # Update status message to 50%
         await status_message.edit_text("📊 *Tahlil qilinmoqda...*\n\n▰▰▰▱▱▱▱▱▱▱ 50%\n_Natijalar hisoblanmoqda..._", parse_mode='Markdown')

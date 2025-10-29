@@ -12,13 +12,14 @@ class RaschAnalyzer:
         self.person_abilities = None
         self.model_fit = None
         
-    def fit(self, data: pd.DataFrame) -> Dict[str, Any]:
+    def fit(self, data: pd.DataFrame, person_names: list = None) -> Dict[str, Any]:
         """
         Fit Rasch model to dichotomous response data
         
         Args:
             data: DataFrame with items as columns, persons as rows
                   Values should be 0 (incorrect) or 1 (correct)
+            person_names: Optional list of person names (default: None)
         
         Returns:
             Dictionary containing analysis results
@@ -56,7 +57,7 @@ class RaschAnalyzer:
         )
         
         # Calculate person statistics
-        person_stats = self._calculate_person_statistics(response_matrix, self.person_abilities)
+        person_stats = self._calculate_person_statistics(response_matrix, self.person_abilities, person_names)
         
         results = {
             'item_difficulty': self.difficulty,
@@ -159,7 +160,7 @@ class RaschAnalyzer:
         return float(np.sum(p * (1 - p)))
     
     def _calculate_person_statistics(self, responses: np.ndarray, 
-                                    abilities: np.ndarray) -> Dict[str, Any]:
+                                    abilities: np.ndarray, person_names: list = None) -> Dict[str, Any]:
         """Calculate detailed statistics for each person"""
         n_persons = responses.shape[0]
         
@@ -189,8 +190,13 @@ class RaschAnalyzer:
         
         person_data = []
         for i in range(n_persons):
+            person_name = None
+            if person_names and i < len(person_names):
+                person_name = str(person_names[i])
+            
             person_data.append({
                 'person_id': i + 1,
+                'person_name': person_name,
                 'raw_score': int(raw_scores[i]),
                 'ability': abilities[i],
                 'z_score': z_scores[i],
