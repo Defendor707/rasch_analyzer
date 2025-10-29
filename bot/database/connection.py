@@ -29,8 +29,28 @@ class DatabaseConnection:
             return
             
         database_url = os.getenv('DATABASE_URL')
-        if not database_url:
-            raise ValueError("DATABASE_URL environment variable topilmadi!")
+        
+        # Agar DATABASE_URL yo'q bo'lsa, PGHOST, PGPORT dan yaratib olish
+        if not database_url or database_url.strip() == '':
+            pghost = os.getenv('PGHOST', '').strip()
+            pgport = os.getenv('PGPORT', '5432').strip()
+            pguser = os.getenv('PGUSER', '').strip()
+            pgpassword = os.getenv('PGPASSWORD', '').strip()
+            pgdatabase = os.getenv('PGDATABASE', '').strip()
+            
+            if pghost and pguser and pgdatabase:
+                # DATABASE_URL ni yaratish
+                if pgpassword:
+                    database_url = f"postgresql://{pguser}:{pgpassword}@{pghost}:{pgport}/{pgdatabase}"
+                else:
+                    database_url = f"postgresql://{pguser}@{pghost}:{pgport}/{pgdatabase}"
+                logger.info("DATABASE_URL PGHOST, PGPORT dan yaratildi")
+            else:
+                raise ValueError(
+                    "DATABASE_URL environment variable topilmadi!\n"
+                    "Replit Secrets panelida DATABASE_URL ni qo'shing yoki "
+                    "PGHOST, PGPORT, PGUSER, PGDATABASE ni o'rnating."
+                )
         
         # PostgreSQL URL ni asyncpg uchun o'zgartirish
         if database_url.startswith('postgresql://'):
