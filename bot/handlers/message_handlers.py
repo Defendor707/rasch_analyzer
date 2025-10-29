@@ -1132,8 +1132,9 @@ async def handle_callback_query(update: Update, context: ContextTypes.DEFAULT_TY
         user_data = user_data_manager.get_user_data(user_id)
         
         # Chiroyli formatlangan profil ma'lumotlari
+        full_name = user_data.get('full_name') or "O'qituvchi"
         share_text = (
-            f"👤 *{user_data.get('full_name') or 'O\\'qituvchi'}*\n"
+            f"👤 *{full_name}*\n"
             f"━━━━━━━━━━━━━━━━━━━━\n\n"
             f"📚 *Mutaxassislik:* {user_data.get('subject') or 'Belgilanmagan'}\n"
         )
