@@ -13,6 +13,7 @@ from telegram.ext import (
 )
 from student_bot.handlers.student_handlers import (
     start_command,
+    restart_command,
     help_command,
     handle_message,
     handle_callback_query
@@ -70,6 +71,7 @@ async def main():
     application = Application.builder().token(bot_token).build()
     
     application.add_handler(CommandHandler("start", start_command))
+    application.add_handler(CommandHandler("restart", restart_command))
     application.add_handler(CommandHandler("help", help_command))
     
     application.add_handler(CallbackQueryHandler(handle_callback_query))

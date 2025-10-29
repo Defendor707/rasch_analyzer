@@ -36,9 +36,27 @@ def format_time_remaining(minutes_remaining):
     return f"{minutes_remaining} daqiqa"
 
 
+async def restart_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Restart bot - clear all states and return to main menu"""
+    user_id = update.effective_user.id
+
+    # Clear all context data
+    context.user_data.clear()
+
+    # Send restart message
+    await update.message.reply_text(
+        "🔄 *Bot qayta ishga tushirildi*\n\n"
+        "Barcha davom etayotgan jarayonlar bekor qilindi.\n"
+        "Bosh menyuga qaytdingiz.",
+        parse_mode='Markdown'
+    )
+
+    logger.info(f"Student bot restarted by user {user_id}")
+
+
 async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Send welcome message when the command /start is issued"""
-    user = update.effective_user
+    user_id = update.effective_user.id
 
     if context.args and context.args[0].startswith('test_'):
         test_id = context.args[0]
@@ -95,7 +113,7 @@ async def show_available_tests(update: Update, context: ContextTypes.DEFAULT_TYP
     if not subject_filter:
         await show_subject_selection(update, context)
         return
-    
+
     all_tests = test_manager._load_tests()
     active_tests = [
         (test_id, test_data)
@@ -113,7 +131,7 @@ async def show_available_tests(update: Update, context: ContextTypes.DEFAULT_TYP
     if not active_tests:
         message_text = f"❌ '{subject_filter}' bo'yicha faol testlar topilmadi.\n\n"
         message_text += "Keyinroq qayta urinib ko'ring."
-        
+
         await update.message.reply_text(message_text)
         return
 
@@ -122,7 +140,7 @@ async def show_available_tests(update: Update, context: ContextTypes.DEFAULT_TYP
     total_tests = len(active_tests)
     total_pages = (total_tests + TESTS_PER_PAGE - 1) // TESTS_PER_PAGE
     page = max(0, min(page, total_pages - 1))  # Ensure valid page
-    
+
     start_idx = page * TESTS_PER_PAGE
     end_idx = min(start_idx + TESTS_PER_PAGE, total_tests)
     page_tests = active_tests[start_idx:end_idx]
@@ -133,7 +151,7 @@ async def show_available_tests(update: Update, context: ContextTypes.DEFAULT_TYP
         f"Sahifa: {page + 1}/{total_pages}\n\n"
         f"Testni boshlash uchun quyidagilardan birini tanlang:"
     )
-    
+
     await update.message.reply_text(header, parse_mode='Markdown')
 
     for test_id, test_data in page_tests:
@@ -154,21 +172,21 @@ async def show_available_tests(update: Update, context: ContextTypes.DEFAULT_TYP
             parse_mode='Markdown',
             reply_markup=reply_markup
         )
-    
+
     # Add pagination buttons if needed
     if total_pages > 1:
         pagination_buttons = []
-        
+
         if page > 0:
             pagination_buttons.append(
                 InlineKeyboardButton("◀️ Oldingi", callback_data=f"page_{subject_filter}_{page-1}")
             )
-        
+
         if page < total_pages - 1:
             pagination_buttons.append(
                 InlineKeyboardButton("Keyingi ▶️", callback_data=f"page_{subject_filter}_{page+1}")
             )
-        
+
         if pagination_buttons:
             keyboard = [pagination_buttons]
             reply_markup = InlineKeyboardMarkup(keyboard)
@@ -181,31 +199,31 @@ async def show_available_tests(update: Update, context: ContextTypes.DEFAULT_TYP
 async def show_subject_selection(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Show subject selection for test filtering"""
     from bot.utils.subject_sections import get_all_subjects
-    
+
     subjects = get_all_subjects()
-    
+
     # Get unique subjects from active tests
     all_tests = test_manager._load_tests()
     active_subjects = set()
     for test_data in all_tests.values():
         if test_data.get('is_active', False):
             active_subjects.add(test_data.get('subject', ''))
-    
+
     # Filter to only show subjects with active tests
     available_subjects = [s for s in subjects if s in active_subjects]
-    
+
     if not available_subjects:
         await update.message.reply_text(
             "❌ Hozirda faol testlar yo'q.\n\n"
             "Keyinroq qayta urinib ko'ring."
         )
         return
-    
+
     text = (
         "📚 *Fanlarni tanlang*\n\n"
         "Qaysi fanga oid testlarni ko'rmoqchisiz?"
     )
-    
+
     # Create keyboard with subject buttons (2 per row)
     keyboard = []
     for i in range(0, len(available_subjects), 2):
@@ -220,9 +238,9 @@ async def show_subject_selection(update: Update, context: ContextTypes.DEFAULT_T
                 callback_data=f"subject_filter_{available_subjects[i + 1]}"
             ))
         keyboard.append(row)
-    
+
     reply_markup = InlineKeyboardMarkup(keyboard)
-    
+
     await update.message.reply_text(
         text,
         parse_mode='Markdown',
@@ -245,7 +263,7 @@ async def start_test(update: Update, context: ContextTypes.DEFAULT_TYPE, test_id
     """Start taking a test"""
     test = test_manager.get_test(test_id)
     user_id = update.effective_user.id
-    
+
     # Get message object correctly (works for both message and callback_query)
     message = update.callback_query.message if update.callback_query else update.message
 
@@ -256,12 +274,12 @@ async def start_test(update: Update, context: ContextTypes.DEFAULT_TYPE, test_id
     if not test.get('is_active', False):
         await message.reply_text("❌ Bu test hozirda faol emas!")
         return
-    
+
     time_check = test_manager.is_test_time_valid(test_id)
     if not time_check['valid']:
         await message.reply_text(f"❌ {time_check['message']}")
         return
-    
+
     if test_manager.has_student_taken_test(test_id, user_id):
         if not test.get('allow_retake', False):
             await message.reply_text(
@@ -287,10 +305,10 @@ async def start_test(update: Update, context: ContextTypes.DEFAULT_TYPE, test_id
         f"⏱ Davomiyligi: {test['duration']} daqiqa\n"
         f"📝 Savollar soni: {len(test['questions'])} ta\n\n"
     )
-    
+
     if time_check.get('message') != 'OK':
         intro_text += f"⏰ {time_check['message']}\n\n"
-    
+
     intro_text += (
         "*Yangi imkoniyatlar:*\n"
         "• Savollar o'rtasida harakatlanish\n"
@@ -313,7 +331,7 @@ async def show_question(update: Update, context: ContextTypes.DEFAULT_TYPE):
     question_index = context.user_data.get('current_question_index', 0)
 
     test = test_manager.get_test(test_id)
-    
+
     if test_id:
         time_check = test_manager.is_test_time_valid(test_id)
         if not time_check['valid']:
@@ -324,7 +342,7 @@ async def show_question(update: Update, context: ContextTypes.DEFAULT_TYPE):
             )
             await finish_test(update, context, auto_submit=True)
             return
-    
+
     if not test:
         return
 
@@ -334,30 +352,30 @@ async def show_question(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     question = test['questions'][question_index]
     answers = context.user_data.get('answers', [-1] * len(test['questions']))
-    
+
     answered_count = sum(1 for a in answers if a != -1)
     progress_bar = f"[{'█' * answered_count}{'░' * (len(test['questions']) - answered_count)}]"
-    
+
     test_started = datetime.fromisoformat(context.user_data.get('test_started_at'))
     elapsed = datetime.now() - test_started
     remaining_minutes = test['duration'] - int(elapsed.total_seconds() / 60)
-    
+
     time_icon = "⏰"
     if remaining_minutes < 5:
         time_icon = "🔴"
     elif remaining_minutes < 10:
         time_icon = "🟡"
-    
+
     # Check if this is a text answer question (only 1 option)
     is_text_answer = len(question['options']) == 1
-    
+
     question_text = (
         f"❓ *Savol {question_index + 1}/{len(test['questions'])}*\n"
         f"{time_icon} Qolgan vaqt: {remaining_minutes} daqiqa\n"
         f"{progress_bar} {answered_count}/{len(test['questions'])}\n\n"
         f"{question['text']}\n\n"
     )
-    
+
     if is_text_answer:
         # Text answer question - show instruction to type
         current_answer = answers[question_index]
@@ -365,16 +383,16 @@ async def show_question(update: Update, context: ContextTypes.DEFAULT_TYPE):
             # Show current answer
             stored_answer = context.user_data.get('text_answers', {}).get(str(question_index), '')
             question_text += f"✅ *Sizning javobingiz:* {stored_answer}\n\n"
-        
+
         question_text += "✍️ *Javobingizni chatga yozing:*\n"
         question_text += "Matn yoki raqam yozishingiz mumkin.\n\n"
-    
+
     keyboard = []
-    
+
     if not is_text_answer:
         # Multiple choice question - show option buttons
         current_answer = answers[question_index]
-        
+
         for i, option in enumerate(question['options']):
             mark = "✅ " if current_answer == i else ""
             keyboard.append([
@@ -390,16 +408,16 @@ async def show_question(update: Update, context: ContextTypes.DEFAULT_TYPE):
         nav_buttons.append(InlineKeyboardButton("◀️ Oldingi", callback_data=f"nav_prev"))
     if question_index < len(test['questions']) - 1:
         nav_buttons.append(InlineKeyboardButton("Keyingi ▶️", callback_data=f"nav_next"))
-    
+
     if nav_buttons:
         keyboard.append(nav_buttons)
-    
+
     # Review and cancel buttons
     keyboard.append([
         InlineKeyboardButton("📝 Javoblarni ko'rish", callback_data="review_answers"),
         InlineKeyboardButton("❌ Bekor qilish", callback_data="cancel_test")
     ])
-    
+
     # Check if all questions answered - suggest completion
     if answered_count == len(test['questions']):
         keyboard.insert(-1, [
@@ -409,7 +427,7 @@ async def show_question(update: Update, context: ContextTypes.DEFAULT_TYPE):
     reply_markup = InlineKeyboardMarkup(keyboard)
 
     message = update.callback_query.message if update.callback_query else update.message
-    
+
     try:
         if update.callback_query:
             await update.callback_query.edit_message_text(
@@ -435,25 +453,25 @@ async def review_answers(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Show all answers for review"""
     query = update.callback_query
     await query.answer()
-    
+
     test_id = context.user_data.get('current_test_id')
     answers = context.user_data.get('answers', [])
     text_answers = context.user_data.get('text_answers', {})
-    
+
     test = test_manager.get_test(test_id)
     if not test:
         return
-    
+
     answered_count = sum(1 for a in answers if a != -1)
     unanswered = len(answers) - answered_count
     unanswered_indices = [i for i, a in enumerate(answers) if a == -1]
-    
+
     review_text = (
         f"📝 *Javoblaringiz*\n\n"
         f"✅ Javob berilgan: {answered_count}\n"
         f"❓ Javob berilmagan: {unanswered}\n\n"
     )
-    
+
     for i, answer_idx in enumerate(answers):
         if answer_idx != -1:
             question = test['questions'][i]
@@ -468,9 +486,9 @@ async def review_answers(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 review_text += f"{i+1}. {chr(65 + answer_idx)}) {answer_text[:30]}...\n"
         else:
             review_text += f"{i+1}. ❌ Javob berilmagan\n"
-    
+
     keyboard = []
-    
+
     # If there are unanswered questions, add button to go to first unanswered
     if unanswered_indices:
         first_unanswered = unanswered_indices[0]
@@ -480,12 +498,12 @@ async def review_answers(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 callback_data=f"goto_{first_unanswered}"
             )
         ])
-    
+
     keyboard.append([InlineKeyboardButton("✅ Testni yakunlash", callback_data="confirm_submit")])
     keyboard.append([InlineKeyboardButton("◀️ Testga qaytish", callback_data="back_to_test")])
-    
+
     reply_markup = InlineKeyboardMarkup(keyboard)
-    
+
     await query.edit_message_text(
         review_text,
         parse_mode='Markdown',
@@ -497,7 +515,7 @@ async def handle_answer(update: Update, context: ContextTypes.DEFAULT_TYPE, ques
     """Handle student answer"""
     query = update.callback_query
     await query.answer("✅ Javob saqlandi!")
-    
+
     test_id = context.user_data.get('current_test_id')
     if test_id:
         time_check = test_manager.is_test_time_valid(test_id)
@@ -521,7 +539,7 @@ async def finish_test(update: Update, context: ContextTypes.DEFAULT_TYPE, auto_s
     test_id = context.user_data.get('current_test_id')
     answers = context.user_data.get('answers', [])
     user_id = update.effective_user.id
-    
+
     if auto_submit:
         test = test_manager.get_test(test_id)
         if test:
@@ -547,17 +565,17 @@ async def finish_test(update: Update, context: ContextTypes.DEFAULT_TYPE, auto_s
     context.user_data['text_answers'] = {}  # Clear text answers
     correct_answers = []
     incorrect_answers = []
-    
+
     for i, answer_idx in enumerate(answers):
         question = test['questions'][i]
         correct_idx = question['correct_answer']
-        
+
         # Check if it's a text answer question
         if len(question['options']) == 1 and answer_idx != -1:
             # Text answer - compare the text
             correct_text = question['options'][0].strip().lower()
             user_text = text_answers.get(str(i), '').strip().lower()
-            
+
             if user_text == correct_text:
                 correct_answers.append(i + 1)
             else:
@@ -567,14 +585,14 @@ async def finish_test(update: Update, context: ContextTypes.DEFAULT_TYPE, auto_s
             correct_answers.append(i + 1)
         elif answer_idx != -1:
             incorrect_answers.append(i + 1)
-    
+
     results_text = ""
-    
+
     if auto_submit:
         results_text += "⏰ *Test vaqti tugadi! Avtomatik topshirildi.*\n\n"
     else:
         results_text += "✅ *Test yakunlandi!*\n\n"
-    
+
     results_text += (
         f"📊 *Natijangiz:*\n"
         f"• Ball: {results['score']}/{results['max_score']}\n"
@@ -610,7 +628,7 @@ async def show_my_results(update: Update, context: ContextTypes.DEFAULT_TYPE):
     my_results = []
     for test_id, test_data in all_tests.items():
         participants = test_data.get('participants', {})
-        
+
         # Handle both dict and list formats for backward compatibility
         if isinstance(participants, dict):
             user_id_str = str(user_id)
@@ -656,7 +674,7 @@ async def show_my_results(update: Update, context: ContextTypes.DEFAULT_TYPE):
             f"• Ball: {result['score']}/{result['max_score']} ({result['percentage']:.1f}%)\n"
             f"📅 {result['submitted_at']}\n\n"
         )
-    
+
     if len(my_results) > 10:
         results_text += f"_... va yana {len(my_results) - 10} ta natija_"
 
@@ -667,7 +685,7 @@ async def cancel_test(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Cancel ongoing test"""
     query = update.callback_query
     await query.answer()
-    
+
     keyboard = [
         [
             InlineKeyboardButton("✅ Ha, bekor qilish", callback_data="confirm_cancel"),
@@ -675,7 +693,7 @@ async def cancel_test(update: Update, context: ContextTypes.DEFAULT_TYPE):
         ]
     ]
     reply_markup = InlineKeyboardMarkup(keyboard)
-    
+
     await query.edit_message_text(
         "⚠️ *Testni bekor qilmoqchimisiz?*\n\n"
         "Barcha javoblaringiz o'chiriladi va test topshirilmaydi.",
@@ -688,14 +706,14 @@ async def confirm_cancel(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Confirm test cancellation"""
     query = update.callback_query
     await query.answer()
-    
+
     context.user_data['taking_test'] = False
     context.user_data['current_test_id'] = None
     context.user_data['current_question_index'] = 0
     context.user_data['answers'] = []
     context.user_data['test_started_at'] = None
     context.user_data['text_answers'] = {}
-    
+
     await query.edit_message_text(
         "❌ Test bekor qilindi.\n\n"
         "Bosh menyuga qaytdingiz.",
@@ -720,7 +738,7 @@ async def handle_callback_query(update: Update, context: ContextTypes.DEFAULT_TY
         context.user_data['answers'] = [-1] * len(test['questions'])
         context.user_data['taking_test'] = True
         context.user_data['test_started_at'] = datetime.now().isoformat()
-        
+
         # Send PDF file if available
         pdf_file_path = test.get('pdf_file_path')
         if pdf_file_path and os.path.exists(pdf_file_path):
@@ -732,7 +750,7 @@ async def handle_callback_query(update: Update, context: ContextTypes.DEFAULT_TY
                     )
             except Exception as e:
                 logger.error(f"Error sending PDF file: {str(e)}")
-        
+
         await show_question(update, context)
 
     elif query.data.startswith('answer_'):
@@ -764,14 +782,14 @@ async def handle_callback_query(update: Update, context: ContextTypes.DEFAULT_TY
     elif query.data == 'confirm_submit':
         answers = context.user_data.get('answers', [])
         unanswered = sum(1 for a in answers if a == -1)
-        
+
         if unanswered > 0:
             keyboard = [
                 [InlineKeyboardButton("✅ Ha, topshirish", callback_data="force_submit")],
                 [InlineKeyboardButton("◀️ Testga qaytish", callback_data="back_to_test")]
             ]
             reply_markup = InlineKeyboardMarkup(keyboard)
-            
+
             await query.edit_message_text(
                 f"⚠️ *Diqqat!*\n\n"
                 f"Siz {unanswered} ta savolga javob bermadingiz.\n\n"
@@ -784,12 +802,12 @@ async def handle_callback_query(update: Update, context: ContextTypes.DEFAULT_TY
 
     elif query.data == 'force_submit':
         await finish_test(update, context)
-    
+
     elif query.data.startswith('goto_'):
         question_index = int(query.data.replace('goto_', ''))
         context.user_data['current_question_index'] = question_index
         await show_question(update, context)
-    
+
     elif query.data.startswith('subject_filter_'):
         subject = query.data.replace('subject_filter_', '')
         await query.answer(f"📚 {subject}")
@@ -799,7 +817,7 @@ async def handle_callback_query(update: Update, context: ContextTypes.DEFAULT_TY
             message=query.message
         )
         await show_available_tests(fake_update, context, subject_filter=subject, page=0)
-    
+
     elif query.data.startswith('page_'):
         parts = query.data.split('_')
         if len(parts) >= 3:
@@ -817,28 +835,28 @@ async def handle_callback_query(update: Update, context: ContextTypes.DEFAULT_TY
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Handle regular text messages"""
     message_text = update.message.text
-    
+
     # Check if user is taking a test and current question is text answer
     if context.user_data.get('taking_test'):
         test_id = context.user_data.get('current_test_id')
         question_index = context.user_data.get('current_question_index', 0)
-        
+
         test = test_manager.get_test(test_id)
         if test:
             question = test['questions'][question_index]
-            
+
             # Check if this is a text answer question (only 1 option)
             if len(question['options']) == 1:
                 # Save the text answer
                 answers = context.user_data.get('answers', [-1] * len(test['questions']))
                 answers[question_index] = 0  # Mark as answered (index 0 since only 1 option)
                 context.user_data['answers'] = answers
-                
+
                 # Store the actual text answer
                 text_answers = context.user_data.get('text_answers', {})
                 text_answers[str(question_index)] = message_text
                 context.user_data['text_answers'] = text_answers
-                
+
                 # Show confirmation and current question
                 await update.message.reply_text(
                     f"✅ Javob qabul qilindi: {message_text}\n\n"
