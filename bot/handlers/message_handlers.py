@@ -1080,12 +1080,73 @@ async def handle_callback_query(update: Update, context: ContextTypes.DEFAULT_TY
             from bot.database.managers import TestResultManager
             results_sent = await TestResultManager.check_results_sent(test_id)
 
-            results_text = f"📊 *{test['name']}* - Natijalar\n\n"
-
             participants = test.get('participants', {})
-            if participants:
-                results_text += f"Ishtirokchilar: {len(participants)} ta\n\n"
+            
+            # Qisqacha statistika hisoblash
+            total_participants = len(participants)
+            if total_participants > 0:
+                scores = []
+                percentages = []
+                
+                # Handle both dict and list formats
+                participant_list = participants.values() if isinstance(participants, dict) else participants
+                
+                for p in participant_list:
+                    if isinstance(p, dict):
+                        scores.append(p.get('score', 0))
+                        percentages.append(p.get('percentage', 0))
+                
+                if scores:
+                    avg_score = sum(scores) / len(scores)
+                    max_score_val = max(scores)
+                    min_score_val = min(scores)
+                    avg_percentage = sum(percentages) / len(percentages)
+                    
+                    # Darajalar statistikasi
+                    grade_counts = {'A+': 0, 'A': 0, 'B+': 0, 'B': 0, 'C+': 0, 'C': 0, 'NC': 0}
+                    for perc in percentages:
+                        if perc >= 90:
+                            grade_counts['A+'] += 1
+                        elif perc >= 80:
+                            grade_counts['A'] += 1
+                        elif perc >= 70:
+                            grade_counts['B+'] += 1
+                        elif perc >= 60:
+                            grade_counts['B'] += 1
+                        elif perc >= 50:
+                            grade_counts['C+'] += 1
+                        elif perc >= 40:
+                            grade_counts['C'] += 1
+                        else:
+                            grade_counts['NC'] += 1
+                    
+                    # Qisqacha xabar
+                    summary_text = (
+                        f"📊 *{test['name']}*\n"
+                        f"━━━━━━━━━━━━━━━━━━━━\n\n"
+                        f"👥 *Umumiy ma'lumot:*\n"
+                        f"  • Ishtirokchilar: {total_participants} ta\n"
+                        f"  • O'rtacha ball: {avg_score:.1f}/{test.get('questions', [{}])[0].get('points', 1) * len(test.get('questions', []))}\n"
+                        f"  • O'rtacha natija: {avg_percentage:.1f}%\n\n"
+                        f"📈 *Balllar:*\n"
+                        f"  • Eng yuqori: {max_score_val}\n"
+                        f"  • Eng past: {min_score_val}\n\n"
+                        f"🎯 *Darajalar taqsimoti:*\n"
+                    )
+                    
+                    for grade, count in grade_counts.items():
+                        if count > 0:
+                            summary_text += f"  • {grade}: {count} ta\n"
+                    
+                    summary_text += "\n━━━━━━━━━━━━━━━━━━━━\n"
+                else:
+                    summary_text = f"📊 *{test['name']}*\n\nIshtirokchilar: {total_participants} ta\n\n"
+            else:
+                summary_text = f"📊 *{test['name']}*\n\nHali ishtirokchilar yo'q.\n\n"
 
+            results_text = summary_text + "\n*📋 Batafsil natijalar:*\n\n"
+
+            if participants:
                 # Handle both dict and list formats for backward compatibility
                 if isinstance(participants, dict):
                     for user_id_str, p in participants.items():
