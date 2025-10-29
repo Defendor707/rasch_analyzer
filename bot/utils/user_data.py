@@ -28,6 +28,9 @@ class UserDataManager:
             'bio': '',
             'subject': '',
             'school': '',
+            'phone': '',
+            'experience_years': '',
+            'profile_photo_id': None,
             'file_analyzer_mode': False
         })
     

@@ -47,6 +47,9 @@ WAITING_FOR_PDF_QUESTION_FILE = 19
 WAITING_FOR_QUESTION_COUNT = 20
 WAITING_FOR_PDF_CORRECT_ANSWER = 21
 WAITING_FOR_ALL_PDF_ANSWERS = 22
+WAITING_FOR_PHONE = 23
+WAITING_FOR_EXPERIENCE = 24
+WAITING_FOR_PHOTO = 25
 
 
 def get_main_keyboard():
@@ -343,6 +346,33 @@ async def sample_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
             f"❌ Xatolik yuz berdi: {str(e)}\n\n"
             "Iltimos, qayta urinib ko'ring."
         )
+
+
+async def handle_photo(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Handle photo uploads for profile"""
+    user_id = update.effective_user.id
+    
+    # Check if user is uploading profile photo
+    if context.user_data.get('editing') == WAITING_FOR_PHOTO:
+        # Get the largest photo
+        photo = update.message.photo[-1]
+        file_id = photo.file_id
+        
+        # Save photo file_id to user data
+        user_data_manager.update_user_field(user_id, 'profile_photo_id', file_id)
+        
+        await update.message.reply_text(
+            "✅ Profil rasmi muvaffaqiyatli saqlandi!",
+            reply_markup=get_main_keyboard()
+        )
+        context.user_data['editing'] = None
+        return
+    
+    # If not editing, just acknowledge
+    await update.message.reply_text(
+        "📸 Rasm qabul qilindi. Profil rasmini o'zgartirish uchun:\n"
+        "👤 Profil → 📸 Foto"
+    )
 
 
 async def handle_document(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -1017,6 +1047,8 @@ async def handle_profile(update: Update, context: ContextTypes.DEFAULT_TYPE):
         f"  • Ism va Familiya: {user_data.get('full_name') or 'Kiritilmagan'}\n"
         f"  • Mutaxassislik: {user_data.get('subject') or 'Kiritilmagan'}\n"
         f"  • Bio: {user_data.get('bio') or 'Kiritilmagan'}\n"
+        f"  • Telefon: {user_data.get('phone') or 'Kiritilmagan'}\n"
+        f"  • Tajriba: {user_data.get('experience_years') or 'Kiritilmagan'}\n"
         f"  • Telegram: @{user.username or 'N/A'}\n"
         f"  • ID: `{user.id}`\n\n"
         f"📊 *Statistika:*\n"
@@ -1032,9 +1064,13 @@ async def handle_profile(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     # Inline keyboard for editing
     keyboard = [
-        [InlineKeyboardButton("✏️ Ism va Familiyani o'zgartirish", callback_data='edit_full_name')],
-        [InlineKeyboardButton("✏️ Bio qo'shish/o'zgartirish", callback_data='edit_bio')],
-        [InlineKeyboardButton("📊 Batafsil statistika", callback_data='view_detailed_stats')]
+        [InlineKeyboardButton("✏️ Ism va Familiya", callback_data='edit_full_name')],
+        [InlineKeyboardButton("✏️ Bio", callback_data='edit_bio')],
+        [InlineKeyboardButton("📸 Foto", callback_data='edit_photo'),
+         InlineKeyboardButton("📞 Telefon", callback_data='edit_phone')],
+        [InlineKeyboardButton("📅 Tajriba yili", callback_data='edit_experience')],
+        [InlineKeyboardButton("📊 Batafsil statistika", callback_data='view_detailed_stats')],
+        [InlineKeyboardButton("📤 Ulashish", callback_data='share_profile')]
     ]
     reply_markup = InlineKeyboardMarkup(keyboard)
 
@@ -1066,6 +1102,83 @@ async def handle_callback_query(update: Update, context: ContextTypes.DEFAULT_TY
             "✏️ O'zingiz haqida qisqacha ma'lumot kiriting:",
             reply_markup=get_main_keyboard()
         )
+
+    elif query.data == 'edit_phone':
+        context.user_data['editing'] = 16  # WAITING_FOR_PHONE
+        await query.message.reply_text(
+            "📞 Telefon raqamingizni kiriting:\n"
+            "(masalan: +998901234567)",
+            reply_markup=get_main_keyboard()
+        )
+
+    elif query.data == 'edit_experience':
+        context.user_data['editing'] = 17  # WAITING_FOR_EXPERIENCE
+        await query.message.reply_text(
+            "📅 Tajriba yilingizni kiriting:\n"
+            "(masalan: 5 yil yoki 2019 yildan)",
+            reply_markup=get_main_keyboard()
+        )
+
+    elif query.data == 'edit_photo':
+        context.user_data['editing'] = 18  # WAITING_FOR_PHOTO
+        await query.message.reply_text(
+            "📸 Profilingiz uchun rasm yuboring:",
+            reply_markup=get_main_keyboard()
+        )
+
+    elif query.data == 'share_profile':
+        user_id = update.effective_user.id
+        user = update.effective_user
+        user_data = user_data_manager.get_user_data(user_id)
+        
+        # Chiroyli formatlangan profil ma'lumotlari
+        share_text = (
+            f"👤 *{user_data.get('full_name') or 'O\\'qituvchi'}*\n"
+            f"━━━━━━━━━━━━━━━━━━━━\n\n"
+            f"📚 *Mutaxassislik:* {user_data.get('subject') or 'Belgilanmagan'}\n"
+        )
+        
+        if user_data.get('experience_years'):
+            share_text += f"📅 *Tajriba:* {user_data.get('experience_years')}\n"
+        
+        if user_data.get('phone'):
+            share_text += f"📞 *Telefon:* {user_data.get('phone')}\n"
+        
+        if user.username:
+            share_text += f"📱 *Telegram:* @{user.username}\n"
+        
+        share_text += f"\n"
+        
+        if user_data.get('bio'):
+            share_text += f"📝 *Haqimda:*\n{user_data.get('bio')}\n\n"
+        
+        # Statistika
+        students = student_data_manager.get_all_students(user_id)
+        user_tests = test_manager.get_teacher_tests(user_id)
+        
+        share_text += (
+            f"📊 *Statistika:*\n"
+            f"  • O'quvchilar: {len(students)} ta\n"
+            f"  • Testlar: {len(user_tests)} ta\n\n"
+            f"━━━━━━━━━━━━━━━━━━━━\n"
+            f"🤖 @RaschAnalyzerBot orqali"
+        )
+        
+        # Agar foto mavjud bo'lsa, foto bilan yuboring
+        photo_id = user_data.get('profile_photo_id')
+        if photo_id:
+            try:
+                await query.message.reply_photo(
+                    photo=photo_id,
+                    caption=share_text,
+                    parse_mode='Markdown'
+                )
+            except Exception:
+                await query.message.reply_text(share_text, parse_mode='Markdown')
+        else:
+            await query.message.reply_text(share_text, parse_mode='Markdown')
+        
+        await query.answer("✅ Profil ma'lumotlari tayyor!")
 
     # Handle time restriction choice for test creation
     elif query.data == 'time_restriction_yes':
@@ -2057,6 +2170,22 @@ async def handle_profile_edit(update: Update, context: ContextTypes.DEFAULT_TYPE
         user_data_manager.update_user_field(user_id, 'bio', text)
         await update.message.reply_text(
             f"✅ Bio muvaffaqiyatli o'zgartirildi: *{text}*",
+            parse_mode='Markdown'
+        )
+        context.user_data['editing'] = None
+
+    elif editing_state == WAITING_FOR_PHONE:
+        user_data_manager.update_user_field(user_id, 'phone', text)
+        await update.message.reply_text(
+            f"✅ Telefon raqam saqlandi: *{text}*",
+            parse_mode='Markdown'
+        )
+        context.user_data['editing'] = None
+
+    elif editing_state == WAITING_FOR_EXPERIENCE:
+        user_data_manager.update_user_field(user_id, 'experience_years', text)
+        await update.message.reply_text(
+            f"✅ Tajriba yili saqlandi: *{text}*",
             parse_mode='Markdown'
         )
         context.user_data['editing'] = None

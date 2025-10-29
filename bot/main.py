@@ -89,6 +89,13 @@ async def main():
     application.add_handler(CallbackQueryHandler(handle_admin_callbacks, pattern="^admin_"))
     application.add_handler(CallbackQueryHandler(handle_callback_query))
     
+    from bot.handlers.message_handlers import handle_photo
+    
+    application.add_handler(MessageHandler(
+        filters.PHOTO,
+        handle_photo
+    ))
+    
     application.add_handler(MessageHandler(
         filters.Document.ALL,
         handle_document
