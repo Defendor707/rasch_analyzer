@@ -119,9 +119,22 @@ async def perform_test_rasch_analysis(message, context, test_id: str):
             columns=test_results['item_names']
         )
 
+        # Get student names from student_ids
+        from bot.utils.student_data import StudentDataManager
+        student_manager = StudentDataManager()
+        teacher_id = message.chat.id
+        person_names = []
+        for student_id in test_results.get('student_ids', []):
+            student = student_manager.get_student(teacher_id, student_id)
+            if student and student.get('full_name'):
+                person_names.append(student['full_name'])
+            else:
+                # Fallback to student_id if name not found
+                person_names.append(f"Talabgor {student_id}")
+
         # Perform Rasch analysis
         analyzer = RaschAnalyzer()
-        results = analyzer.fit(data)
+        results = analyzer.fit(data, person_names=person_names if person_names else None)
 
         # Generate PDF reports
         pdf_generator = PDFReportGenerator()

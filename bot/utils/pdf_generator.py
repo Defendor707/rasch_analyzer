@@ -755,9 +755,11 @@ class PDFReportGenerator:
 
                 if section_scores:
                     # Row with section T-scores
+                    # Use actual person name if available, otherwise use person_id
+                    person_display = person.get('person_name') or f"Talabgor {person['person_id']}"
                     row = [
                         str(rank),
-                        f"Talabgor {person['person_id']}",
+                        person_display,
                         str(person['raw_score']),
                         f"{person['t_score']:.1f}" if not np.isnan(person['t_score']) else "N/A"
                     ]
@@ -776,9 +778,11 @@ class PDFReportGenerator:
                     row.extend([percentage_str, grade])
                 else:
                     # Original row format
+                    # Use actual person name if available, otherwise use person_id
+                    person_display = person.get('person_name') or f"Talabgor {person['person_id']}"
                     row = [
                         str(rank),
-                        f"Talabgor {person['person_id']}",
+                        person_display,
                         str(person['raw_score']),
                         f"{person['ability']:.3f}" if not np.isnan(person['ability']) else "N/A",
                         f"{person['t_score']:.1f}" if not np.isnan(person['t_score']) else "N/A",

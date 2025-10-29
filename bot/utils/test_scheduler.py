@@ -256,9 +256,21 @@ async def process_and_send_test_results(application: Application, test_id: str, 
             columns=results_data['item_names']
         )
         
+        # Get student names from student_ids
+        from bot.utils.student_data import StudentDataManager
+        student_manager = StudentDataManager()
+        person_names = []
+        for student_id in results_data.get('student_ids', []):
+            student = student_manager.get_student(teacher_id, student_id)
+            if student and student.get('full_name'):
+                person_names.append(student['full_name'])
+            else:
+                # Fallback to student_id if name not found
+                person_names.append(f"Talabgor {student_id}")
+        
         # Perform Rasch analysis
         analyzer = RaschAnalyzer()
-        analysis_results = analyzer.fit(df)
+        analysis_results = analyzer.fit(df, person_names=person_names if person_names else None)
         
         # Generate PDF reports
         pdf_generator = PDFReportGenerator()
