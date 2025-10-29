@@ -25,7 +25,7 @@ The bot operates using a Python backend with the `python-telegram-bot` framework
 - **Answer Input System**: Teachers submit all answers in a compact text format (e.g., "1a2b3c32a+33b++43(ayb)44(alisher Navoiy)"), which is parsed by `bot/utils/answer_parser.py`. The parser supports standard 4-option questions, extended options (5-26 options using + notation), and text-based answers (using parentheses notation).
 - **Text Answer Questions**: For text-based answer questions, students type their answers directly in the chat instead of selecting from inline keyboard options. The system compares student text input with the correct answer (case-insensitive) during grading.
 - **Auto-Complete Suggestion**: When all questions are answered, the system automatically suggests test completion with a prominent button, while also providing navigation to unanswered questions if any remain.
-- **Data Handling**: Employs `pandas` for data manipulation, including automatic numeric conversion and handling mixed data types with error coercion. A dedicated "File Analyzer" mode allows users to clean and standardize data (e.g., renaming columns to "Savol_1").
+- **Data Handling**: Employs `pandas` for data manipulation, including automatic numeric conversion and handling mixed data types with error coercion. A dedicated "File Analyzer" mode allows users to clean and standardize data (e.g., renaming columns to "Savol_1"). **Evalbee Format Support (2025-10-29):** The File Analyzer now automatically detects and processes Evalbee exported files, extracting only the "Q X Marks" columns (student scores 0/1) while removing "Q X Options", "Q X Key", and all metadata columns (Total Marks, Grade, Rank, Correct Answers, etc.). This enables seamless Rasch analysis of Evalbee test results.
 - **Payment System**: Integrated with Telegram Stars for per-analysis payments, managed by a `PaymentManager` that handles invoice creation, pre-checkout, and successful payment callbacks. An admin panel allows toggling between free and paid modes and configuring pricing.
 - **Error Handling**: Enhanced error handling provides clear messages, guiding users when data needs cleaning or is improperly formatted.
 - **Multi-bot architecture**: Separate bots for teacher and student functionalities, ensuring distinct workflows.
@@ -51,22 +51,22 @@ The bot operates using a Python backend with the `python-telegram-bot` framework
 - `pandas` (2.1.3): Data manipulation and analysis.
 - `girth` (0.8.0): Rasch model MML estimation.
 - `reportlab` (4.0.7): Professional PDF generation.
-- `openpyxl` (3.1.2): Support for Excel file formats.
+- `openpyxl` (3.1.2): Support for Excel file formats (.xlsx and .xls with fallback).
+- `xlrd` (2.0.2): Legacy Excel file format support (.xls) with openpyxl fallback.
 - `PyMuPDF`: PDF text extraction for test creation.
 - `python-dotenv` (1.0.0): Environment variable management.
 - `asyncpg`: Async PostgreSQL database driver.
 - `sqlalchemy[asyncio]`: SQL toolkit and ORM with async support.
 - `apscheduler`: Background job scheduler for automated tasks.
 
-## Database Architecture (PostgreSQL)
-**Recent Changes (2025-10-27):**
-- Migrated from JSON files to PostgreSQL for improved performance and reliability
-- Database tables: `users`, `students`, `tests`, `test_results`, `payments`, `payment_config`, `system_logs`
-- Implemented async database operations for better scalability
-- Added automated backup system that exports to JSON and commits to Git
-- Error logging now saved to database with full traceback and metadata
+## Data Storage
+**Current Status (2025-10-29):**
+- System currently uses JSON file storage for user data, students, tests, and payments
+- JSON files are stored in `data/` directory: `user_profiles.json`, `students.json`, `tests.json`, `payments.json`
+- PostgreSQL database infrastructure exists but is currently disabled to simplify deployment
+- Database can be re-enabled by uncommenting initialization code in `run_bots.py`
 
-**Database Access:**
+**Database Architecture (Available but Disabled):**
 - Location: `bot/database/` directory
 - Schema: `bot/database/schema.py`
 - Managers: `bot/database/managers.py` (UserManager, StudentManager, TestManager, etc.)

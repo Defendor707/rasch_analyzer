@@ -153,12 +153,24 @@ class DataCleaner:
     def _smart_column_detection(self, df: pd.DataFrame, metadata: Dict) -> pd.DataFrame:
         """
         SUPER SMART: Savol va ism-familiya ustunlarini aqlli ravishda aniqlash
+        EVALBEE FORMAT: Q X Options, Q X Key, Q X Marks pattern'ini qo'llab-quvvatlaydi
         """
         columns_to_remove = []
         detected_name_columns = []
         detected_question_columns = []
         
         logger.info("🔍 SMART DETECTION: Ustunlarni tahlil qilish...")
+        
+        # EVALBEE FORMAT DETECTION
+        # Agar "Q X Marks" pattern mavjud bo'lsa, bu Evalbee formati
+        evalbee_format = self._detect_evalbee_format(df)
+        if evalbee_format:
+            logger.info("🎯 EVALBEE FORMAT ANIQLANDI!")
+            metadata['file_format'] = 'evalbee'
+            return self._clean_evalbee_format(df, metadata)
+        
+        metadata['file_format'] = 'standard'
+        logger.info("📋 STANDART FORMAT")
         
         for col_idx, col in enumerate(df.columns):
             col_name = str(col).strip()
@@ -662,3 +674,111 @@ File Analyzer quyidagi ustunlarni avtomatik aniqlaydi:
 Faylingizda faqat talabgor ismlari va javoblar (0/1) bo'lishi kerak. Qolgan barcha ma'lumotlar avtomatik o'chiriladi!
 """
         return explanation
+    
+    def _detect_evalbee_format(self, df: pd.DataFrame) -> bool:
+        """
+        Evalbee formatini aniqlash
+        Evalbee formatida har bir savol uchun 3 ta ustun bor:
+        - Q X Options
+        - Q X Key  
+        - Q X Marks
+        """
+        import re
+        
+        # "Q X Marks" pattern'larini qidirish
+        marks_columns = []
+        for col in df.columns:
+            col_name = str(col).strip()
+            # Pattern: Q 1 Marks, Q 2 Marks, va h.k.
+            if re.match(r'^Q\s+\d+\s+Marks$', col_name, re.IGNORECASE):
+                marks_columns.append(col_name)
+        
+        # Agar kamida 3 ta "Q X Marks" ustuni bo'lsa, bu Evalbee formati
+        if len(marks_columns) >= 3:
+            logger.info(f"🎯 {len(marks_columns)} ta 'Q X Marks' ustuni topildi")
+            return True
+        
+        return False
+    
+    def _clean_evalbee_format(self, df: pd.DataFrame, metadata: Dict) -> pd.DataFrame:
+        """
+        Evalbee formatini tozalash
+        - Faqat "Q X Marks" ustunlarini saqlash
+        - "Q X Options" va "Q X Key" ustunlarini o'chirish
+        - Metadata ustunlarini o'chirish
+        """
+        import re
+        
+        columns_to_keep = []
+        columns_to_remove = []
+        detected_name_columns = []
+        detected_question_columns = []
+        
+        # 1. ISM-FAMILIYA USTUNINI TOPISH
+        # "Name" yoki "Exam" ustunini qidirish
+        name_candidates = ['name', 'exam', 'talabgor', 'student', 'ism']
+        for col in df.columns:
+            col_name = str(col).strip()
+            col_name_lower = col_name.lower()
+            
+            if any(keyword in col_name_lower for keyword in name_candidates):
+                if len(detected_name_columns) == 0:  # Faqat birinchi ism ustunini olish
+                    detected_name_columns.append(col)
+                    columns_to_keep.append(col)
+                    metadata['detected_name_columns'].append({
+                        'column': col_name,
+                        'reason': 'Evalbee name column',
+                        'confidence': 'high'
+                    })
+                    logger.info(f"✅ {col_name} → ISM (Evalbee format)")
+                else:
+                    columns_to_remove.append(col)
+                    logger.info(f"❌ {col_name} → O'CHIRILDI (duplikat ism)")
+                continue
+        
+        # 2. "Q X MARKS" USTUNLARINI SAQLASH
+        for col in df.columns:
+            col_name = str(col).strip()
+            
+            # Pattern: Q 1 Marks, Q 2 Marks, va h.k.
+            if re.match(r'^Q\s+\d+\s+Marks$', col_name, re.IGNORECASE):
+                columns_to_keep.append(col)
+                detected_question_columns.append(col)
+                metadata['detected_question_columns'].append({
+                    'column': col_name,
+                    'reason': 'Evalbee Marks column',
+                    'confidence': 'high'
+                })
+                logger.info(f"✅ {col_name} → SAVOL (Evalbee Marks)")
+        
+        # 3. QOLGAN BARCHA USTUNLARNI O'CHIRISH
+        for col in df.columns:
+            if col not in columns_to_keep:
+                columns_to_remove.append(col)
+                col_name = str(col).strip()
+                
+                # Pattern tekshirish
+                if re.match(r'^Q\s+\d+\s+Options$', col_name, re.IGNORECASE):
+                    reason = 'Evalbee Options column (kerak emas)'
+                elif re.match(r'^Q\s+\d+\s+Key$', col_name, re.IGNORECASE):
+                    reason = 'Evalbee Key column (kerak emas)'
+                else:
+                    reason = 'Metadata ustun (kerak emas)'
+                
+                metadata['removed_columns'].append({
+                    'name': col_name,
+                    'reason': reason,
+                    'type': 'evalbee_metadata'
+                })
+                logger.info(f"❌ {col_name} → O'CHIRILDI ({reason})")
+        
+        # 4. FAQAT KERAKLI USTUNLARNI SAQLASH
+        df = df[columns_to_keep]
+        
+        logger.info(f"🗑️ {len(columns_to_remove)} ta Evalbee metadata ustuni o'chirildi")
+        logger.info(f"📊 JAMI: {len(detected_name_columns)} ism, {len(detected_question_columns)} savol")
+        
+        # Metadata ni saqlash
+        metadata['preserved_participant_columns'] = detected_name_columns
+        
+        return df
