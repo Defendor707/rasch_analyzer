@@ -419,7 +419,8 @@ async def handle_document(update: Update, context: ContextTypes.DEFAULT_TYPE):
             if file_extension == '.csv':
                 processed_data.to_csv(processed_file_path, index=False)
             else:
-                processed_data.to_excel(processed_file_path, index=False)
+                # Excel fayllarini openpyxl bilan saqlash
+                processed_data.to_excel(processed_file_path, index=False, engine='openpyxl')
 
             # Send processed file back to user
             with open(processed_file_path, 'rb') as processed_file:
