@@ -348,6 +348,7 @@ async def handle_document(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await handle_pdf_question_file_upload(update, context, document)
         return
     
+    # Support both .xlsx and .xls Excel formats
     if file_extension not in ['.csv', '.xlsx', '.xls']:
         await update.message.reply_text(
             "❌ Noto'g'ri fayl formati!\n\n"
@@ -1930,7 +1931,7 @@ async def handle_file_analyzer(update: Update, context: ContextTypes.DEFAULT_TYP
         "✓ Ustun nomlarini standartlashtiraman:\n"
         "  - Talabgor (ism-familiya)\n"
         "  - Savol_1, Savol_2, ... (javoblar)\n\n"
-        "📤 *Excel (.xlsx, .xls) yoki CSV faylni yuboring*\n\n"
+        "📤 *Excel (.xlsx, .xls) yoki CSV (.csv) faylni yuboring*\n\n"
         "🔙 Chiqish uchun /start yoki 'Ortga' tugmasini bosing"
     )
     await update.message.reply_text(analyzer_text, parse_mode='Markdown')
