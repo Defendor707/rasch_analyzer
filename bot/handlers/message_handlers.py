@@ -12,6 +12,7 @@ from bot.utils.data_cleaner import DataCleaner
 from bot.utils.test_manager import TestManager
 from bot.utils.payment_manager import PaymentManager
 from bot.utils.answer_parser import parse_answer_string, generate_option_labels, format_answer_example
+from bot.utils.ai_analyzer import AIAnalyzer
 import logging
 import numpy as np
 
@@ -914,6 +915,23 @@ async def perform_analysis_after_payment(message, context: ContextTypes.DEFAULT_
             parse_mode='Markdown',
             reply_markup=get_main_keyboard()
         )
+
+        # AI Analysis
+        ai_analyzer = AIAnalyzer()
+        if ai_analyzer.is_available():
+            await message.reply_text(
+                "🤖 AI natijalarni tahlil qilmoqda...",
+                parse_mode='Markdown'
+            )
+            
+            ai_opinion = ai_analyzer.analyze_test_results(results)
+            
+            await message.reply_text(
+                f"🤖 *AI Fikri*\n"
+                f"━━━━━━━━━━━━━━━━━━━━\n\n"
+                f"{ai_opinion}",
+                parse_mode='Markdown'
+            )
 
         # Cleanup
         if os.path.exists(file_path):
