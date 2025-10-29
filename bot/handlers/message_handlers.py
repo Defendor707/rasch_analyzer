@@ -536,11 +536,26 @@ async def perform_analysis_after_payment(message, context: ContextTypes.DEFAULT_
 
         # Check if we have valid data
         if numeric_data.empty or numeric_data.shape[0] < 2 or numeric_data.shape[1] < 2:
+            # Create inline keyboard with auto-clean option
+            keyboard = [
+                [InlineKeyboardButton("🧹 Faylni avtomatik tozalash", callback_data='auto_clean_file')],
+                [InlineKeyboardButton("❌ Bekor qilish", callback_data='cancel_clean')]
+            ]
+            reply_markup = InlineKeyboardMarkup(keyboard)
+            
             await message.reply_text(
                 "❌ Ma'lumotlar formatida xatolik!\n\n"
-                "Iltimos, fayl faqat 0 va 1 raqamlaridan iborat bo'lganligini tekshiring.\n\n"
-                "Yoki File Analyzer orqali faylni tozalang: ℹ️ Boshqa → 🧹 File Analyzer"
+                "Faylingiz talabga javob bermayapti. Sabablari:\n"
+                "• Talabgor ismlari ustuni mavjud (faqat 0/1 ma'lumotlar kerak)\n"
+                "• Qo'shimcha metadata ustunlar bor\n"
+                "• Bo'sh yoki noto'g'ri formatdagi ustunlar\n\n"
+                "✅ Yechim: File Analyzer orqali avtomatik tozalash",
+                reply_markup=reply_markup
             )
+            
+            # Save file path for auto-clean
+            context.user_data['pending_clean_file'] = file_path
+            context.user_data['pending_clean_filename'] = context.user_data.get('pending_analysis_filename', 'file')
             return
 
         analyzer = RaschAnalyzer()
@@ -1523,6 +1538,7 @@ def get_settings_keyboard(user_id: int = None):
         [KeyboardButton("📚 Mutaxassislik fanini tanlash")],
         [KeyboardButton("📊 Fan bo'limlari bo'yicha natijalash")],
         [KeyboardButton("✍️ Yozma ish funksiyasi")],
+        [KeyboardButton("🧹 File Analyzer")],
         [KeyboardButton("◀️ Ortga")]
     ]
     return ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
