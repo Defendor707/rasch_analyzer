@@ -220,42 +220,10 @@ class PDFReportGenerator:
         sorted_difficulty = valid_item_difficulty[sorted_indices]
         sorted_names = valid_item_names[sorted_indices]
         
-        # Plot items with advanced smart label placement
+        # Plot items with smart label placement
         plotted_items = []
-        
-        # First pass: Calculate initial label positions
-        label_data = []
         for i, (diff, name) in enumerate(zip(sorted_difficulty, sorted_names)):
-            label_data.append({'diff': diff, 'name': name, 'label_y': diff})
-        
-        # Adjust label positions to avoid overlap
-        min_label_gap = 0.20
-        max_iterations = 10
-        
-        for iteration in range(max_iterations):
-            moved = False
-            for i in range(len(label_data)):
-                for j in range(i):
-                    gap = abs(label_data[i]['label_y'] - label_data[j]['label_y'])
-                    if gap < min_label_gap:
-                        # Move labels apart
-                        if label_data[i]['label_y'] > label_data[j]['label_y']:
-                            label_data[i]['label_y'] += (min_label_gap - gap) / 2
-                            label_data[j]['label_y'] -= (min_label_gap - gap) / 2
-                        else:
-                            label_data[i]['label_y'] -= (min_label_gap - gap) / 2
-                            label_data[j]['label_y'] += (min_label_gap - gap) / 2
-                        moved = True
-            if not moved:
-                break
-        
-        # Second pass: Draw items with adjusted labels
-        for item in label_data:
-            diff = item['diff']
-            name = item['name']
-            label_y = item['label_y']
-            
-            # Calculate horizontal offset to avoid marker overlap
+            # Calculate horizontal offset to avoid overlap
             x_offset = 0
             for prev_diff, prev_offset in plotted_items:
                 if abs(diff - prev_diff) < 0.12:
@@ -270,13 +238,8 @@ class PDFReportGenerator:
             ax_items.scatter(x_pos, diff, marker='s', s=120, 
                            color='#E63946', alpha=0.8, edgecolors='darkred', linewidths=1.5)
             
-            # Draw connecting line if label was moved significantly
-            if abs(label_y - diff) > 0.08:
-                ax_items.plot([x_pos, x_pos + 0.08], [diff, label_y], 
-                            color='gray', linestyle=':', linewidth=0.8, alpha=0.6)
-            
             # Add item label
-            ax_items.text(x_pos + 0.12, label_y, name, 
+            ax_items.text(x_pos + 0.12, diff, name, 
                          fontsize=9, va='center', ha='left', fontweight='bold')
         
         # Items axis formatting
