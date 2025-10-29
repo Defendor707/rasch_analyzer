@@ -48,7 +48,8 @@ async def restart_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "🔄 *Bot qayta ishga tushirildi*\n\n"
         "Barcha davom etayotgan jarayonlar bekor qilindi.\n"
         "Bosh menyuga qaytdingiz.",
-        parse_mode='Markdown'
+        parse_mode='Markdown',
+        reply_markup=get_main_keyboard()
     )
 
     logger.info(f"Student bot restarted by user {user_id}")
@@ -57,6 +58,7 @@ async def restart_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Send welcome message when the command /start is issued"""
     user_id = update.effective_user.id
+    user = update.effective_user
 
     if context.args and context.args[0].startswith('test_'):
         test_id = context.args[0]

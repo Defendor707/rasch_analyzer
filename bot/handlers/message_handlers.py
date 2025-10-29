@@ -65,11 +65,23 @@ async def restart_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Restart bot - clear all states and return to main menu"""
     user_id = update.effective_user.id
     
-    # Clear all user states
+    # Clear all user states in database
     user_data_manager.update_user_field(user_id, 'file_analyzer_mode', False)
     user_data_manager.update_user_field(user_id, 'file_analyzer_operation', None)
+    user_data_manager.update_user_field(user_id, 'waiting_for_photo', False)
+    user_data_manager.update_user_field(user_id, 'waiting_for_contact', False)
+    user_data_manager.update_user_field(user_id, 'waiting_for_experience', False)
     
     # Clear all context data
+    if 'test_creation' in context.user_data:
+        del context.user_data['test_creation']
+    if 'test_id' in context.user_data:
+        del context.user_data['test_id']
+    if 'question_answers' in context.user_data:
+        del context.user_data['question_answers']
+    if 'pdf_file_path' in context.user_data:
+        del context.user_data['pdf_file_path']
+    
     context.user_data.clear()
     
     # Send restart message
