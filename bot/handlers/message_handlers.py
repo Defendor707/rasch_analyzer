@@ -104,10 +104,11 @@ async def perform_test_rasch_analysis(message, context, test_id: str):
             return
 
         await message.reply_text(
+            f"⏳ Tahlil jarayoni boshlandi...\n\n"
             f"📊 Test: {test_results['test_name']}\n"
             f"👥 Ishtirokchilar: {test_results['n_participants']} ta\n"
             f"📝 Savollar: {test_results['n_questions']} ta\n\n"
-            "⏳ Rasch tahlili amalga oshirilmoqda..."
+            f"📈 Tahlil qilinmoqda..."
         )
 
         # Create DataFrame from response matrix
@@ -137,7 +138,6 @@ async def perform_test_rasch_analysis(message, context, test_id: str):
             filename=f"test_{test_id}_talabgorlar_{user_id}"
         )
 
-        # Send summary
         await message.reply_text(
             f"✅ *Rasch tahlili tugallandi!*\n\n"
             f"📋 Test: {test_results['test_name']}\n"
@@ -155,7 +155,7 @@ async def perform_test_rasch_analysis(message, context, test_id: str):
                 await message.reply_document(
                     document=pdf_file,
                     filename=os.path.basename(general_pdf_path),
-                    caption=f"📊 {test_results['test_name']} - Umumiy statistika"
+                    caption="📊 Umumiy statistika"
                 )
 
         # Send person results PDF
@@ -163,7 +163,7 @@ async def perform_test_rasch_analysis(message, context, test_id: str):
             await message.reply_document(
                 document=pdf_file,
                 filename=os.path.basename(person_pdf_path),
-                caption=f"👥 {test_results['test_name']} - Talabgorlar natijalari"
+                caption="👥 Talabgorlar natijalari"
             )
 
         await message.reply_text(
@@ -518,13 +518,13 @@ async def perform_analysis_after_payment(message, context: ContextTypes.DEFAULT_
             if any(keyword in first_col_lower for keyword in ['talabgor', 'name', 'ism', 'student', 'participant', 'foydalanuvchi']):
                 participant_column = first_col
                 logger.info(f"✅ Talabgor ustuni aniqlandi va olib tashlanadi: {first_col}")
-        
+
         # Faqat javob ustunlarini olish (talabgor ustunisiz)
         if participant_column:
             response_data = data.drop(columns=[participant_column])
         else:
             response_data = data
-        
+
         # Convert all columns to numeric, handling errors
         numeric_data = response_data.copy()
         for col in numeric_data.columns:
@@ -540,14 +540,14 @@ async def perform_analysis_after_payment(message, context: ContextTypes.DEFAULT_
             user_id = message.chat.id
             user_data = user_data_manager.get_user_data(user_id)
             auto_cleaner_enabled = user_data.get('auto_file_cleaner', False)
-            
+
             if auto_cleaner_enabled:
                 # AUTO CLEAN MODE: Automatically clean the file and retry analysis
                 await message.reply_text(
                     "🧽 Auto File Cleaner yoqilgan!\n\n"
                     "⏳ Fayl avtomatik tozalanmoqda va qayta tahlil qilinmoqda..."
                 )
-                
+
                 try:
                     # Read original file again
                     if file_extension == '.csv':
@@ -557,25 +557,25 @@ async def perform_analysis_after_payment(message, context: ContextTypes.DEFAULT_
                             original_data = pd.read_csv(file_path, encoding='latin-1')
                     else:
                         original_data = pd.read_excel(file_path)
-                    
+
                     # Clean the file using DataCleaner
                     cleaner = DataCleaner()
                     cleaned_data, metadata = cleaner.clean_data(original_data)
-                    
+
                     # Save cleaned file temporarily
                     upload_dir = "data/uploads"
                     os.makedirs(upload_dir, exist_ok=True)
                     cleaned_file_path = os.path.join(upload_dir, f"auto_cleaned_{user_id}_{context.user_data.get('pending_analysis_filename', 'file')}")
-                    
+
                     if file_extension == '.csv':
                         cleaned_data.to_csv(cleaned_file_path, index=False)
                     else:
                         cleaned_data.to_excel(cleaned_file_path, index=False, engine='openpyxl')
-                    
+
                     # Send cleaning report
                     report = cleaner.get_cleaning_report(metadata)
                     await message.reply_text(f"✅ Avtomatik tozalash muvaffaqiyatli!\n\n{report}")
-                    
+
                     # Now use cleaned data for analysis
                     # Remove participant column from cleaned data
                     if len(cleaned_data.columns) > 0:
@@ -584,21 +584,21 @@ async def perform_analysis_after_payment(message, context: ContextTypes.DEFAULT_
                         if any(keyword in first_col_lower for keyword in ['talabgor', 'name', 'ism', 'student', 'participant']):
                             cleaned_data = cleaned_data.drop(columns=[first_col])
                             logger.info(f"✅ Tozalangan fayldan talabgor ustuni olib tashlandi: {first_col}")
-                    
+
                     # Convert to numeric
                     for col in cleaned_data.columns:
                         cleaned_data[col] = pd.to_numeric(cleaned_data[col], errors='coerce')
-                    
+
                     cleaned_data = cleaned_data.dropna(how='all', axis=0)
                     cleaned_data = cleaned_data.dropna(how='all', axis=1)
-                    
+
                     # Update file_path to cleaned version
                     if os.path.exists(file_path):
                         os.remove(file_path)
                     file_path = cleaned_file_path
                     data = cleaned_data
                     numeric_data = cleaned_data
-                    
+
                     # Check again
                     if numeric_data.empty or numeric_data.shape[0] < 2 or numeric_data.shape[1] < 2:
                         await message.reply_text(
@@ -608,10 +608,10 @@ async def perform_analysis_after_payment(message, context: ContextTypes.DEFAULT_
                         if os.path.exists(cleaned_file_path):
                             os.remove(cleaned_file_path)
                         return
-                    
+
                     # Continue with analysis (don't return, let it flow to analyzer below)
                     await message.reply_text("✅ Fayl muvaffaqiyatli tozlandi! Rasch tahlili boshlanmoqda...")
-                    
+
                 except Exception as clean_error:
                     logger.error(f"Auto clean error: {clean_error}")
                     await message.reply_text(
@@ -626,7 +626,7 @@ async def perform_analysis_after_payment(message, context: ContextTypes.DEFAULT_
                     [InlineKeyboardButton("❌ Bekor qilish", callback_data='cancel_clean')]
                 ]
                 reply_markup = InlineKeyboardMarkup(keyboard)
-                
+
                 await message.reply_text(
                     "❌ Ma'lumotlar formatida xatolik!\n\n"
                     "Faylingiz talabga javob bermayapti. Sabablari:\n"
@@ -637,14 +637,20 @@ async def perform_analysis_after_payment(message, context: ContextTypes.DEFAULT_
                     "💡 Maslahat: Auto File Cleaner'ni yoqing (⚙️ Sozlamalar → 🧽 Auto File Cleaner)",
                     reply_markup=reply_markup
                 )
-                
+
                 # Save file path for auto-clean
                 context.user_data['pending_clean_file'] = file_path
                 context.user_data['pending_clean_filename'] = context.user_data.get('pending_analysis_filename', 'file')
                 return
 
+        # Initialize status message for progress updates
+        status_message = await message.reply_text("⏳ Tahlil qilinmoqda...\n\n▰▱▱▱▱▱▱▱▱▱ 10%\n_Ma'lumotlar o'qilmoqda..._", parse_mode='Markdown')
+
         analyzer = RaschAnalyzer()
         results = analyzer.fit(numeric_data)
+
+        # Update status message to 50%
+        await status_message.edit_text("📊 *Tahlil qilinmoqda...*\n\n▰▰▰▱▱▱▱▱▱▱ 50%\n_Natijalar hisoblanmoqda..._", parse_mode='Markdown')
 
         summary_text = analyzer.get_summary(results)
 
@@ -668,6 +674,7 @@ async def perform_analysis_after_payment(message, context: ContextTypes.DEFAULT_
             # Store results temporarily
             context.user_data['pending_results'] = results
             context.user_data['pending_general_pdf'] = general_pdf_path
+            context.user_data['status_message'] = status_message # Pass status message for updates
 
             # Start section configuration
             sections = get_sections(selected_subject)
@@ -676,6 +683,9 @@ async def perform_analysis_after_payment(message, context: ContextTypes.DEFAULT_
             context.user_data['sections_list'] = sections
             context.user_data['current_section_index'] = 0
             context.user_data['section_questions'] = {}
+
+            # Update status message to 95%
+            await status_message.edit_text("📊 *Tahlil qilinmoqda...*\n\n▰▰▰▰▰▰▰▰▰▰ 95%\n_Yakunlanmoqda..._", parse_mode='Markdown')
 
             await message.reply_text(
                 f"📋 *{selected_subject}* fani uchun bo'limlar bo'yicha savol raqamlarini kiritish:\n\n"
@@ -693,12 +703,18 @@ async def perform_analysis_after_payment(message, context: ContextTypes.DEFAULT_
             )
             return
 
+        # Update status message to 95% if not configuring sections
+        await status_message.edit_text("📊 *Tahlil qilinmoqda...*\n\n▰▰▰▰▰▰▰▰▰▰ 95%\n_Yakunlanmoqda..._", parse_mode='Markdown')
+
         # Generate person results report
         person_pdf_path = pdf_generator.generate_person_results_report(
             results,
             filename=f"talabgorlar_natijalari_{user_id}",
             section_questions=section_questions if section_results_enabled else None
         )
+
+        # Update status message to 100%
+        await status_message.edit_text("✅ *Tahlil yakunlandi!*\n\n▰▰▰▰▰▰▰▰▰▰ 100%\n_Natijalar yuborilmoqda..._", parse_mode='Markdown')
 
         # Send general statistics PDF
         if general_pdf_path and os.path.exists(general_pdf_path):
@@ -1436,6 +1452,8 @@ async def handle_section_questions_input(update: Update, context: ContextTypes.D
     current_index = context.user_data.get('current_section_index', 0)
     section_questions = context.user_data.get('section_questions', {})
     current_subject = context.user_data.get('current_subject', '')
+    status_message = context.user_data.get('status_message') # Get status message
+
 
     if current_index >= len(sections_list):
         return False
@@ -1521,7 +1539,9 @@ async def handle_section_questions_input(update: Update, context: ContextTypes.D
 
         # Generate person results with sections if we have pending results
         if pending_results:
-            await update.message.reply_text("📊 Bo'limlar bo'yicha natijalar tayyorlanmoqda...")
+            # Update status message before generating reports
+            if status_message:
+                await status_message.edit_text("📊 *Tahlil qilinmoqda...*\n\n▰▰▰▰▰▰▰▰▰▰ 95%\n_Yakunlanmoqda..._", parse_mode='Markdown')
 
             pdf_generator = PDFReportGenerator()
 
@@ -1539,14 +1559,9 @@ async def handle_section_questions_input(update: Update, context: ContextTypes.D
                 section_questions=section_questions
             )
 
-            await update.message.reply_text(
-                f"✅ *Tahlil tugallandi!*\n\n"
-                f"📊 Ishtirokchilar soni: {pending_results['n_persons']}\n"
-                f"📝 Itemlar soni: {pending_results['n_items']}\n"
-                f"📈 Reliability: {pending_results['reliability']:.3f}\n\n"
-                f"PDF hisobotlar yuborilmoqda...",
-                parse_mode='Markdown'
-            )
+            # Update status message to 100%
+            if status_message:
+                await status_message.edit_text("✅ *Tahlil yakunlandi!*\n\n▰▰▰▰▰▰▰▰▰▰ 100%\n_Natijalar yuborilmoqda..._", parse_mode='Markdown')
 
             # Send general statistics PDF
             if pending_general_pdf and os.path.exists(pending_general_pdf):
@@ -1581,6 +1596,7 @@ async def handle_section_questions_input(update: Update, context: ContextTypes.D
         context.user_data['current_subject'] = None
         context.user_data['pending_results'] = None
         context.user_data['pending_general_pdf'] = None
+        context.user_data['status_message'] = None # Clear status message
 
     return True
 
@@ -2118,30 +2134,30 @@ async def handle_public_test(update: Update, context: ContextTypes.DEFAULT_TYPE)
 async def handle_statistics(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Handle Statistics button"""
     user_id = update.effective_user.id
-    
+
     # Get user's students count
     students = student_data_manager.get_all_students(user_id)
     students_count = len(students)
-    
+
     # Get user's tests statistics
     user_tests = test_manager.get_teacher_tests(user_id)
     total_tests = len(user_tests)
     active_tests = sum(1 for test in user_tests if test.get('is_active', False))
     finalized_tests = sum(1 for test in user_tests if test.get('finalized_at') is not None)
-    
+
     # Calculate total participants across all tests
     total_participants = 0
     for test in user_tests:
         total_participants += len(test.get('participants', {}))
-    
+
     # Get payment history count
     payment_history = payment_manager.get_user_payments(user_id)
     total_analyses = len(payment_history)
-    
+
     # Get user profile data
     user_data = user_data_manager.get_user_data(user_id)
     subject = user_data.get('subject', 'Tanlanmagan')
-    
+
     stats_text = (
         f"📊 *Sizning statistikangiz*\n\n"
         f"👤 *Profil:*\n"
@@ -2156,7 +2172,7 @@ async def handle_statistics(update: Update, context: ContextTypes.DEFAULT_TYPE):
         f"📈 *Tahlillar:*\n"
         f"  • Amalga oshirilgan: {total_analyses} ta\n"
     )
-    
+
     # Add recent activity if available
     if user_tests:
         recent_test = user_tests[-1]
@@ -2165,7 +2181,7 @@ async def handle_statistics(update: Update, context: ContextTypes.DEFAULT_TYPE):
             f"  📋 {recent_test['name']}\n"
             f"  📅 {recent_test['created_at'][:10]}\n"
         )
-    
+
     await update.message.reply_text(stats_text, parse_mode='Markdown')
 
 
@@ -2318,6 +2334,15 @@ async def handle_back(update: Update, context: ContextTypes.DEFAULT_TYPE):
     context.user_data['editing'] = None
     context.user_data['adding_student'] = None
     context.user_data['student_temp'] = None
+    context.user_data['editing_student'] = None
+    context.user_data['deleting_student'] = None
+    context.user_data['configuring_sections'] = False
+    context.user_data['sections_list'] = None
+    context.user_data['current_section_index'] = 0
+    context.user_data['section_questions'] = {}
+    context.user_data['current_subject'] = None
+    context.user_data['status_message'] = None # Clear status message
+
 
     welcome_text = (
         "🏠 *Bosh menyu*\n\n"
@@ -2898,7 +2923,7 @@ async def handle_test_input(update: Update, context: ContextTypes.DEFAULT_TYPE, 
             )
             return True
 
-        # Save parsed answers and create test
+        # Create test and add questions
         test_id = context.user_data['current_test_id']
 
         for answer_data in parsed_answers:
@@ -3318,6 +3343,8 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         context.user_data['current_section_index'] = 0
         context.user_data['section_questions'] = {}
         context.user_data['current_subject'] = None
+        context.user_data['status_message'] = None # Clear status message
+
 
         # Show cancellation message if there was an operation
         if was_operation:
