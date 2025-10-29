@@ -172,102 +172,70 @@ class DataCleaner:
         metadata['file_format'] = 'standard'
         logger.info("📋 STANDART FORMAT")
         
+        # AQLLI ISM-FAMILIYA ANIQLASH
+        # Avval barcha ustunlarni tahlil qilib, eng mos kelganini topamiz
+        name_candidates = self._analyze_name_candidates(df)
+        
+        # Eng yuqori ball olgan ustunni topish
+        best_name_column = None
+        best_score = -100  # Minimal score
+        
+        logger.info("🧠 AQLLI ISM-FAMILIYA TAHLILI:")
+        for col, data in sorted(name_candidates.items(), key=lambda x: x[1]['score'], reverse=True):
+            score = data['score']
+            col_name = data['column_name']
+            confidence = data['confidence']
+            
+            logger.info(f"   {col_name}: {score} ball ({confidence})")
+            for reason in data['reasons'][:3]:  # Birinchi 3 ta sababni ko'rsatish
+                logger.info(f"      - {reason}")
+            
+            if score > best_score and score >= 20:  # Minimal 20 ball kerak
+                best_score = score
+                best_name_column = col
+        
+        # Eng yaxshi ism-familiya ustunini belgilash
+        if best_name_column is not None:
+            detected_name_columns.append(best_name_column)
+            best_data = name_candidates[best_name_column]
+            metadata['detected_name_columns'].append({
+                'column': best_data['column_name'],
+                'reason': f"Aqlli tahlil: {best_score} ball",
+                'confidence': best_data['confidence'],
+                'analysis': best_data['reasons']
+            })
+            logger.info(f"✅ ISM-FAMILIYA ANIQLANDI: {best_data['column_name']} ({best_score} ball)")
+        else:
+            # Agar hech qaysi ustun yetarli bo'lmasa, birinchi ustunni olish (fallback)
+            if len(df.columns) > 0:
+                detected_name_columns.append(df.columns[0])
+                metadata['detected_name_columns'].append({
+                    'column': str(df.columns[0]),
+                    'reason': 'Fallback: birinchi ustun (past ishonch)',
+                    'confidence': 'low'
+                })
+                logger.warning(f"⚠️ ISM-FAMILIYA ANIQLANMADI. Birinchi ustun ishlatiladi: {df.columns[0]}")
+        
+        # Endi barcha ustunlarni tahlil qilish
         for col_idx, col in enumerate(df.columns):
             col_name = str(col).strip()
             col_name_lower = col_name.lower()
             col_data = df[col]
             
-            # ===========================================
-            # 1. ISM-FAMILIYA USTUNLARINI ANIQLASH
-            # ===========================================
+            # ISM-FAMILIYA ustuni allaqachon aniqlangan
+            if col in detected_name_columns:
+                continue
             
-            # 1.1: Birinchi ustun - agar ID yoki metadata bo'lmasa, ism-familiya
-            if col_idx == 0:
-                # Agar birinchi ustun ID, code, raqam, T/r, № bo'lsa, o'chirish kerak
-                is_id_column = any(id_kw in col_name_lower for id_kw in ['id', 'code', 'raqam', 'uuid', 'guid'])
-                
-                # YANGI: T/r, №, N kabi tartib raqam ustunlarini aniqlash
-                is_row_number = False
-                row_number_patterns = ['t/r', 't.r', '№', 'n', '#', 'row', 'index', 'tartib']
-                for pattern in row_number_patterns:
-                    if col_name_lower == pattern or col_name_lower.startswith(pattern + ' '):
-                        is_row_number = True
-                        break
-                
-                # Agar raqam ketma-ketligi bo'lsa ham tartib raqam deb topiladi
-                if not is_row_number and not is_id_column:
-                    try:
-                        numeric_data = pd.to_numeric(col_data, errors='coerce').dropna()
-                        if len(numeric_data) >= 3:
-                            # 1, 2, 3, ... yoki 0, 1, 2, ... kabi ketma-ketlik
-                            is_sequential = all(
-                                numeric_data.iloc[i+1] - numeric_data.iloc[i] == 1 
-                                for i in range(min(10, len(numeric_data)-1))
-                            )
-                            if is_sequential:
-                                is_row_number = True
-                                logger.info(f"🔍 {col_name} → Ketma-ket raqamlar (1,2,3,...)")
-                    except:
-                        pass
-                
-                if not is_id_column and not is_row_number:
-                    detected_name_columns.append(col)
-                    metadata['detected_name_columns'].append({
-                        'column': col_name,
-                        'reason': 'Birinchi ustun (default)',
-                        'confidence': 'high'
-                    })
-                    logger.info(f"✅ {col_name} → ISM (birinchi ustun)")
-                    continue
-                elif is_row_number:
-                    # Tartib raqam ustuni - o'chirish kerak
-                    columns_to_remove.append(col)
-                    metadata['removed_columns'].append({
-                        'name': col_name,
-                        'reason': 'Tartib raqam ustuni (T/r, №, va h.k.)',
-                        'type': 'row_number_column'
-                    })
-                    logger.info(f"❌ {col_name} → O'CHIRILDI (tartib raqam)")
-                    continue
-                else:
-                    # ID ustuni - o'chirish kerak
-                    columns_to_remove.append(col)
-                    metadata['removed_columns'].append({
-                        'name': col_name,
-                        'reason': 'ID ustuni (birinchi ustun)',
-                        'type': 'id_column'
-                    })
-                    logger.info(f"❌ {col_name} → O'CHIRILDI (ID ustuni)")
-                    continue
-            
-            # 1.2: Keyword matching - ism-familiya uchun
-            # FAQAT birinchi ism-familiya ustunini qabul qilish
-            name_keyword_found = False
-            for keyword in self.participant_name_keywords:
-                if keyword in col_name_lower:
-                    # Agar allaqachon ism ustuni topilgan bo'lsa, buni metadata deb hisoblash
-                    if len(detected_name_columns) > 0:
-                        columns_to_remove.append(col)
-                        metadata['removed_columns'].append({
-                            'name': col_name,
-                            'reason': f'Ikkinchi ism ustuni (birinchisi: {detected_name_columns[0]})',
-                            'type': 'duplicate_name_column'
-                        })
-                        logger.info(f"❌ {col_name} → O'CHIRILDI (duplikat ism ustuni)")
-                        name_keyword_found = True
-                        break
-                    else:
-                        detected_name_columns.append(col)
-                        metadata['detected_name_columns'].append({
-                            'column': col_name,
-                            'reason': f'Keyword topildi: "{keyword}"',
-                            'confidence': 'high'
-                        })
-                        logger.info(f"✅ {col_name} → ISM (keyword: {keyword})")
-                        name_keyword_found = True
-                        break
-            
-            if name_keyword_found:
+            # Duplikat ism-familiya ustunlarini o'chirish
+            if col in name_candidates and name_candidates[col]['score'] >= 40:
+                # Bu ham ism-familiya bo'lishi mumkin, lekin ikkinchisi
+                columns_to_remove.append(col)
+                metadata['removed_columns'].append({
+                    'name': col_name,
+                    'reason': f'Ikkinchi ism ustuni (birinchisi: {name_candidates[best_name_column]["column_name"]})',
+                    'type': 'duplicate_name_column'
+                })
+                logger.info(f"❌ {col_name} → O'CHIRILDI (duplikat ism ustuni)")
                 continue
             
             # ===========================================
@@ -782,3 +750,145 @@ Faylingizda faqat talabgor ismlari va javoblar (0/1) bo'lishi kerak. Qolgan barc
         metadata['preserved_participant_columns'] = detected_name_columns
         
         return df
+    
+    def _analyze_name_candidates(self, df: pd.DataFrame) -> Dict[str, Dict[str, Any]]:
+        """
+        Har bir ustunni tahlil qilib, ism-familiya ustuni bo'lish ehtimolini baholaydi
+        Returns: {column_name: {score: int, reasons: [], confidence: str}}
+        """
+        import re
+        
+        candidates = {}
+        
+        for col_idx, col in enumerate(df.columns):
+            col_name = str(col).strip()
+            col_name_lower = col_name.lower()
+            col_data = df[col]
+            
+            score = 0
+            reasons = []
+            
+            # 1. USTUN NOMI TAHLILI (+30 ball)
+            name_keyword_found = False
+            for keyword in self.participant_name_keywords:
+                if keyword in col_name_lower:
+                    score += 30
+                    reasons.append(f"Ustun nomida '{keyword}' topildi (+30)")
+                    name_keyword_found = True
+                    break
+            
+            # 2. MA'LUMOT TURI TAHLILI (+20 ball)
+            # String yoki object turi - ism-familiya bo'lishi mumkin
+            if col_data.dtype == 'object' or col_data.dtype == 'string':
+                score += 20
+                reasons.append("String ma'lumot turi (+20)")
+            elif pd.api.types.is_string_dtype(col_data):
+                score += 20
+                reasons.append("Matn ma'lumotlari (+20)")
+            else:
+                # Raqam turi - ism-familiya bo'lmasligi mumkin
+                score -= 10
+                reasons.append("Raqam turi (-10)")
+            
+            # 3. UNIQUE QIYMATLAR TAHLILI (+20 ball)
+            # Ism-familiyalar odatda unique bo'ladi
+            non_null_data = col_data.dropna()
+            if len(non_null_data) > 0:
+                unique_ratio = len(non_null_data.unique()) / len(non_null_data)
+                if unique_ratio >= 0.8:  # 80%+ unique
+                    score += 20
+                    reasons.append(f"Yuqori unique ratio: {unique_ratio:.1%} (+20)")
+                elif unique_ratio >= 0.5:
+                    score += 10
+                    reasons.append(f"O'rtacha unique ratio: {unique_ratio:.1%} (+10)")
+            
+            # 4. UZUNLIK TAHLILI (+15 ball)
+            # Ism-familiyalar odatda 5-50 belgi orasida
+            if col_data.dtype == 'object':
+                str_data = col_data.dropna().astype(str)
+                if len(str_data) > 0:
+                    avg_length = str_data.str.len().mean()
+                    if 5 <= avg_length <= 50:
+                        score += 15
+                        reasons.append(f"O'rtacha uzunlik mos: {avg_length:.1f} belgi (+15)")
+                    elif avg_length < 5:
+                        score -= 10
+                        reasons.append(f"Juda qisqa: {avg_length:.1f} belgi (-10)")
+                    elif avg_length > 100:
+                        score -= 10
+                        reasons.append(f"Juda uzun: {avg_length:.1f} belgi (-10)")
+            
+            # 5. FAQAT RAQAM EMAS (+15 ball)
+            # Ism-familiya faqat raqamlardan iborat bo'lmasligi kerak
+            if col_data.dtype == 'object':
+                str_data = col_data.dropna().astype(str)
+                if len(str_data) > 0:
+                    # Faqat raqamlarni tekshirish
+                    numeric_only = str_data.str.match(r'^\d+\.?\d*$').sum()
+                    numeric_ratio = numeric_only / len(str_data)
+                    if numeric_ratio < 0.1:  # 90%+ raqam emas
+                        score += 15
+                        reasons.append(f"Matn ma'lumotlari (raqam emas) (+15)")
+                    else:
+                        score -= 15
+                        reasons.append(f"Ko'p raqamlar: {numeric_ratio:.1%} (-15)")
+            
+            # 6. BINARY EMAS (+10 ball)
+            # 0/1 qiymatlar ism-familiya emas
+            try:
+                numeric_data = pd.to_numeric(col_data, errors='coerce').dropna()
+                if len(numeric_data) > 0:
+                    binary_values = np.isin(numeric_data.values, [0, 1, 0.0, 1.0]).sum()
+                    binary_ratio = binary_values / len(numeric_data)
+                    if binary_ratio > 0.8:  # 80%+ binary
+                        score -= 20
+                        reasons.append(f"Binary ma'lumotlar: {binary_ratio:.1%} (-20)")
+                    elif binary_ratio < 0.1:
+                        score += 10
+                        reasons.append(f"Binary emas (+10)")
+            except:
+                pass
+            
+            # 7. BIRINCHI USTUN BONUSI (+10 ball)
+            if col_idx == 0:
+                # Agar ID yoki tartib raqam bo'lmasa
+                is_id = any(kw in col_name_lower for kw in ['id', 'code', 'raqam', 'uuid'])
+                is_row_number = any(kw in col_name_lower for kw in ['t/r', '№', 'n', '#', 'row', 'index'])
+                
+                if not is_id and not is_row_number:
+                    score += 10
+                    reasons.append("Birinchi ustun (bonus) (+10)")
+                else:
+                    score -= 20
+                    reasons.append("ID yoki tartib raqam ustuni (-20)")
+            
+            # 8. BO'SH QIYMATLAR TAHLILI (+10 ball)
+            # Ism-familiya ustunida kam bo'sh qiymat bo'lishi kerak
+            non_null_ratio = col_data.notna().sum() / len(col_data)
+            if non_null_ratio >= 0.9:  # 90%+ to'ldirilgan
+                score += 10
+                reasons.append(f"Kam bo'sh qiymat: {non_null_ratio:.1%} (+10)")
+            elif non_null_ratio < 0.5:
+                score -= 10
+                reasons.append(f"Ko'p bo'sh qiymat: {non_null_ratio:.1%} (-10)")
+            
+            # Confidence level
+            if score >= 60:
+                confidence = 'very_high'
+            elif score >= 40:
+                confidence = 'high'
+            elif score >= 20:
+                confidence = 'medium'
+            elif score >= 0:
+                confidence = 'low'
+            else:
+                confidence = 'very_low'
+            
+            candidates[col] = {
+                'score': score,
+                'reasons': reasons,
+                'confidence': confidence,
+                'column_name': col_name
+            }
+        
+        return candidates
