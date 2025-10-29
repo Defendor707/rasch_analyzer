@@ -666,8 +666,81 @@ async def perform_analysis_after_payment(message, context: ContextTypes.DEFAULT_
         # Initialize status message for progress updates
         status_message = await message.reply_text("⏳ Tahlil qilinmoqda...\n\n▰▱▱▱▱▱▱▱▱▱ 10%\n_Ma'lumotlar o'qilmoqda..._", parse_mode='Markdown')
 
-        analyzer = RaschAnalyzer()
-        results = analyzer.fit(numeric_data, person_names=person_names)
+        try:
+            analyzer = RaschAnalyzer()
+            results = analyzer.fit(numeric_data, person_names=person_names)
+        except Exception as analysis_error:
+            # If analyzer.fit() fails, check if auto cleaner is enabled
+            user_id = message.chat.id
+            user_data = user_data_manager.get_user_data(user_id)
+            auto_cleaner_enabled = user_data.get('auto_file_cleaner', False)
+            
+            if auto_cleaner_enabled:
+                # AUTO CLEAN MODE: Automatically clean the file and retry analysis
+                await status_message.edit_text(
+                    "🧽 Auto File Cleaner yoqilgan!\n\n"
+                    "⏳ Fayl avtomatik tozalanmoqda va qayta tahlil qilinmoqda...",
+                    parse_mode='Markdown'
+                )
+                
+                try:
+                    # Read original file again
+                    if file_extension == '.csv':
+                        try:
+                            original_data = pd.read_csv(file_path)
+                        except Exception:
+                            original_data = pd.read_csv(file_path, encoding='latin-1')
+                    else:
+                        original_data = pd.read_excel(file_path)
+                    
+                    # Clean the file using DataCleaner
+                    cleaner = DataCleaner()
+                    cleaned_data, metadata = cleaner.clean_data(original_data)
+                    
+                    # Send cleaning report
+                    report = cleaner.get_cleaning_report(metadata)
+                    await message.reply_text(f"✅ Avtomatik tozalash muvaffaqiyatli!\n\n{report}")
+                    
+                    # Now use cleaned data for analysis
+                    # Remove participant column from cleaned data and save names
+                    person_names = None
+                    if len(cleaned_data.columns) > 0:
+                        first_col = cleaned_data.columns[0]
+                        first_col_lower = str(first_col).lower()
+                        if any(keyword in first_col_lower for keyword in ['talabgor', 'name', 'ism', 'student', 'participant']):
+                            person_names = cleaned_data[first_col].tolist()
+                            logger.info(f"✅ {len(person_names)} ta talabgor ismlari saqlandi")
+                            cleaned_data = cleaned_data.drop(columns=[first_col])
+                            logger.info(f"✅ Tozalangan fayldan talabgor ustuni olib tashlandi: {first_col}")
+                    
+                    # Convert to numeric
+                    for col in cleaned_data.columns:
+                        cleaned_data[col] = pd.to_numeric(cleaned_data[col], errors='coerce')
+                    
+                    cleaned_data = cleaned_data.dropna(how='all', axis=0)
+                    cleaned_data = cleaned_data.dropna(how='all', axis=1)
+                    
+                    # Update numeric_data to cleaned version
+                    numeric_data = cleaned_data
+                    
+                    # Retry analysis with cleaned data
+                    await status_message.edit_text("✅ Fayl muvaffaqiyatli tozalandi! Rasch tahlili boshlanmoqda...", parse_mode='Markdown')
+                    
+                    analyzer = RaschAnalyzer()
+                    results = analyzer.fit(numeric_data, person_names=person_names)
+                    
+                except Exception as clean_error:
+                    logger.error(f"Auto clean error after analyzer failure: {clean_error}")
+                    await status_message.delete()
+                    await message.reply_text(
+                        f"❌ Avtomatik tozalashda xatolik: {str(clean_error)}\n\n"
+                        "Iltimos, faylni qo'lda tozalang: ⚙️ Sozlamalar → 🧹 File Analyzer"
+                    )
+                    return
+            else:
+                # Auto cleaner disabled, show error
+                await status_message.delete()
+                raise analysis_error
 
         # Update status message to 50%
         await status_message.edit_text("📊 *Tahlil qilinmoqda...*\n\n▰▰▰▱▱▱▱▱▱▱ 50%\n_Natijalar hisoblanmoqda..._", parse_mode='Markdown')
