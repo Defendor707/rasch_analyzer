@@ -683,26 +683,77 @@ Faylingizda faqat talabgor ismlari va javoblar (0/1) bo'lishi kerak. Qolgan barc
         detected_question_columns = []
         
         # 1. ISM-FAMILIYA USTUNINI TOPISH
-        # "Name" yoki "Exam" ustunini qidirish
-        name_candidates = ['name', 'exam', 'talabgor', 'student', 'ism']
+        # "Name" ustunini qidirish - AQLLI TAHLIL
+        # Prioritet: 'name' > 'student' > 'talabgor' > 'ism' > 'exam'
+        # 'exam' oxirgi o'rinda chunki ko'pincha test nomi emas, talabgor ismi kerak
+        name_keywords_priority = [
+            ['name', 'full name', 'fullname'],  # Eng yuqori prioritet
+            ['student', 'student name', 'student_name'],
+            ['talabgor', 'talabgor_ismi'],
+            ['ism', 'familiya', 'fio'],
+            ['exam']  # Eng past prioritet
+        ]
+        
+        # Barcha nomzod ustunlarni topish
+        name_column_candidates = []
         for col in df.columns:
             col_name = str(col).strip()
             col_name_lower = col_name.lower()
             
-            if any(keyword in col_name_lower for keyword in name_candidates):
-                if len(detected_name_columns) == 0:  # Faqat birinchi ism ustunini olish
-                    detected_name_columns.append(col)
-                    columns_to_keep.append(col)
-                    metadata['detected_name_columns'].append({
-                        'column': col_name,
-                        'reason': 'Evalbee name column',
-                        'confidence': 'high'
-                    })
-                    logger.info(f"✅ {col_name} → ISM (Evalbee format)")
-                else:
-                    columns_to_remove.append(col)
-                    logger.info(f"❌ {col_name} → O'CHIRILDI (duplikat ism)")
-                continue
+            # Qaysi prioritet guruhiga tegishli ekanligini aniqlash
+            for priority_idx, keywords in enumerate(name_keywords_priority):
+                if any(keyword in col_name_lower for keyword in keywords):
+                    # Ustun ma'lumotlarini tahlil qilish
+                    col_data = df[col].dropna()
+                    if len(col_data) > 0:
+                        # Unique ratio - haqiqiy ismlar unique bo'lishi kerak
+                        unique_ratio = len(col_data.unique()) / len(col_data)
+                        # O'rtacha uzunlik - ismlar uzunroq bo'lishi kerak
+                        avg_length = col_data.astype(str).str.len().mean()
+                        # Bo'sh joy bor - ism va familiya bo'shlikda ajratilgan
+                        has_spaces = col_data.astype(str).str.contains(' ').sum() / len(col_data)
+                        
+                        # Ball hisobla
+                        score = 0
+                        score += unique_ratio * 50  # Unique bo'lsa +50
+                        score += min(avg_length, 30)  # Uzun bo'lsa +30
+                        score += has_spaces * 30  # Bo'sh joy bo'lsa +30
+                        score -= priority_idx * 10  # Past prioritet -10
+                        
+                        name_column_candidates.append({
+                            'col': col,
+                            'col_name': col_name,
+                            'priority': priority_idx,
+                            'unique_ratio': unique_ratio,
+                            'avg_length': avg_length,
+                            'has_spaces': has_spaces,
+                            'score': score
+                        })
+                        logger.info(f"🔍 Nomzod: {col_name} - Score: {score:.1f} "
+                                  f"(unique: {unique_ratio:.1%}, len: {avg_length:.1f}, "
+                                  f"spaces: {has_spaces:.1%})")
+                    break
+        
+        # Eng yuqori ball olgan ustunni tanlash
+        if name_column_candidates:
+            best_candidate = max(name_column_candidates, key=lambda x: x['score'])
+            detected_name_columns.append(best_candidate['col'])
+            columns_to_keep.append(best_candidate['col'])
+            metadata['detected_name_columns'].append({
+                'column': best_candidate['col_name'],
+                'reason': f"Evalbee name column (score: {best_candidate['score']:.1f})",
+                'confidence': 'high'
+            })
+            logger.info(f"✅ {best_candidate['col_name']} → ISM (Evalbee format, "
+                      f"score: {best_candidate['score']:.1f})")
+            
+            # Qolgan nomzodlarni o'chirish
+            for candidate in name_column_candidates:
+                if candidate['col'] != best_candidate['col']:
+                    columns_to_remove.append(candidate['col'])
+                    logger.info(f"❌ {candidate['col_name']} → O'CHIRILDI (past score)")
+        else:
+            logger.warning("⚠️ Ism ustuni topilmadi!")
         
         # 2. "Q X MARKS" USTUNLARINI SAQLASH
         for col in df.columns:
