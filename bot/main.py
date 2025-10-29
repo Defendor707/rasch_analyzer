@@ -13,6 +13,7 @@ from telegram.ext import (
 )
 from bot.handlers.message_handlers import (
     start_command,
+    restart_command,
     help_command,
     sample_command,
     handle_document,
@@ -76,6 +77,7 @@ async def main():
     application = Application.builder().token(bot_token).build()
     
     application.add_handler(CommandHandler("start", start_command))
+    application.add_handler(CommandHandler("restart", restart_command))
     application.add_handler(CommandHandler("help", help_command))
     application.add_handler(CommandHandler("namuna", sample_command))
     application.add_handler(CommandHandler("payments", show_payment_history))

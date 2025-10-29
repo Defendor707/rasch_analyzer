@@ -61,6 +61,29 @@ def get_main_keyboard():
     return ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
 
 
+async def restart_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Restart bot - clear all states and return to main menu"""
+    user_id = update.effective_user.id
+    
+    # Clear all user states
+    user_data_manager.update_user_field(user_id, 'file_analyzer_mode', False)
+    user_data_manager.update_user_field(user_id, 'file_analyzer_operation', None)
+    
+    # Clear all context data
+    context.user_data.clear()
+    
+    # Send restart message
+    await update.message.reply_text(
+        "🔄 *Bot qayta ishga tushirildi*\n\n"
+        "Barcha davom etayotgan jarayonlar bekor qilindi.\n"
+        "Bosh menyuga qaytdingiz.",
+        parse_mode='Markdown',
+        reply_markup=get_main_keyboard()
+    )
+    
+    logger.info(f"Bot restarted by user {user_id}")
+
+
 async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Send welcome message when the command /start is issued"""
     user_id = update.effective_user.id
@@ -225,6 +248,7 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "✓ Reliability (ishonchlilik)\n"
         "✓ Deskriptiv statistika\n\n"
         "*Buyruqlar:*\n"
+        "• /restart - Botni qayta ishga tushirish (barcha jarayonlarni bekor qilish)\n"
         "• /namuna - Namuna tahlil ko'rish\n"
         "• /payments - To'lovlar tarixi\n\n"
         "Savol bo'lsa, fayl yuboring va tahlil boshlaylik!"
