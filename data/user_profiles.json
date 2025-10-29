@@ -9,7 +9,7 @@
     "section_results_enabled": false,
     "writing_task_enabled": false,
     "section_questions": {},
-    "file_analyzer_mode": true,
+    "file_analyzer_mode": false,
     "file_analyzer_operation": "full_clean"
   },
   "7916658442": {
