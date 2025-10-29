@@ -454,7 +454,7 @@ async def handle_document(update: Update, context: ContextTypes.DEFAULT_TYPE):
             # Payment disabled - proceed directly to analysis
             await update.message.reply_text(
                 "🎉 Xizmat hozir tekin!\n\n"
-                "⏳ Tahlil boshlanmoqda..."
+                "📊 Tahlil jarayoni boshlandi..."
             )
             # Set payment as completed to skip payment check
             context.user_data['payment_completed'] = True
@@ -481,8 +481,6 @@ async def perform_analysis_after_payment(message, context: ContextTypes.DEFAULT_
     if not file_path or not os.path.exists(file_path):
         await message.reply_text("❌ Fayl topilmadi. Iltimos, qayta fayl yuboring.")
         return
-    
-    await message.reply_text("⏳ Tahlil boshlanmoqda...")
     
     try:
         if file_extension == '.csv':
