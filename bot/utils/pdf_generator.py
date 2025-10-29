@@ -146,10 +146,12 @@ class PDFReportGenerator:
         return all_section_data
 
     def _create_item_person_map(self, results: Dict[str, Any]) -> str:
-        """Creates and saves the item-person map (Wright Map) as an image."""
+        """
+        Professional Wright Map (Item-Person Map) - Klassik format
+        Chap: Persons (histogram), O'ng: Items (individual markers)
+        """
         person_ability = results.get('person_ability', [])
         item_difficulty = results.get('item_difficulty', [])
-        person_names = [f"P{i+1}" for i in range(len(person_ability))]
         item_names = results.get('item_names', [])
 
         if len(person_ability) == 0 or len(item_difficulty) == 0:
@@ -161,90 +163,124 @@ class PDFReportGenerator:
 
         valid_person_ability = np.array(person_ability)[valid_person_indices]
         valid_item_difficulty = np.array(item_difficulty)[valid_item_indices]
-        valid_person_names = np.array(person_names)[valid_person_indices]
         valid_item_names = np.array(item_names)[valid_item_indices]
 
         if len(valid_person_ability) == 0 or len(valid_item_difficulty) == 0:
             raise ValueError("No valid data points for Wright Map.")
 
-        # Combine and sort for plotting
+        # Calculate scale range
         all_measures = np.concatenate([valid_person_ability, valid_item_difficulty])
-        min_measure = float(np.min(all_measures) - 1)
-        max_measure = float(np.max(all_measures) + 1)
+        min_measure = float(np.floor(np.min(all_measures) - 0.5))
+        max_measure = float(np.ceil(np.max(all_measures) + 0.5))
 
-        plt.figure(figsize=(12, 6))
-
-        # Sort items by difficulty for better label placement
+        # Create figure with two subplots
+        fig, (ax_persons, ax_items) = plt.subplots(1, 2, figsize=(14, 10), 
+                                                     gridspec_kw={'width_ratios': [1.2, 1]})
+        
+        # ============== LEFT: PERSONS (Histogram) ==============
+        # Create histogram bins
+        bin_width = 0.3
+        bins = np.arange(min_measure, max_measure + bin_width, bin_width)
+        
+        # Plot horizontal histogram
+        counts, bin_edges = np.histogram(valid_person_ability, bins=bins)
+        bin_centers = (bin_edges[:-1] + bin_edges[1:]) / 2
+        
+        # Draw histogram bars horizontally
+        for i, (center, count) in enumerate(zip(bin_centers, counts)):
+            if count > 0:
+                # Draw 'X' marks for each person in this bin
+                for j in range(int(count)):
+                    x_pos = -0.1 - (j * 0.15)  # Stack horizontally
+                    ax_persons.text(x_pos, center, 'X', 
+                                  fontsize=12, ha='center', va='center',
+                                  color='#2E86AB', fontweight='bold')
+        
+        # Person axis formatting
+        ax_persons.set_ylim(min_measure, max_measure)
+        ax_persons.set_xlim(-2, 0.5)
+        ax_persons.set_yticks(np.arange(np.ceil(min_measure), np.floor(max_measure) + 1, 0.5))
+        ax_persons.set_ylabel('Logits (Qobiliyat / Qiyinchilik)', fontsize=12, fontweight='bold')
+        ax_persons.set_xlabel('')
+        ax_persons.set_xticks([])
+        ax_persons.set_title('TALABGORLAR', fontsize=14, fontweight='bold', pad=15)
+        ax_persons.grid(True, axis='y', linestyle='--', alpha=0.3)
+        ax_persons.axhline(y=0, color='black', linestyle='-', linewidth=1.5, alpha=0.7)
+        ax_persons.invert_xaxis()
+        
+        # Add mean line for persons
+        mean_ability = np.mean(valid_person_ability)
+        ax_persons.axhline(y=mean_ability, color='#A23B72', linestyle='--', 
+                          linewidth=2, alpha=0.7, label=f'O\'rtacha: {mean_ability:.2f}')
+        ax_persons.legend(loc='lower left', fontsize=9)
+        
+        # ============== RIGHT: ITEMS ==============
+        # Sort items by difficulty
         sorted_indices = np.argsort(valid_item_difficulty)
-        sorted_item_difficulty = valid_item_difficulty[sorted_indices]
-        sorted_item_names = valid_item_names[sorted_indices]
-
-        # Calculate vertical offsets for items to avoid overlap
-        item_y_offsets = np.zeros(len(sorted_item_difficulty))
-        min_distance = 0.15
+        sorted_difficulty = valid_item_difficulty[sorted_indices]
+        sorted_names = valid_item_names[sorted_indices]
         
-        for i in range(1, len(sorted_item_difficulty)):
-            if sorted_item_difficulty[i] - sorted_item_difficulty[i-1] < min_distance:
-                item_y_offsets[i] = item_y_offsets[i-1] + 0.08
-                if item_y_offsets[i] > 0.3:
-                    item_y_offsets[i] = 0
-            else:
-                item_y_offsets[i] = 0
-
-        # Plot items with varying heights
-        for i in range(len(sorted_item_difficulty)):
-            y_pos = 0.1 + item_y_offsets[i]
-            plt.scatter(sorted_item_difficulty[i], y_pos,
-                       marker='s', color='red', alpha=0.7, s=50)
-            plt.annotate(sorted_item_names[i], (sorted_item_difficulty[i], y_pos), 
-                        textcoords="offset points", xytext=(0, 5), 
-                        ha='center', fontsize=6, rotation=90)
-
-        # Sort persons by ability for better label placement
-        sorted_person_indices = np.argsort(valid_person_ability)
-        sorted_person_ability = valid_person_ability[sorted_person_indices]
-        sorted_person_names = valid_person_names[sorted_person_indices]
-
-        # Calculate vertical offsets for persons to avoid overlap
-        person_y_offsets = np.zeros(len(sorted_person_ability))
+        # Plot items with smart label placement
+        plotted_items = []
+        for i, (diff, name) in enumerate(zip(sorted_difficulty, sorted_names)):
+            # Calculate horizontal offset to avoid overlap
+            x_offset = 0
+            for prev_diff, prev_offset in plotted_items:
+                if abs(diff - prev_diff) < 0.12:
+                    x_offset = prev_offset + 0.15
+                    if x_offset > 0.6:
+                        x_offset = 0
+            
+            plotted_items.append((diff, x_offset))
+            
+            # Draw item marker
+            x_pos = 0.1 + x_offset
+            ax_items.scatter(x_pos, diff, marker='s', s=120, 
+                           color='#E63946', alpha=0.8, edgecolors='darkred', linewidths=1.5)
+            
+            # Add item label
+            ax_items.text(x_pos + 0.12, diff, name, 
+                         fontsize=9, va='center', ha='left', fontweight='bold')
         
-        for i in range(1, len(sorted_person_ability)):
-            if sorted_person_ability[i] - sorted_person_ability[i-1] < min_distance:
-                person_y_offsets[i] = person_y_offsets[i-1] + 0.08
-                if person_y_offsets[i] > 0.3:
-                    person_y_offsets[i] = 0
-            else:
-                person_y_offsets[i] = 0
-
-        # Plot persons with varying heights
-        for i in range(len(sorted_person_ability)):
-            y_pos = -0.1 - person_y_offsets[i]
-            plt.scatter(sorted_person_ability[i], y_pos,
-                       marker='o', color='blue', alpha=0.7, s=50)
-            plt.annotate(sorted_person_names[i], (sorted_person_ability[i], y_pos), 
-                        textcoords="offset points", xytext=(0, -5), 
-                        ha='center', fontsize=6, rotation=-90)
-
-        plt.yticks([])
-        plt.xlabel("Logit Scale (Ability/Difficulty)", fontsize=11)
-        plt.title("Wright Map (Item-Person Map)", fontsize=13)
-        plt.xlim(min_measure, max_measure)
-        plt.ylim(-0.6, 0.6)
-        plt.axhline(y=0, color='gray', linestyle='-', linewidth=0.5, alpha=0.5)
-        plt.grid(True, linestyle='--', alpha=0.4, axis='x')
+        # Items axis formatting
+        ax_items.set_ylim(min_measure, max_measure)
+        ax_items.set_xlim(-0.2, 2.5)
+        ax_items.set_yticks(np.arange(np.ceil(min_measure), np.floor(max_measure) + 1, 0.5))
+        ax_items.set_yticklabels([])
+        ax_items.set_xlabel('')
+        ax_items.set_xticks([])
+        ax_items.set_title('SAVOLLAR', fontsize=14, fontweight='bold', pad=15)
+        ax_items.grid(True, axis='y', linestyle='--', alpha=0.3)
+        ax_items.axhline(y=0, color='black', linestyle='-', linewidth=1.5, alpha=0.7)
         
-        from matplotlib.patches import Patch
-        legend_elements = [
-            Patch(facecolor='blue', label='Persons'),
-            Patch(facecolor='red', label='Items')
-        ]
-        plt.legend(handles=legend_elements, loc='upper right')
-
+        # Add mean line for items
+        mean_difficulty = np.mean(valid_item_difficulty)
+        ax_items.axhline(y=mean_difficulty, color='#F77F00', linestyle='--', 
+                        linewidth=2, alpha=0.7, label=f'O\'rtacha: {mean_difficulty:.2f}')
+        ax_items.legend(loc='lower right', fontsize=9)
+        
+        # Main title
+        fig.suptitle('Wright Map (Item-Person Map)', 
+                    fontsize=16, fontweight='bold', y=0.98)
+        
+        # Add statistics text
+        stats_text = (
+            f"Talabgorlar: {len(valid_person_ability)} | "
+            f"Savollar: {len(valid_item_difficulty)}\n"
+            f"Qobiliyat: {np.min(valid_person_ability):.2f} - {np.max(valid_person_ability):.2f} | "
+            f"Qiyinchilik: {np.min(valid_item_difficulty):.2f} - {np.max(valid_item_difficulty):.2f}"
+        )
+        fig.text(0.5, 0.02, stats_text, ha='center', fontsize=10, 
+                style='italic', bbox=dict(boxstyle='round', facecolor='wheat', alpha=0.3))
+        
+        plt.tight_layout(rect=[0, 0.04, 1, 0.96])
+        
         try:
             os.makedirs(self.output_dir, exist_ok=True)
             chart_filename = os.path.join(self.output_dir, "wright_map.png")
-            plt.savefig(chart_filename, bbox_inches='tight', dpi=300)
+            plt.savefig(chart_filename, bbox_inches='tight', dpi=300, facecolor='white')
             plt.close()
+            logger.info(f"✅ Wright Map yaratildi: {chart_filename}")
             return chart_filename
         except Exception as e:
             logger.error(f"Error saving Wright map: {e}")
