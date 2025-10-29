@@ -992,21 +992,49 @@ async def handle_profile(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Handle Profile button"""
     user = update.effective_user
     user_data = user_data_manager.get_user_data(user.id)
-
-    # Display profile information
+    
+    # Get user statistics
+    students = student_data_manager.get_all_students(user.id)
+    students_count = len(students)
+    
+    user_tests = test_manager.get_teacher_tests(user.id)
+    total_tests = len(user_tests)
+    active_tests = sum(1 for test in user_tests if test.get('is_active', False))
+    
+    # Get payment history count
+    payment_history = payment_manager.get_user_payments(user.id)
+    total_analyses = len(payment_history)
+    
+    # Get user preferences
+    section_results_enabled = user_data.get('section_results_enabled', False)
+    auto_file_cleaner = user_data.get('auto_file_cleaner', False)
+    
+    # Display profile information with statistics
     profile_text = (
-        f"👤 *Profil ma'lumotlari*\n\n"
-        f"*Ism va Familiya:* {user_data.get('full_name') or 'Kiritilmagan'}\n"
-        f"*Mutaxassislik:* {user_data.get('subject') or 'Kiritilmagan'}\n"
-        f"*Bio:* {user_data.get('bio') or 'Kiritilmagan'}\n\n"
-        f"*Telegram:* @{user.username or 'N/A'}\n"
-        f"*ID:* {user.id}"
+        f"👤 *Profil ma'lumotlari*\n"
+        f"━━━━━━━━━━━━━━━━━━━━\n\n"
+        f"📋 *Shaxsiy ma'lumotlar:*\n"
+        f"  • Ism va Familiya: {user_data.get('full_name') or 'Kiritilmagan'}\n"
+        f"  • Mutaxassislik: {user_data.get('subject') or 'Kiritilmagan'}\n"
+        f"  • Bio: {user_data.get('bio') or 'Kiritilmagan'}\n"
+        f"  • Telegram: @{user.username or 'N/A'}\n"
+        f"  • ID: `{user.id}`\n\n"
+        f"📊 *Statistika:*\n"
+        f"  • O'quvchilar: {students_count} ta\n"
+        f"  • Testlar: {total_tests} ta (faol: {active_tests})\n"
+        f"  • Tahlillar: {total_analyses} ta\n\n"
+        f"⚙️ *Sozlamalar:*\n"
+        f"  • Bo'limlar bo'yicha natijalash: {'✅' if section_results_enabled else '❌'}\n"
+        f"  • Auto File Cleaner: {'✅' if auto_file_cleaner else '❌'}\n\n"
+        f"━━━━━━━━━━━━━━━━━━━━\n"
+        f"Ma'lumotlarni tahrirlash uchun quyidagi tugmalardan foydalaning:"
     )
 
     # Inline keyboard for editing
     keyboard = [
         [InlineKeyboardButton("✏️ Ism va Familiyani o'zgartirish", callback_data='edit_full_name')],
-        [InlineKeyboardButton("✏️ Bio qo'shish/o'zgartirish", callback_data='edit_bio')]
+        [InlineKeyboardButton("✏️ Bio qo'shish/o'zgartirish", callback_data='edit_bio')],
+        [InlineKeyboardButton("📊 Batafsil statistika", callback_data='view_detailed_stats')]
     ]
     reply_markup = InlineKeyboardMarkup(keyboard)
 
@@ -1664,6 +1692,46 @@ async def handle_callback_query(update: Update, context: ContextTypes.DEFAULT_TY
             parse_mode='Markdown'
         )
 
+    # Handle detailed statistics view
+    elif query.data == 'view_detailed_stats':
+        user_id = update.effective_user.id
+        students = student_data_manager.get_all_students(user_id)
+        user_tests = test_manager.get_teacher_tests(user_id)
+        payment_history = payment_manager.get_user_payments(user_id)
+        
+        # Calculate detailed stats
+        total_participants = 0
+        completed_tests = 0
+        for test in user_tests:
+            participants = test.get('participants', {})
+            total_participants += len(participants)
+            if test.get('finalized_at'):
+                completed_tests += 1
+        
+        stats_text = (
+            f"📊 *Batafsil Statistika*\n"
+            f"━━━━━━━━━━━━━━━━━━━━\n\n"
+            f"👥 *O'quvchilar:*\n"
+            f"  • Jami: {len(students)} ta\n\n"
+            f"📝 *Testlar:*\n"
+            f"  • Yaratilgan: {len(user_tests)} ta\n"
+            f"  • Faol: {sum(1 for t in user_tests if t.get('is_active', False))} ta\n"
+            f"  • Yakunlangan: {completed_tests} ta\n"
+            f"  • Jami ishtirokchilar: {total_participants} ta\n\n"
+            f"📈 *Tahlillar:*\n"
+            f"  • Amalga oshirilgan: {len(payment_history)} ta\n"
+        )
+        
+        if user_tests:
+            recent_test = user_tests[-1]
+            stats_text += (
+                f"\n📌 *Oxirgi faoliyat:*\n"
+                f"  • Test: {recent_test['name']}\n"
+                f"  • Sana: {recent_test['created_at'][:10]}\n"
+            )
+        
+        await query.edit_message_text(stats_text, parse_mode='Markdown')
+    
     # Handle subject selection
     elif query.data.startswith('subject_'):
         subject_mapping = {
