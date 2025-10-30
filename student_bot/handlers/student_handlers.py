@@ -918,12 +918,29 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         
         # Check if each part has at least 2 characters and contains only letters
         valid = True
+        capitalization_error = False
         for part in name_parts[:2]:  # Check first 2 words
             # Remove common Uzbek/Russian letter variations for validation
             cleaned_part = ''.join(c for c in part if c.isalpha() or c in "''`-")
             if len(cleaned_part) < 2:
                 valid = False
                 break
+            
+            # Check if first letter is capitalized
+            if cleaned_part and not cleaned_part[0].isupper():
+                capitalization_error = True
+                break
+        
+        if capitalization_error:
+            await update.message.reply_text(
+                "❌ Ism va familiya bosh harf bilan boshlanishi kerak.\n\n"
+                "🔹 *To'g'ri misol:* Javohir Mirzanazarov\n"
+                "🔹 *To'g'ri misol:* Dilshod Rahmonov\n"
+                "🔹 *To'g'ri misol:* Muhammad Ali\n\n"
+                "❌ *Noto'g'ri:* javohir mirzanazarov",
+                parse_mode='Markdown'
+            )
+            return
         
         if not valid:
             await update.message.reply_text(
