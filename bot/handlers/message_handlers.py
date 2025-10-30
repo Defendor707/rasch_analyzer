@@ -1680,6 +1680,8 @@ async def handle_callback_query(update: Update, context: ContextTypes.DEFAULT_TY
             # Get student bot username from environment
             student_bot_username = os.getenv('STUDENT_BOT_USERNAME', 'Talabgor_bot')
             
+            logger.info(f"Test ulashish: {test_id}, Student bot: {student_bot_username}")
+            
             # Build time info
             start_date = test.get('start_date', '')
             start_time = test.get('start_time', '')
@@ -1699,8 +1701,11 @@ async def handle_callback_query(update: Update, context: ContextTypes.DEFAULT_TY
             )
 
             # Create inline button for test
+            test_link = f"https://t.me/{student_bot_username}?start={test_id}"
+            logger.info(f"Test havolasi: {test_link}")
+            
             share_keyboard = [
-                [InlineKeyboardButton("📝 Testni boshlash", url=f"https://t.me/{student_bot_username}?start=test_{test_id}")]
+                [InlineKeyboardButton("📝 Testni boshlash", url=test_link)]
             ]
             share_markup = InlineKeyboardMarkup(share_keyboard)
 

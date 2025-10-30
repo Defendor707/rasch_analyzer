@@ -60,10 +60,15 @@ async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
     user = update.effective_user
 
-    if context.args and context.args[0].startswith('test_'):
-        test_id = context.args[0]
-        await start_test(update, context, test_id)
-        return
+    if context.args and len(context.args) > 0:
+        deep_link = context.args[0]
+        logger.info(f"Deep link qabul qilindi: {deep_link}")
+        
+        if deep_link.startswith('test_'):
+            test_id = deep_link
+            logger.info(f"Test boshlash: {test_id}")
+            await start_test(update, context, test_id)
+            return
 
     welcome_message = (
         f"👋 Salom, *{user.first_name}*\n\n"
@@ -286,6 +291,8 @@ async def search_tests(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def start_test(update: Update, context: ContextTypes.DEFAULT_TYPE, test_id: str):
     """Start taking a test"""
+    logger.info(f"Start_test chaqirildi. Test ID: {test_id}")
+    
     test = test_manager.get_test(test_id)
     user_id = update.effective_user.id
 
@@ -293,7 +300,20 @@ async def start_test(update: Update, context: ContextTypes.DEFAULT_TYPE, test_id
     message = update.callback_query.message if update.callback_query else update.message
 
     if not test:
-        await message.reply_text("❌ Test topilmadi!")
+        logger.error(f"Test topilmadi! Test ID: {test_id}")
+        
+        # Debug: barcha testlarni ko'rish
+        all_tests = test_manager._load_tests()
+        logger.info(f"Mavjud testlar soni: {len(all_tests)}")
+        if all_tests:
+            logger.info(f"Mavjud test ID'lar: {list(all_tests.keys())[:5]}")
+        
+        await message.reply_text(
+            f"❌ Test topilmadi!\n\n"
+            f"Test ID: `{test_id}`\n\n"
+            f"Iltimos, test havolasini qayta tekshiring yoki o'qituvchingizga murojaat qiling.",
+            parse_mode='Markdown'
+        )
         return
 
     if not test.get('is_active', False):
