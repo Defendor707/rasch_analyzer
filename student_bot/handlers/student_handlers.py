@@ -903,12 +903,34 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     # Handle registration (name collection)
     if context.user_data.get('registering'):
-        # Validate name (at least 2 words)
+        # Validate name (at least 2 words, each with at least 2 letters)
         name_parts = message_text.strip().split()
+        
+        # Check if at least 2 words
         if len(name_parts) < 2:
             await update.message.reply_text(
                 "❌ Iltimos, ism va familiyangizni to'liq kiriting.\n\n"
-                "*Masalan:* Sardor Oktamov",
+                "🔹 *To'g'ri misol:* Sardor Oktamov\n"
+                "🔹 *To'g'ri misol:* Aziza Rahimova",
+                parse_mode='Markdown'
+            )
+            return
+        
+        # Check if each part has at least 2 characters and contains only letters
+        valid = True
+        for part in name_parts[:2]:  # Check first 2 words
+            # Remove common Uzbek/Russian letter variations for validation
+            cleaned_part = ''.join(c for c in part if c.isalpha() or c in "''`-")
+            if len(cleaned_part) < 2:
+                valid = False
+                break
+        
+        if not valid:
+            await update.message.reply_text(
+                "❌ Ism va familiya har biri kamida 2 ta harfdan iborat bo'lishi kerak.\n\n"
+                "🔹 *To'g'ri misol:* Sardor Oktamov\n"
+                "🔹 *To'g'ri misol:* Aziza Rahimova\n"
+                "🔹 *To'g'ri misol:* Muhammad Ali",
                 parse_mode='Markdown'
             )
             return
