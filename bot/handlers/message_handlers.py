@@ -55,10 +55,9 @@ WAITING_FOR_PHOTO = 25
 
 
 def get_main_keyboard():
-    """Create main reply keyboard with 4 buttons"""
+    """Create main reply keyboard with 2 buttons"""
     keyboard = [
-        [KeyboardButton("👤 Profil"), KeyboardButton("⚙️ Sozlamalar")],
-        [KeyboardButton("👥 O'quvchilar"), KeyboardButton("ℹ️ Boshqa")]
+        [KeyboardButton("⚙️ Sozlamalar"), KeyboardButton("ℹ️ Boshqa")]
     ]
     return ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
 
@@ -2555,6 +2554,7 @@ async def handle_students(update: Update, context: ContextTypes.DEFAULT_TYPE):
 def get_other_keyboard(is_admin=False):
     """Create keyboard for 'Boshqa' section"""
     keyboard = [
+        [KeyboardButton("👤 Profil"), KeyboardButton("👥 O'quvchilar")],
         [KeyboardButton("📁 File Cleaner")],
         [KeyboardButton("📝 Ommaviy test o'tkazish")],
         [KeyboardButton("💳 To'lovlar tarixi"), KeyboardButton("📊 Statistika")]
