@@ -22,7 +22,7 @@ def get_main_keyboard():
     keyboard = [
         [KeyboardButton("📝 Mavjud testlar")],
         [KeyboardButton("📊 Mening natijalarim")],
-        [KeyboardButton("🔍 Test qidirish"), KeyboardButton("📢 E'lonlar")]
+        [KeyboardButton("📢 E'lonlar")]
     ]
     return ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
 
@@ -96,10 +96,9 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "*📖 Yordam*\n\n"
         "*Asosiy funksiyalar:*\n\n"
         "📝 *Mavjud testlar* - Barcha faol testlarni ko'rish\n"
-        "📊 *Mening natijalarim* - Ishlab bo'lgan testlar natijalari\n"
-        "🔍 *Test qidirish* - Fan bo'yicha test qidirish\n\n"
+        "📊 *Mening natijalarim* - Ishlab bo'lgan testlar natijalari\n\n"
         "*Test ishlash:*\n"
-        "1. 'Mavjud testlar' yoki 'Test qidirish' ni bosing\n"
+        "1. 'Mavjud testlar' ni bosing\n"
         "2. Test tanlang va '▶️ Boshlash' tugmasini bosing\n"
         "3. Har bir savolga javob bering\n"
         "4. '📝 Javoblarni ko'rish' - barcha javoblarni tekshiring\n"
@@ -919,8 +918,6 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await show_available_tests(update, context)
     elif message_text == "📊 Mening natijalarim":
         await show_my_results(update, context)
-    elif message_text == "🔍 Test qidirish":
-        await search_tests(update, context)
     elif message_text == "📢 E'lonlar":
         await handle_announcements(update, context)
     else:
