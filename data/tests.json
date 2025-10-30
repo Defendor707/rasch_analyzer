@@ -210,5 +210,90 @@
     },
     "pdf_file_path": "data/uploads/pdf_files/test_pdf_7537966029_20251027_185539_Akademik yozuv 100 (1).pdf",
     "finalized_at": "2025-10-27T23:59:12.019232+05:00"
+  },
+  "test_7537966029_20251030_141604": {
+    "teacher_id": 7537966029,
+    "name": ".",
+    "subject": "Matematika",
+    "start_date": "2025-10-30",
+    "start_time": "19:20",
+    "duration": 3,
+    "questions": [
+      {
+        "id": 1,
+        "text": "savol 1",
+        "options": [
+          "1",
+          "2",
+          "3",
+          "4"
+        ],
+        "correct_answer": 2,
+        "points": 1
+      },
+      {
+        "id": 2,
+        "text": "savol2",
+        "options": [
+          "!",
+          "@",
+          "#",
+          "$"
+        ],
+        "correct_answer": 0,
+        "points": 1
+      },
+      {
+        "id": 3,
+        "text": "3",
+        "options": [
+          "\\",
+          "@#",
+          "23",
+          "34",
+          "#$"
+        ],
+        "correct_answer": 3,
+        "points": 1
+      }
+    ],
+    "created_at": "2025-10-30T14:16:04.612366",
+    "is_active": true,
+    "allow_retake": false,
+    "participants": {
+      "7537966029": {
+        "student_id": 7537966029,
+        "answers": {
+          "0": 0,
+          "1": 1,
+          "2": 1
+        },
+        "score": 0,
+        "max_score": 3,
+        "percentage": 0.0,
+        "results": [
+          {
+            "question_id": 1,
+            "student_answer": 0,
+            "correct_answer": 2,
+            "correct": false
+          },
+          {
+            "question_id": 2,
+            "student_answer": 1,
+            "correct_answer": 0,
+            "correct": false
+          },
+          {
+            "question_id": 3,
+            "student_answer": 1,
+            "correct_answer": 3,
+            "correct": false
+          }
+        ],
+        "submitted": true,
+        "submitted_at": "2025-10-30T19:21:05.469248+05:00"
+      }
+    }
   }
 }
