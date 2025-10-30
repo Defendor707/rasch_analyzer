@@ -22,7 +22,7 @@ def get_main_keyboard():
     keyboard = [
         [KeyboardButton("📝 Mavjud testlar")],
         [KeyboardButton("📊 Mening natijalarim")],
-        [KeyboardButton("🔍 Test qidirish"), KeyboardButton("ℹ️ Yordam")]
+        [KeyboardButton("🔍 Test qidirish"), KeyboardButton("📢 E'lonlar")]
     ]
     return ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
 
@@ -107,6 +107,29 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "Savollaringiz bo'lsa, o'qituvchingizga murojaat qiling!"
     )
     await update.message.reply_text(help_message, parse_mode='Markdown')
+
+
+async def handle_announcements(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Show announcements"""
+    announcements_text = (
+        "📢 *E'lonlar*\n\n"
+        "🎓 *Rasch Analyzer Test Platformasi*\n\n"
+        "Bu yerda yangiliklar va e'lonlar chiqadi.\n\n"
+        "Hozircha yangi e'lonlar yo'q.\n\n"
+        "Keyinroq qaytib kelib tekshiring!"
+    )
+    
+    keyboard = [
+        [InlineKeyboardButton("👥 Hamjamiyat", url="https://t.me/rasch_analyzer_ustozlar")],
+        [InlineKeyboardButton("👨‍💼 Admin", url="https://t.me/sanjaroktamov")]
+    ]
+    reply_markup = InlineKeyboardMarkup(keyboard)
+    
+    await update.message.reply_text(
+        announcements_text,
+        parse_mode='Markdown',
+        reply_markup=reply_markup
+    )
 
 
 async def show_available_tests(update: Update, context: ContextTypes.DEFAULT_TYPE, subject_filter=None, page=0):
@@ -878,8 +901,8 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await show_my_results(update, context)
     elif message_text == "🔍 Test qidirish":
         await search_tests(update, context)
-    elif message_text == "ℹ️ Yordam":
-        await help_command(update, context)
+    elif message_text == "📢 E'lonlar":
+        await handle_announcements(update, context)
     else:
         await update.message.reply_text(
             "Kerakli bo'limni tanlang:",
