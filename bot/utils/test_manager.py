@@ -128,19 +128,19 @@ class TestManager:
     def set_pdf_file(self, test_id: str, pdf_file_path: str) -> bool:
         """
         Set PDF file path for a test
-        
+
         Args:
             test_id: Test identifier
             pdf_file_path: Path to the PDF file
-            
+
         Returns:
             Success status
         """
         tests = self._load_tests()
-        
+
         if test_id not in tests:
             return False
-        
+
         tests[test_id]['pdf_file_path'] = pdf_file_path
         self._save_tests(tests)
         return True
@@ -170,29 +170,29 @@ class TestManager:
     def submit_answer(self, test_id: str, user_id: int, answers: List[int]) -> Dict[str, Any]:
         """
         Submit all answers for a test and calculate results
-        
+
         Args:
             test_id: Test identifier
             user_id: Student user ID
             answers: List of answer indices (-1 for unanswered)
-            
+
         Returns:
             Dict with results or error
         """
         tests = self._load_tests()
-        
+
         if test_id not in tests:
             return {'error': 'Test topilmadi'}
-        
+
         test = tests[test_id]
-        
+
         # Check if test time expired
         can_take, message = self.can_take_test(test_id)
         if not can_take:
             return {'error': message}
 
         user_id_str = str(user_id)
-        
+
         # Migrate participants from list to dict format if needed
         participants = test.get('participants', {})
         if isinstance(participants, list):
@@ -219,22 +219,22 @@ class TestManager:
         correct_count = 0
         total_questions = len(test['questions'])
         results = []
-        
+
         for i, question in enumerate(test['questions']):
             answer_idx = answers[i] if i < len(answers) else -1
             is_correct = (answer_idx == question['correct_answer'])
             if is_correct:
                 correct_count += 1
-            
+
             results.append({
                 'question_id': i + 1,
                 'student_answer': answer_idx,
                 'correct_answer': question['correct_answer'],
                 'correct': is_correct
             })
-        
+
         percentage = (correct_count / total_questions * 100) if total_questions > 0 else 0
-        
+
         # Save participant data
         tz = pytz.timezone('Asia/Tashkent')
         test['participants'][user_id_str] = {
@@ -247,9 +247,9 @@ class TestManager:
             'submitted': True,
             'submitted_at': datetime.now(tz).isoformat()
         }
-        
+
         self._save_tests(tests)
-        
+
         return {
             'score': correct_count,
             'max_score': total_questions,
@@ -394,7 +394,7 @@ class TestManager:
 
         student_id_str = str(student_id)
         participants = test.get('participants', {})
-        
+
         # Handle both dict and list formats for backward compatibility
         if isinstance(participants, dict):
             if student_id_str in participants:
@@ -492,10 +492,10 @@ class TestManager:
     def calculate_score(self, test_id: str, user_id: int) -> Optional[Dict[str, Any]]:
         """Calculate user's score for the test"""
         tests = self._load_tests()
-        
+
         if test_id not in tests:
             return None
-            
+
         test = tests[test_id]
         user_id_str = str(user_id)
 
@@ -504,7 +504,7 @@ class TestManager:
 
         participant_data = test['participants'][user_id_str]
         user_answers = participant_data.get('answers', {})
-        
+
         # Build correct answer map
         correct_answer_map = {str(q['id']): q['correct_answer'] for q in test.get('questions', [])}
 
@@ -538,41 +538,41 @@ class TestManager:
             'percentage': (correct_count / total_questions_in_test * 100) if total_questions_in_test > 0 else 0,
             'results_details': question_results
         }
-    
+
     def get_expired_tests(self) -> List[str]:
         """
         Get list of test IDs that have expired but are still active
-        
+
         Returns:
             List of test IDs
         """
         tests = self._load_tests()
         expired_test_ids = []
-        
+
         tz = pytz.timezone('Asia/Tashkent')
         current_datetime = datetime.now(tz)
-        
+
         for test_id, test in tests.items():
             # Skip if already finalized or not active
             if not test.get('is_active', False) or 'finalized_at' in test:
                 continue
-            
+
             # Skip tests without time restrictions
             if not test.get('start_date') or not test.get('start_time'):
                 continue
-            
+
             try:
                 # Check if test time has expired
                 start_datetime_str = f"{test['start_date']} {test['start_time']}"
                 start_datetime = tz.localize(datetime.strptime(start_datetime_str, '%Y-%m-%d %H:%M'))
-                
+
                 duration_minutes = test.get('duration', 60)
                 end_datetime = start_datetime + timedelta(minutes=duration_minutes)
-                
+
                 if current_datetime > end_datetime:
                     expired_test_ids.append(test_id)
             except Exception as e:
                 logging.error(f"Error checking expiration for test {test_id}: {e}")
                 continue
-        
+
         return expired_test_ids

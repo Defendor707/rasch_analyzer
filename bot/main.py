@@ -16,6 +16,7 @@ from bot.handlers.message_handlers import (
     restart_command,
     help_command,
     sample_command,
+    show_bonus_points,
     handle_document,
     handle_message,
     handle_callback_query
@@ -80,6 +81,7 @@ async def main():
     application.add_handler(CommandHandler("restart", restart_command))
     application.add_handler(CommandHandler("help", help_command))
     application.add_handler(CommandHandler("namuna", sample_command))
+    application.add_handler(CommandHandler("bonus", show_bonus_points))
     application.add_handler(CommandHandler("payments", show_payment_history))
     application.add_handler(CommandHandler("balance", show_bot_balance))
     application.add_handler(CommandHandler("admos", admin_panel_command))

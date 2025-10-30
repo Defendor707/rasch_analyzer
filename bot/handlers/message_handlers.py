@@ -11,6 +11,7 @@ from bot.utils.subject_sections import get_sections, has_sections
 from bot.utils.data_cleaner import DataCleaner
 from bot.utils.test_manager import TestManager
 from bot.utils.payment_manager import PaymentManager
+from bot.utils.bonus_manager import BonusManager # Import BonusManager
 from bot.utils.answer_parser import parse_answer_string, generate_option_labels, format_answer_example
 from bot.utils.ai_analyzer import AIAnalyzer
 import logging
@@ -23,6 +24,7 @@ user_data_manager = UserDataManager()
 student_data_manager = StudentDataManager()
 test_manager = TestManager()
 payment_manager = PaymentManager()
+bonus_manager = BonusManager() # Initialize BonusManager
 
 # Conversation states
 WAITING_FOR_FULL_NAME = 1
@@ -64,14 +66,14 @@ def get_main_keyboard():
 async def restart_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Restart bot - clear all states and return to main menu"""
     user_id = update.effective_user.id
-    
+
     # Clear all user states in database
     user_data_manager.update_user_field(user_id, 'file_analyzer_mode', False)
     user_data_manager.update_user_field(user_id, 'file_analyzer_operation', None)
     user_data_manager.update_user_field(user_id, 'waiting_for_photo', False)
     user_data_manager.update_user_field(user_id, 'waiting_for_contact', False)
     user_data_manager.update_user_field(user_id, 'waiting_for_experience', False)
-    
+
     # Clear all context data
     if 'test_creation' in context.user_data:
         del context.user_data['test_creation']
@@ -81,9 +83,9 @@ async def restart_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         del context.user_data['question_answers']
     if 'pdf_file_path' in context.user_data:
         del context.user_data['pdf_file_path']
-    
+
     context.user_data.clear()
-    
+
     # Send restart message
     await update.message.reply_text(
         "🔄 *Bot qayta ishga tushirildi*\n\n"
@@ -92,7 +94,7 @@ async def restart_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         parse_mode='Markdown',
         reply_markup=get_main_keyboard()
     )
-    
+
     logger.info(f"Bot restarted by user {user_id}")
 
 
@@ -122,7 +124,7 @@ async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     # Send second message separately
     await update.message.reply_text(
-        "📊 Excel faylni yuborishingiz mumkin"
+        "📊 Excel faylini yuborishingiz mumkin"
     )
 
 
@@ -387,23 +389,23 @@ async def sample_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def handle_photo(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Handle photo uploads for profile"""
     user_id = update.effective_user.id
-    
+
     # Check if user is uploading profile photo
     if context.user_data.get('editing') == WAITING_FOR_PHOTO:
         # Get the largest photo
         photo = update.message.photo[-1]
         file_id = photo.file_id
-        
+
         # Save photo file_id to user data
         user_data_manager.update_user_field(user_id, 'profile_photo_id', file_id)
-        
+
         await update.message.reply_text(
             "✅ Profil rasmi muvaffaqiyatli saqlandi!",
             reply_markup=get_main_keyboard()
         )
         context.user_data['editing'] = None
         return
-    
+
     # If not editing, just acknowledge
     await update.message.reply_text(
         "📸 Rasm qabul qilindi. Profil rasmini o'zgartirish uchun:\n"
@@ -741,15 +743,11 @@ async def perform_analysis_after_payment(message, context: ContextTypes.DEFAULT_
             user_id = message.chat.id
             user_data = user_data_manager.get_user_data(user_id)
             auto_cleaner_enabled = user_data.get('auto_file_cleaner', False)
-            
+
             if auto_cleaner_enabled:
                 # AUTO CLEAN MODE: Automatically clean the file and retry analysis
-                await status_message.edit_text(
-                    "🧽 Auto File Cleaner yoqilgan!\n\n"
-                    "⏳ Fayl avtomatik tozalanmoqda va qayta tahlil qilinmoqda...",
-                    parse_mode='Markdown'
-                )
-                
+                await status_message.edit_text("🧽 Auto File Cleaner yoqilgan!\n\n⏳ Fayl avtomatik tozalanmoqda va qayta tahlil qilinmoqda...", parse_mode='Markdown')
+
                 try:
                     # Read original file again
                     if file_extension == '.csv':
@@ -759,15 +757,15 @@ async def perform_analysis_after_payment(message, context: ContextTypes.DEFAULT_
                             original_data = pd.read_csv(file_path, encoding='latin-1')
                     else:
                         original_data = pd.read_excel(file_path)
-                    
+
                     # Clean the file using DataCleaner
                     cleaner = DataCleaner()
                     cleaned_data, metadata = cleaner.clean_data(original_data)
-                    
+
                     # Send cleaning report
                     report = cleaner.get_cleaning_report(metadata)
                     await message.reply_text(f"✅ Avtomatik tozalash muvaffaqiyatli!\n\n{report}")
-                    
+
                     # Now use cleaned data for analysis
                     # Remove participant column from cleaned data and save names
                     person_names = None
@@ -779,23 +777,23 @@ async def perform_analysis_after_payment(message, context: ContextTypes.DEFAULT_
                             logger.info(f"✅ {len(person_names)} ta talabgor ismlari saqlandi")
                             cleaned_data = cleaned_data.drop(columns=[first_col])
                             logger.info(f"✅ Tozalangan fayldan talabgor ustuni olib tashlandi: {first_col}")
-                    
+
                     # Convert to numeric
                     for col in cleaned_data.columns:
                         cleaned_data[col] = pd.to_numeric(cleaned_data[col], errors='coerce')
-                    
+
                     cleaned_data = cleaned_data.dropna(how='all', axis=0)
                     cleaned_data = cleaned_data.dropna(how='all', axis=1)
-                    
+
                     # Update numeric_data to cleaned version
                     numeric_data = cleaned_data
-                    
+
                     # Retry analysis with cleaned data
                     await status_message.edit_text("✅ Fayl muvaffaqiyatli tozalandi! Rasch tahlili boshlanmoqda...", parse_mode='Markdown')
-                    
+
                     analyzer = RaschAnalyzer()
                     results = analyzer.fit(numeric_data, person_names=person_names)
-                    
+
                 except Exception as clean_error:
                     logger.error(f"Auto clean error after analyzer failure: {clean_error}")
                     await status_message.delete()
@@ -940,9 +938,12 @@ async def perform_analysis_after_payment(message, context: ContextTypes.DEFAULT_
                         percentage = (count / n_persons) * 100
                         summary_text += f"  • {grade}: {count} ta ({percentage:.1f}%)\n"
 
-                summary_text += "\n━━━━━━━━━━━━━━━━━━━━\n📄 Batafsil natijalar PDF faylda yuborilmoqda..."
+                summary_text += "\n━━━━━━━━━━━━━━━━━━━━\n"
+            else:
+                summary_text = f"📊 *Tahlil Natijalari - Qisqacha*\n\n"
+            summary_text += "📄 Batafsil natijalar PDF faylda yuborilmoqda..."
 
-                await message.reply_text(summary_text, parse_mode='Markdown')
+            await message.reply_text(summary_text, parse_mode='Markdown')
 
         # Send general statistics PDF
         if general_pdf_path and os.path.exists(general_pdf_path):
@@ -990,9 +991,9 @@ async def perform_analysis_after_payment(message, context: ContextTypes.DEFAULT_
                     "🤖 AI natijalarni tahlil qilmoqda...",
                     parse_mode='Markdown'
                 )
-                
+
                 ai_opinion = ai_analyzer.analyze_test_results(results)
-                
+
                 await message.reply_text(
                     f"🤖 *AI Fikri*\n"
                     f"━━━━━━━━━━━━━━━━━━━━\n\n"
@@ -1058,23 +1059,23 @@ async def handle_profile(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Handle Profile button"""
     user = update.effective_user
     user_data = user_data_manager.get_user_data(user.id)
-    
+
     # Get user statistics
     students = student_data_manager.get_all_students(user.id)
     students_count = len(students)
-    
+
     user_tests = test_manager.get_teacher_tests(user.id)
     total_tests = len(user_tests)
     active_tests = sum(1 for test in user_tests if test.get('is_active', False))
-    
+
     # Get payment history count
     payment_history = payment_manager.get_user_payments(user.id)
     total_analyses = len(payment_history)
-    
+
     # Get user preferences
     section_results_enabled = user_data.get('section_results_enabled', False)
     auto_file_cleaner = user_data.get('auto_file_cleaner', False)
-    
+
     # Display profile information with statistics
     profile_text = (
         f"👤 *Profil ma'lumotlari*\n"
@@ -1166,7 +1167,7 @@ async def handle_callback_query(update: Update, context: ContextTypes.DEFAULT_TY
         user_id = update.effective_user.id
         user = update.effective_user
         user_data = user_data_manager.get_user_data(user_id)
-        
+
         # Chiroyli formatlangan profil ma'lumotlari
         full_name = user_data.get('full_name') or "O'qituvchi"
         share_text = (
@@ -1174,25 +1175,25 @@ async def handle_callback_query(update: Update, context: ContextTypes.DEFAULT_TY
             f"━━━━━━━━━━━━━━━━━━━━\n\n"
             f"📚 *Mutaxassislik:* {user_data.get('subject') or 'Belgilanmagan'}\n"
         )
-        
+
         if user_data.get('experience_years'):
             share_text += f"📅 *Tajriba:* {user_data.get('experience_years')}\n"
-        
+
         if user_data.get('phone'):
             share_text += f"📞 *Telefon:* {user_data.get('phone')}\n"
-        
+
         if user.username:
             share_text += f"📱 *Telegram:* @{user.username}\n"
-        
+
         share_text += f"\n"
-        
+
         if user_data.get('bio'):
             share_text += f"📝 *Haqimda:*\n{user_data.get('bio')}\n\n"
-        
+
         # Statistika
         students = student_data_manager.get_all_students(user_id)
         user_tests = test_manager.get_teacher_tests(user_id)
-        
+
         share_text += (
             f"📊 *Statistika:*\n"
             f"  • O'quvchilar: {len(students)} ta\n"
@@ -1200,7 +1201,7 @@ async def handle_callback_query(update: Update, context: ContextTypes.DEFAULT_TY
             f"━━━━━━━━━━━━━━━━━━━━\n"
             f"🤖 @RaschAnalyzerBot orqali"
         )
-        
+
         # Agar foto mavjud bo'lsa, foto bilan yuboring
         photo_id = user_data.get('profile_photo_id')
         if photo_id:
@@ -1214,7 +1215,7 @@ async def handle_callback_query(update: Update, context: ContextTypes.DEFAULT_TY
                 await query.message.reply_text(share_text, parse_mode='Markdown')
         else:
             await query.message.reply_text(share_text, parse_mode='Markdown')
-        
+
         await query.answer("✅ Profil ma'lumotlari tayyor!")
 
     # Handle time restriction choice for test creation
@@ -1453,7 +1454,16 @@ async def handle_callback_query(update: Update, context: ContextTypes.DEFAULT_TY
             participants = test.get('participants', {})
 
             # Qisqacha statistika hisoblash
-            total_participants = len(participants)
+            total_participants = 0
+            completed_tests_finalized = 0 # Count finalized tests for summary
+            if isinstance(participants, dict):
+                total_participants = len(participants)
+            elif isinstance(participants, list):
+                total_participants = len(participants)
+
+            if is_finalized:
+                completed_tests_finalized = 1
+
             if total_participants > 0:
                 scores = []
                 percentages = []
@@ -1498,7 +1508,7 @@ async def handle_callback_query(update: Update, context: ContextTypes.DEFAULT_TY
                         f"  • Ishtirokchilar: {total_participants} ta\n"
                         f"  • O'rtacha ball: {avg_score:.1f}/{test.get('questions', [{}])[0].get('points', 1) * len(test.get('questions', []))}\n"
                         f"  • O'rtacha natija: {avg_percentage:.1f}%\n\n"
-                        f"📈 *Balllar:*\n"
+                        f"📈 *Ballar:*\n"
                         f"  • Eng yuqori: {max_score_val}\n"
                         f"  • Eng past: {min_score_val}\n\n"
                         f"🎯 *Darajalar taqsimoti:*\n"
@@ -1848,7 +1858,7 @@ async def handle_callback_query(update: Update, context: ContextTypes.DEFAULT_TY
         students = student_data_manager.get_all_students(user_id)
         user_tests = test_manager.get_teacher_tests(user_id)
         payment_history = payment_manager.get_user_payments(user_id)
-        
+
         # Calculate detailed stats
         total_participants = 0
         completed_tests = 0
@@ -1857,7 +1867,7 @@ async def handle_callback_query(update: Update, context: ContextTypes.DEFAULT_TY
             total_participants += len(participants)
             if test.get('finalized_at'):
                 completed_tests += 1
-        
+
         stats_text = (
             f"📊 *Batafsil Statistika*\n"
             f"━━━━━━━━━━━━━━━━━━━━\n\n"
@@ -1871,7 +1881,7 @@ async def handle_callback_query(update: Update, context: ContextTypes.DEFAULT_TY
             f"📈 *Tahlillar:*\n"
             f"  • Amalga oshirilgan: {len(payment_history)} ta\n"
         )
-        
+
         if user_tests:
             recent_test = user_tests[-1]
             stats_text += (
@@ -1879,9 +1889,9 @@ async def handle_callback_query(update: Update, context: ContextTypes.DEFAULT_TY
                 f"  • Test: {recent_test['name']}\n"
                 f"  • Sana: {recent_test['created_at'][:10]}\n"
             )
-        
+
         await query.edit_message_text(stats_text, parse_mode='Markdown')
-    
+
     # Handle subject selection
     elif query.data.startswith('subject_'):
         subject_mapping = {

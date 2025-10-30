@@ -2,22 +2,38 @@ import logging
 from telegram import Update, LabeledPrice, InlineKeyboardMarkup, InlineKeyboardButton
 from telegram.ext import ContextTypes
 from bot.utils.payment_manager import PaymentManager
+from bot.utils.bonus_manager import BonusManager
 
 logger = logging.getLogger(__name__)
 payment_manager = PaymentManager()
+bonus_manager = BonusManager()
 
 
 async def create_payment_invoice(update: Update, context: ContextTypes.DEFAULT_TYPE, 
                                  file_name: str):
     """Create and send payment invoice for file analysis"""
+    user_id = update.effective_user.id
     config = payment_manager.get_config()
     price_stars = config['analysis_price_stars']
     
-    title = "📊 Rasch tahlili"
-    description = f"Fayl tahlili: {file_name}\n\nTo'lovdan keyin PDF hisobot yuboriladi."
-    payload = f"analysis_{update.effective_user.id}_{file_name}"
+    # Bonus chegirmasini hisoblash
+    discount, final_price = bonus_manager.calculate_discount(user_id, price_stars)
+    user_bonus = bonus_manager.get_user_bonus(user_id)
     
-    prices = [LabeledPrice("Rasch tahlili", price_stars)]
+    title = "📊 Rasch tahlili"
+    
+    bonus_text = ""
+    if discount > 0:
+        bonus_text = f"\n\n🎁 Bonus chegirma: -{discount} ⭐\n💰 Asl narx: {price_stars} ⭐"
+    
+    description = f"Fayl tahlili: {file_name}{bonus_text}\n\nTo'lovdan keyin PDF hisobot yuboriladi."
+    payload = f"analysis_{user_id}_{file_name}_{discount}"
+    
+    prices = [LabeledPrice("Rasch tahlili", final_price)]
+    
+    # Bonus ma'lumotini saqlash
+    context.user_data['bonus_discount_used'] = discount
+    context.user_data['original_price'] = price_stars
     
     try:
         await context.bot.send_invoice(
@@ -56,6 +72,11 @@ async def successful_payment_callback(update: Update, context: ContextTypes.DEFA
     
     file_name = context.user_data.get('pending_payment_file', 'Unknown')
     
+    # Bonus ishlatilganini tekshirish
+    bonus_used = context.user_data.get('bonus_discount_used', 0)
+    if bonus_used > 0:
+        bonus_manager.use_bonus(user_id, bonus_used)
+    
     payment_id = payment_manager.record_payment(
         user_id=user_id,
         amount_stars=payment_info.total_amount,
@@ -63,11 +84,13 @@ async def successful_payment_callback(update: Update, context: ContextTypes.DEFA
         file_name=file_name
     )
     
-    logger.info(f"To'lov muvaffaqiyatli: User {user_id}, File: {file_name}, Stars: {payment_info.total_amount}")
+    logger.info(f"To'lov muvaffaqiyatli: User {user_id}, File: {file_name}, Stars: {payment_info.total_amount}, Bonus: {bonus_used}")
+    
+    bonus_text = f"\n🎁 Bonus ishlatildi: {bonus_used} ⭐" if bonus_used > 0 else ""
     
     await update.message.reply_text(
         f"✅ To'lov muvaffaqiyatli qabul qilindi!\n\n"
-        f"💰 Summa: {payment_info.total_amount} ⭐ Stars\n"
+        f"💰 To'langan: {payment_info.total_amount} ⭐ Stars{bonus_text}\n"
         f"📄 Fayl: {file_name}\n\n"
         f"⏳ Tahlil jarayoni boshlanmoqda..."
     )
