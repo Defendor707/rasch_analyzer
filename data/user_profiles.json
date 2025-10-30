@@ -21,6 +21,6 @@
     "subject": "Geografiya",
     "school": "",
     "file_analyzer_mode": false,
-    "file_analyzer_operation": null
+    "file_analyzer_operation": "full_clean"
   }
 }
