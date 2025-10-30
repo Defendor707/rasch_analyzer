@@ -1261,10 +1261,6 @@ async def handle_callback_query(update: Update, context: ContextTypes.DEFAULT_TY
             "Keyin har bir savol uchun to'g'ri javobni tanlaysiz."
         )
 
-    elif query.data == 'upload_pdf_questions':
-        # Handled above in upload_questions_file
-        pass
-
     elif query.data == 'upload_excel_questions':
         # Excel is only for sample analysis, not for creating tests
         await query.message.reply_text(
@@ -1523,7 +1519,7 @@ async def handle_callback_query(update: Update, context: ContextTypes.DEFAULT_TY
             results_text = summary_text + "\n*📋 Batafsil natijalar:*\n\n"
 
             if participants:
-                # Handle both dict and list formats for backward compatibility
+                # Handle both dict and list formats
                 if isinstance(participants, dict):
                     for user_id_str, p in participants.items():
                         if isinstance(p, dict):
@@ -1541,10 +1537,6 @@ async def handle_callback_query(update: Update, context: ContextTypes.DEFAULT_TY
                                 f"   Foiz: {p.get('percentage', 0):.1f}%\n\n"
                             )
 
-                # Add status message if results have been sent
-                if results_sent:
-                    results_text += "\n✅ Natijalar talabgorlarga yuborilgan\n"
-
                 # Build keyboard based on test state
                 keyboard = []
 
@@ -1561,12 +1553,16 @@ async def handle_callback_query(update: Update, context: ContextTypes.DEFAULT_TY
                     # Test already finalized - show re-analysis option
                     keyboard.append([InlineKeyboardButton("🔄 Rasch tahlilini qayta amalga oshirish", callback_data=f"rasch_analysis_{test_id}")])
 
-                # Add "Send results" button only if results haven't been sent yet
-                if not results_sent:
-                    keyboard.append([InlineKeyboardButton("📤 Talabgorlarga natijalarni yuborish", callback_data=f"send_results_{test_id}")])
+                    # Add "Send results" button only if results haven't been sent yet
+                    if not results_sent:
+                        keyboard.append([InlineKeyboardButton("📤 Talabgorlarga natijalarni yuborish", callback_data=f"send_results_{test_id}")])
 
-                reply_markup = InlineKeyboardMarkup(keyboard)
-                await query.edit_message_text(results_text, parse_mode='Markdown', reply_markup=reply_markup)
+                    # Add student bot link info
+                    student_bot_username = os.getenv('STUDENT_BOT_USERNAME', 'Talabgor_bot')
+                    results_text += f"\n\n📱 *Test havolasi (talabgorlar uchun):*\nhttps://t.me/{student_bot_username}?start=test_{test_id}"
+
+                    reply_markup = InlineKeyboardMarkup(keyboard)
+                    await query.edit_message_text(results_text, parse_mode='Markdown', reply_markup=reply_markup)
             else:
                 results_text += "Hali natijalar yo'q."
                 await query.edit_message_text(results_text, parse_mode='Markdown')
