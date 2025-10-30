@@ -1672,6 +1672,49 @@ async def handle_callback_query(update: Update, context: ContextTypes.DEFAULT_TY
         else:
             await query.answer("❌ Xatolik yuz berdi!")
 
+    elif query.data.startswith('share_test_'):
+        test_id = query.data.replace('share_test_', '')
+        test = test_manager.get_test(test_id)
+
+        if test:
+            # Get student bot username from environment
+            student_bot_username = os.getenv('STUDENT_BOT_USERNAME', 'Talabgor_bot')
+            
+            # Build time info
+            start_date = test.get('start_date', '')
+            start_time = test.get('start_time', '')
+            
+            if start_date and start_time:
+                time_info = f"📅 Boshlanish: {start_date} {start_time}\n⏱ Davomiyligi: {test['duration']} daqiqa"
+            else:
+                time_info = f"⏱ Vaqt chegarasi: Yo'q (istalgan vaqtda topshirish mumkin)"
+
+            # Create shareable message with inline button
+            share_text = (
+                f"📝 *{test['name']}*\n\n"
+                f"📚 Fan: {test['subject']}\n"
+                f"{time_info}\n"
+                f"📝 Savollar: {len(test['questions'])} ta\n\n"
+                f"Testni ishlash uchun pastdagi tugmani bosing 👇"
+            )
+
+            # Create inline button for test
+            share_keyboard = [
+                [InlineKeyboardButton("📝 Testni boshlash", url=f"https://t.me/{student_bot_username}?start=test_{test_id}")]
+            ]
+            share_markup = InlineKeyboardMarkup(share_keyboard)
+
+            # Send shareable message
+            await query.message.reply_text(
+                share_text,
+                parse_mode='Markdown',
+                reply_markup=share_markup
+            )
+            
+            await query.answer("✅ Test ulashish xabari yuborildi! Uni kanalingizga yoki guruhingizga forward qilishingiz mumkin.")
+        else:
+            await query.answer("❌ Test topilmadi!")
+
     # Handle writing task toggle
     elif query.data == 'writing_task_on':
         user_data_manager.update_user_field(user_id, 'writing_task_enabled', True)
@@ -3142,6 +3185,7 @@ async def handle_view_tests(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
         keyboard.extend([
             [InlineKeyboardButton("📊 Natijalash", callback_data=f"test_results_{test['id']}")],
+            [InlineKeyboardButton("📤 Testni ulashish", callback_data=f"share_test_{test['id']}")],
             [InlineKeyboardButton("🗑 O'chirish", callback_data=f"delete_test_{test['id']}")]
         ])
 
