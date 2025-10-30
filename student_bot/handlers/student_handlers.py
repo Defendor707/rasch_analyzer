@@ -60,6 +60,26 @@ async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
     user = update.effective_user
 
+    # Check if user has profile with full name
+    sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '../..')))
+    from bot.utils.student_data import StudentDataManager
+    student_data_manager = StudentDataManager()
+    
+    # Try to get user profile
+    user_profile = student_data_manager.get_student_profile(user_id)
+    
+    # If no full name saved, ask for it
+    if not user_profile or not user_profile.get('full_name'):
+        context.user_data['registering'] = True
+        await update.message.reply_text(
+            "👋 Xush kelibsiz!\n\n"
+            "Davom etish uchun ism va familiyangizni kiriting:\n\n"
+            "*Masalan:* Sardor Oktamov",
+            parse_mode='Markdown'
+        )
+        return
+
+    # Handle deep link if present
     if context.args and len(context.args) > 0:
         deep_link = context.args[0]
         logger.info(f"Deep link qabul qilindi: {deep_link}")
@@ -71,7 +91,7 @@ async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
             return
 
     welcome_message = (
-        f"👋 Salom, *{user.first_name}*\n\n"
+        f"👋 Salom, *{user_profile.get('full_name', user.first_name)}*\n\n"
         "📝 *Test Platformasi*\n"
         "Online test tizimi\n\n"
         "📋 *Imkoniyatlar:*\n"
@@ -879,6 +899,41 @@ async def handle_callback_query(update: Update, context: ContextTypes.DEFAULT_TY
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Handle regular text messages"""
     message_text = update.message.text
+    user_id = update.effective_user.id
+
+    # Handle registration (name collection)
+    if context.user_data.get('registering'):
+        # Validate name (at least 2 words)
+        name_parts = message_text.strip().split()
+        if len(name_parts) < 2:
+            await update.message.reply_text(
+                "❌ Iltimos, ism va familiyangizni to'liq kiriting.\n\n"
+                "*Masalan:* Sardor Oktamov",
+                parse_mode='Markdown'
+            )
+            return
+
+        # Save user profile
+        from bot.utils.student_data import StudentDataManager
+        student_data_manager = StudentDataManager()
+        
+        student_data_manager.save_student_profile(user_id, {
+            'full_name': message_text.strip(),
+            'telegram_id': user_id,
+            'username': update.effective_user.username,
+            'registered_at': datetime.now().isoformat()
+        })
+
+        context.user_data['registering'] = False
+
+        await update.message.reply_text(
+            f"✅ Ro'yxatdan o'tdingiz!\n\n"
+            f"👤 {message_text.strip()}\n\n"
+            "Endi testlarni ishlashingiz mumkin.",
+            parse_mode='Markdown',
+            reply_markup=get_main_keyboard()
+        )
+        return
 
     # Check if user is taking a test and current question is text answer
     if context.user_data.get('taking_test'):

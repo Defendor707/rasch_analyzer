@@ -8,14 +8,38 @@ class StudentDataManager:
     
     def __init__(self, data_file: str = "data/students.json"):
         self.data_file = data_file
+        self.profiles_file = "data/student_profiles.json"
         os.makedirs(os.path.dirname(data_file), exist_ok=True)
         self._ensure_file_exists()
+        self._ensure_profiles_file_exists()
     
     def _ensure_file_exists(self):
         """Create data file if it doesn't exist"""
         if not os.path.exists(self.data_file):
             with open(self.data_file, 'w', encoding='utf-8') as f:
                 json.dump({}, f)
+    
+    def _ensure_profiles_file_exists(self):
+        """Create profiles file if it doesn't exist"""
+        if not os.path.exists(self.profiles_file):
+            with open(self.profiles_file, 'w', encoding='utf-8') as f:
+                json.dump({}, f)
+    
+    def get_student_profile(self, telegram_id: int) -> dict:
+        """Get student profile by Telegram ID"""
+        with open(self.profiles_file, 'r', encoding='utf-8') as f:
+            profiles = json.load(f)
+        return profiles.get(str(telegram_id), {})
+    
+    def save_student_profile(self, telegram_id: int, profile_data: dict):
+        """Save student profile"""
+        with open(self.profiles_file, 'r', encoding='utf-8') as f:
+            profiles = json.load(f)
+        
+        profiles[str(telegram_id)] = profile_data
+        
+        with open(self.profiles_file, 'w', encoding='utf-8') as f:
+            json.dump(profiles, f, ensure_ascii=False, indent=2)
     
     def get_all_students(self, teacher_id: int) -> List[Dict[str, Any]]:
         """Get all students for a teacher"""
