@@ -230,11 +230,11 @@ async def admin_panel_command(update: Update, context: ContextTypes.DEFAULT_TYPE
             InlineKeyboardButton("🤖 Bot statistikasi", callback_data="admin_bot_stats")
         ],
         [
-            InlineKeyboardButton("💵 Narxni o'zgartirish", callback_data="admin_change_price"),
-            InlineKeyboardButton(payment_toggle_text, callback_data="admin_toggle_payment")
+            InlineKeyboardButton("💸 Withdrawal so'rovlari", callback_data="admin_withdrawals"),
+            InlineKeyboardButton("💵 Narxni o'zgartirish", callback_data="admin_change_price")
         ],
         [
-            InlineKeyboardButton("📋 Batafsil hisobot", callback_data="admin_detailed_report"),
+            InlineKeyboardButton(payment_toggle_text, callback_data="admin_toggle_payment"),
             InlineKeyboardButton("⚙️ Sozlamalar", callback_data="admin_settings")
         ]
     ]
@@ -334,6 +334,36 @@ async def handle_admin_callbacks(update: Update, context: ContextTypes.DEFAULT_T
     
     elif query.data == "admin_settings":
         await show_admin_settings(query, context)
+    
+    elif query.data == "admin_withdrawals":
+        from bot.utils.earnings_manager import EarningsManager
+        earnings_mgr = EarningsManager()
+        
+        pending_withdrawals = earnings_mgr.get_withdrawal_requests(status='pending')
+        
+        message = f"💸 *Withdrawal so'rovlari*\n\n"
+        message += f"⏳ Kutilmoqda: {len(pending_withdrawals)} ta\n\n"
+        
+        if not pending_withdrawals:
+            message += "Hozircha so'rovlar yo'q."
+        else:
+            for w in pending_withdrawals[:5]:
+                message += (
+                    f"#{w['id']} - {w['amount']} ⭐\n"
+                    f"  👤 Teacher: {w['teacher_id']}\n"
+                    f"  💳 {w['method']}: {w.get('wallet_address', 'N/A')[:20]}...\n"
+                    f"  📅 {w['requested_at'][:10]}\n\n"
+                )
+            
+            if len(pending_withdrawals) > 5:
+                message += f"... va yana {len(pending_withdrawals) - 5} ta so'rov\n\n"
+            
+            message += "So'rovni ko'rib chiqish uchun: /withdrawal_ID"
+        
+        keyboard = [[InlineKeyboardButton("◀️ Ortga", callback_data="admin_back")]]
+        reply_markup = InlineKeyboardMarkup(keyboard)
+        
+        await query.edit_message_text(message, parse_mode='Markdown', reply_markup=reply_markup)
     
     elif query.data == "admin_back":
         # Check payment status for dynamic button

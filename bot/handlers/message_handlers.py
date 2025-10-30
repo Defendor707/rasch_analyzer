@@ -52,6 +52,8 @@ WAITING_FOR_ALL_PDF_ANSWERS = 22
 WAITING_FOR_PHONE = 23
 WAITING_FOR_EXPERIENCE = 24
 WAITING_FOR_PHOTO = 25
+WAITING_FOR_PAID_TEST_CHOICE = 26
+WAITING_FOR_TEST_PRICE = 27
 
 
 def get_main_keyboard():
@@ -1223,34 +1225,31 @@ async def handle_callback_query(update: Update, context: ContextTypes.DEFAULT_TY
         )
 
     elif query.data == 'time_restriction_no':
-        # Create test without time restrictions
-        user_id = update.effective_user.id
+        # Set test without time restrictions, then ask about payment
         test_temp = context.user_data.get('test_temp', {})
         test_temp['start_date'] = ''
         test_temp['start_time'] = ''
         test_temp['duration'] = 60  # Default duration
+        context.user_data['test_temp'] = test_temp
+        context.user_data['creating_test'] = WAITING_FOR_PAID_TEST_CHOICE
 
-        test_id = test_manager.create_test(user_id, test_temp)
-        context.user_data['current_test_id'] = test_id
-
-        # Offer choice: upload file or add manually
+        # Ask if test should be paid
         keyboard = [
-            [InlineKeyboardButton("📁 Fayl orqali yuklash", callback_data="upload_questions_file")],
-            [InlineKeyboardButton("✍️ Qo'lda qo'shish", callback_data="add_questions_manually")]
+            [
+                InlineKeyboardButton("💰 Pullik", callback_data="paid_test_yes"),
+                InlineKeyboardButton("🆓 Tekin", callback_data="paid_test_no")
+            ]
         ]
         reply_markup = InlineKeyboardMarkup(keyboard)
 
         await query.message.reply_text(
-            f"✅ Test muvaffaqiyatli yaratildi!\n\n"
-            f"📋 *{test_temp['name']}*\n"
-            f"📚 Fan: {test_temp['subject']}\n"
-            f"⏱ Vaqt chegarasi: Yo'q (istalgan vaqtda topshirish mumkin)\n\n"
-            "❓ Savollarni qanday qo'shmoqchisiz?",
+            "💵 *Testni pullik qilasizmi?*\n\n"
+            "• *Pullik* - Talabalar test ishlash uchun to'lov qiladi (10-100 ⭐)\n"
+            "  Siz daromadning 80% ni olasiz\n\n"
+            "• *Tekin* - Talabalar bepul test ishlaydi",
             parse_mode='Markdown',
             reply_markup=reply_markup
         )
-
-        context.user_data['creating_test'] = None
 
     # Handle question upload method choice - Only PDF allowed for tests
     elif query.data == 'upload_questions_file':
@@ -1333,6 +1332,50 @@ async def handle_callback_query(update: Update, context: ContextTypes.DEFAULT_TY
             reply_markup=reply_markup
         )
         await query.answer("❌ Fan bo'limlari bo'yicha natijalash o'chirildi!")
+
+    # Handle paid test choice callbacks
+    elif query.data == 'paid_test_yes':
+        context.user_data['creating_test'] = WAITING_FOR_TEST_PRICE
+        await query.message.reply_text(
+            "💰 *Test narxini belgilang*\n\n"
+            "10 dan 100 gacha Stars miqdorida narx kiriting.\n\n"
+            "Masalan: 50\n\n"
+            "💡 Talabalar to'lagan miqdorning 80% sizga,\n"
+            "20% platformaga o'tadi."
+        )
+
+    elif query.data == 'paid_test_no':
+        # Create free test
+        user_id = update.effective_user.id
+        test_temp = context.user_data.get('test_temp', {})
+        test_temp['is_paid'] = False
+        test_temp['price'] = 0
+
+        test_id = test_manager.create_test(user_id, test_temp)
+        context.user_data['current_test_id'] = test_id
+
+        # Offer choice: upload file or add manually
+        keyboard = [
+            [InlineKeyboardButton("📁 Fayl orqali yuklash", callback_data="upload_questions_file")],
+            [InlineKeyboardButton("✍️ Qo'lda qo'shish", callback_data="add_questions_manually")]
+        ]
+        reply_markup = InlineKeyboardMarkup(keyboard)
+
+        price_info = ""
+        date_info = f"📅 Boshlanish: {test_temp['start_date']} {test_temp['start_time']}\n⏱ Davomiylik: {test_temp['duration']} daqiqa\n" if test_temp.get('start_date') else "⏱ Vaqt chegarasi: Yo'q\n"
+
+        await query.message.reply_text(
+            f"✅ Test muvaffaqiyatli yaratildi!\n\n"
+            f"📋 *{test_temp['name']}*\n"
+            f"📚 Fan: {test_temp['subject']}\n"
+            f"{date_info}"
+            f"🆓 Test: Tekin\n\n"
+            "❓ Savollarni qanday qo'shmoqchisiz?",
+            parse_mode='Markdown',
+            reply_markup=reply_markup
+        )
+
+        context.user_data['creating_test'] = None
 
     # Handle test management callbacks
     elif query.data.startswith('activate_test_'):
@@ -3298,6 +3341,43 @@ async def handle_test_input(update: Update, context: ContextTypes.DEFAULT_TYPE, 
                 return True
 
             context.user_data['test_temp']['duration'] = duration
+            context.user_data['creating_test'] = WAITING_FOR_PAID_TEST_CHOICE
+
+            # Ask if test should be paid
+            keyboard = [
+                [
+                    InlineKeyboardButton("💰 Pullik", callback_data="paid_test_yes"),
+                    InlineKeyboardButton("🆓 Tekin", callback_data="paid_test_no")
+                ]
+            ]
+            reply_markup = InlineKeyboardMarkup(keyboard)
+
+            await update.message.reply_text(
+                "💵 *Testni pullik qilasizmi?*\n\n"
+                "• *Pullik* - Talabalar test ishlash uchun to'lov qiladi (10-100 ⭐)\n"
+                "  Siz daromadning 80% ni olasiz\n\n"
+                "• *Tekin* - Talabalar bepul test ishlaydi",
+                parse_mode='Markdown',
+                reply_markup=reply_markup
+            )
+            return True
+
+        except ValueError:
+            await update.message.reply_text("❌ Iltimos, raqam kiriting!")
+            return True
+
+    elif creating_state == WAITING_FOR_TEST_PRICE:
+        try:
+            price = int(text)
+            if price < 10 or price > 100:
+                await update.message.reply_text(
+                    "❌ Narx 10 dan 100 gacha bo'lishi kerak!\n\n"
+                    "Iltimos, 10-100 oralig'ida narx kiriting:"
+                )
+                return True
+
+            context.user_data['test_temp']['price'] = price
+            context.user_data['test_temp']['is_paid'] = True
 
             # Create test
             test_id = test_manager.create_test(user_id, context.user_data['test_temp'])
@@ -3312,12 +3392,15 @@ async def handle_test_input(update: Update, context: ContextTypes.DEFAULT_TYPE, 
             ]
             reply_markup = InlineKeyboardMarkup(keyboard)
 
+            price_info = f"💰 Narx: {price} ⭐ Stars\n" if test_temp.get('is_paid') else ""
+            date_info = f"📅 Boshlanish: {test_temp['start_date']} {test_temp['start_time']}\n⏱ Davomiylik: {test_temp['duration']} daqiqa\n" if test_temp.get('start_date') else "⏱ Vaqt chegarasi: Yo'q\n"
+
             await update.message.reply_text(
                 f"✅ Test muvaffaqiyatli yaratildi!\n\n"
                 f"📋 *{test_temp['name']}*\n"
                 f"📚 Fan: {test_temp['subject']}\n"
-                f"📅 Boshlanish: {test_temp['start_date']} {test_temp['start_time']}\n"
-                f"⏱ Davomiylik: {duration} daqiqa\n\n"
+                f"{date_info}"
+                f"{price_info}\n"
                 "❓ Savollarni qanday qo'shmoqchisiz?",
                 parse_mode='Markdown',
                 reply_markup=reply_markup

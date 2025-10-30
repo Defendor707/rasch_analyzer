@@ -8,10 +8,13 @@ from datetime import datetime, timedelta
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '../..')))
 
 from bot.utils.test_manager import TestManager
+from bot.utils.earnings_manager import EarningsManager
+from telegram import LabeledPrice
 
 logger = logging.getLogger(__name__)
 
 test_manager = TestManager()
+earnings_manager = EarningsManager()
 
 TAKING_TEST = 1
 ANSWERING_QUESTION = 2
@@ -343,6 +346,53 @@ async def start_test(update: Update, context: ContextTypes.DEFAULT_TYPE, test_id
     if not time_check['valid']:
         await message.reply_text(f"❌ {time_check['message']}")
         return
+
+    # Check if test is paid and student hasn't paid yet
+    if test.get('is_paid', False):
+        price = test.get('price', 0)
+        paid_students = context.user_data.get('paid_tests', {})
+        
+        if test_id not in paid_students:
+            # Show payment invoice
+            title = f"💰 {test['name']}"
+            description = (
+                f"Test: {test['name']}\n"
+                f"Fan: {test['subject']}\n"
+                f"Savollar: {len(test['questions'])} ta\n\n"
+                f"To'lovdan keyin test ishlash imkoniyati beriladi."
+            )
+            payload = f"test_{test_id}_{user_id}"
+            prices = [LabeledPrice("Test to'lovi", price)]
+            
+            try:
+                await context.bot.send_invoice(
+                    chat_id=update.effective_chat.id,
+                    title=title,
+                    description=description,
+                    payload=payload,
+                    provider_token="",
+                    currency="XTR",
+                    prices=prices,
+                    reply_markup=InlineKeyboardMarkup([
+                        [InlineKeyboardButton("⭐ To'lov qilish", pay=True)]
+                    ])
+                )
+                
+                # Save test info for later
+                context.user_data['pending_test_payment'] = {
+                    'test_id': test_id,
+                    'price': price,
+                    'teacher_id': test['teacher_id']
+                }
+                
+                logger.info(f"Invoice yuborildi: Test {test_id}, Price {price}")
+                return
+            except Exception as e:
+                logger.error(f"Invoice yaratishda xatolik: {e}")
+                await message.reply_text(
+                    "❌ To'lov tizimida xatolik yuz berdi. Iltimos, keyinroq qayta urinib ko'ring."
+                )
+                return
 
     if test_manager.has_student_taken_test(test_id, user_id):
         if not test.get('allow_retake', False):

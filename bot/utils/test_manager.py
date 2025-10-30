@@ -61,7 +61,9 @@ class TestManager:
             'created_at': datetime.now().isoformat(),
             'is_active': False,
             'allow_retake': False,  # Default: no retakes
-            'participants': []
+            'participants': [],
+            'is_paid': test_data.get('is_paid', False),  # Pullik testmi?
+            'price': test_data.get('price', 0)  # Narx (Telegram Stars)
         }
 
         self._save_tests(tests)
