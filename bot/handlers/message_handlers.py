@@ -55,8 +55,9 @@ WAITING_FOR_PHOTO = 25
 
 
 def get_main_keyboard():
-    """Create main reply keyboard with 2 buttons"""
+    """Create main reply keyboard with 3 buttons"""
     keyboard = [
+        [KeyboardButton("📝 Ommaviy test o'tkazish")],
         [KeyboardButton("⚙️ Sozlamalar"), KeyboardButton("ℹ️ Boshqa")]
     ]
     return ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
@@ -2556,7 +2557,6 @@ def get_other_keyboard(is_admin=False):
     keyboard = [
         [KeyboardButton("👤 Profil"), KeyboardButton("👥 O'quvchilar")],
         [KeyboardButton("📁 File Cleaner")],
-        [KeyboardButton("📝 Ommaviy test o'tkazish")],
         [KeyboardButton("💳 To'lovlar tarixi"), KeyboardButton("📊 Statistika")]
     ]
 
