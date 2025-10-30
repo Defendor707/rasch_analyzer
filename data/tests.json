@@ -321,6 +321,26 @@
     "created_at": "2025-10-30T14:51:39.451542",
     "is_active": true,
     "allow_retake": false,
-    "participants": []
+    "participants": {
+      "7537966029": {
+        "student_id": 7537966029,
+        "answers": {
+          "0": 1
+        },
+        "score": 0,
+        "max_score": 1,
+        "percentage": 0.0,
+        "results": [
+          {
+            "question_id": 1,
+            "student_answer": 1,
+            "correct_answer": 0,
+            "correct": false
+          }
+        ],
+        "submitted": true,
+        "submitted_at": "2025-10-30T20:00:56.759649+05:00"
+      }
+    }
   }
 }
