@@ -1838,16 +1838,6 @@ async def handle_callback_query(update: Update, context: ContextTypes.DEFAULT_TY
         )
         await query.answer("❌ Auto File Cleaner o'chirildi!")
 
-    # Handle send message to admin
-    elif query.data == 'send_message_to_admin':
-        context.user_data['sending_message_to_admin'] = True
-        await query.message.reply_text(
-            "✉️ *Adminga xabar yuborish*\n\n"
-            "Iltimos, xabaringizni yozing. Admin ko'radi va tez orada javob beradi.\n\n"
-            "❌ Bekor qilish uchun /start buyrug'ini yuboring.",
-            parse_mode='Markdown'
-        )
-
     # Handle detailed statistics view
     elif query.data == 'view_detailed_stats':
         user_id = update.effective_user.id
@@ -2565,7 +2555,6 @@ def get_other_keyboard(is_admin=False):
 
     keyboard.extend([
         [KeyboardButton("👥 Hamjamiyat")],
-        [KeyboardButton("💬 Adminga murojaat")],
         [KeyboardButton("◀️ Ortga")]
     ])
 
@@ -3855,11 +3844,6 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         if handled:
             return
 
-    # Check if user is sending message to admin
-    if context.user_data.get('sending_message_to_admin'):
-        await handle_admin_message(update, context, message_text)
-        return
-
     # Check if user is editing profile
     if context.user_data.get('editing'):
         handled = await handle_profile_edit(update, context, message_text)
@@ -3901,8 +3885,6 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await handle_admin_panel(update, context)
     elif message_text == "👥 Hamjamiyat":
         await handle_community(update, context)
-    elif message_text == "💬 Adminga murojaat":
-        await handle_contact_admin(update, context)
     elif message_text == "◀️ Ortga":
         await handle_back(update, context)
     # Handle student management buttons
