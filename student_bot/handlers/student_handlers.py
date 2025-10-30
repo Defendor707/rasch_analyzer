@@ -74,7 +74,7 @@ async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text(
             "👋 Xush kelibsiz!\n\n"
             "Davom etish uchun ism va familiyangizni kiriting:\n\n"
-            "*Masalan:* Sardor Oktamov",
+            "*Masalan:* Javohir Mirzanazarov",
             parse_mode='Markdown'
         )
         return
@@ -910,8 +910,8 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         if len(name_parts) < 2:
             await update.message.reply_text(
                 "❌ Iltimos, ism va familiyangizni to'liq kiriting.\n\n"
-                "🔹 *To'g'ri misol:* Sardor Oktamov\n"
-                "🔹 *To'g'ri misol:* Aziza Rahimova",
+                "🔹 *To'g'ri misol:* Javohir Mirzanazarov\n"
+                "🔹 *To'g'ri misol:* Dilshod Rahmonov",
                 parse_mode='Markdown'
             )
             return
@@ -928,8 +928,8 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         if not valid:
             await update.message.reply_text(
                 "❌ Ism va familiya har biri kamida 2 ta harfdan iborat bo'lishi kerak.\n\n"
-                "🔹 *To'g'ri misol:* Sardor Oktamov\n"
-                "🔹 *To'g'ri misol:* Aziza Rahimova\n"
+                "🔹 *To'g'ri misol:* Javohir Mirzanazarov\n"
+                "🔹 *To'g'ri misol:* Dilshod Rahmonov\n"
                 "🔹 *To'g'ri misol:* Muhammad Ali",
                 parse_mode='Markdown'
             )
