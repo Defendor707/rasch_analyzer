@@ -258,7 +258,7 @@
       }
     ],
     "created_at": "2025-10-30T14:16:04.612366",
-    "is_active": true,
+    "is_active": false,
     "allow_retake": false,
     "participants": {
       "7537966029": {
@@ -294,6 +294,7 @@
         "submitted": true,
         "submitted_at": "2025-10-30T19:21:05.469248+05:00"
       }
-    }
+    },
+    "finalized_at": "2025-10-30T19:24:17.710297+05:00"
   }
 }
