@@ -1,0 +1,7 @@
+{
+  "test_creation_bonus": 50,
+  "student_added_bonus": 10,
+  "test_completion_bonus": 100,
+  "stars_per_bonus_point": 1,
+  "bonus_expiry_days": 90
+}
