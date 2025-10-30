@@ -1335,16 +1335,19 @@ async def handle_callback_query(update: Update, context: ContextTypes.DEFAULT_TY
 
     # Handle paid test choice callbacks
     elif query.data == 'paid_test_yes':
+        await query.answer()
         context.user_data['creating_test'] = WAITING_FOR_TEST_PRICE
         await query.message.reply_text(
             "💰 *Test narxini belgilang*\n\n"
             "10 dan 100 gacha Stars miqdorida narx kiriting.\n\n"
             "Masalan: 50\n\n"
             "💡 Talabalar to'lagan miqdorning 80% sizga,\n"
-            "20% platformaga o'tadi."
+            "20% platformaga o'tadi.",
+            parse_mode='Markdown'
         )
 
     elif query.data == 'paid_test_no':
+        await query.answer()
         # Create free test
         user_id = update.effective_user.id
         test_temp = context.user_data.get('test_temp', {})
