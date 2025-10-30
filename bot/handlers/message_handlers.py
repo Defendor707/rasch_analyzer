@@ -2693,14 +2693,19 @@ async def handle_community(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "✓ Savol-javob va yordam olish\n"
         "✓ Yangi xususiyatlar haqida bilib oling\n"
         "✓ O'zbekiston ta'lim hamjamiyati bilan tanishing\n\n"
-        "📢 Telegram: @raschbot_uz\n"
-        "💬 Yordam: @raschbot_support\n\n"
-        "🔜 Tez orada kanal va guruh faollashtiriladi!"
+        "Quyidagi havolalar orqali biz bilan bog'laning:"
     )
+
+    keyboard = [
+        [InlineKeyboardButton("📢 Ustozlar kanali", url="https://t.me/rasch_analyzer_ustozlar")],
+        [InlineKeyboardButton("👨‍💼 Admin bilan bog'lanish", url="https://t.me/sanjaroktamov")]
+    ]
+    reply_markup = InlineKeyboardMarkup(keyboard)
 
     await update.message.reply_text(
         community_text, 
-        parse_mode='Markdown'
+        parse_mode='Markdown',
+        reply_markup=reply_markup
     )
 
 
