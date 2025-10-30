@@ -1338,10 +1338,15 @@ async def handle_callback_query(update: Update, context: ContextTypes.DEFAULT_TY
     elif query.data.startswith('activate_test_'):
         test_id = query.data.replace('activate_test_', '')
         if test_manager.activate_test(test_id):
+            # Get student bot username from environment
+            student_bot_username = os.getenv('STUDENT_BOT_USERNAME', 'Talabgor_bot')
+            
             await query.edit_message_text(
                 f"✅ Test faollashtirildi!\n\n"
-                f"Testni ulashish uchun quyidagi havoladan foydalaning:\n"
-                f"https://t.me/{context.bot.username}?start=test_{test_id}"
+                f"📱 *Talabgorlar uchun test havolasi:*\n"
+                f"https://t.me/{student_bot_username}?start=test_{test_id}\n\n"
+                f"Havolani talabgorlarga ulashing.",
+                parse_mode='Markdown'
             )
         else:
             await query.answer("❌ Xatolik yuz berdi!")
@@ -3439,6 +3444,9 @@ async def handle_test_input(update: Update, context: ContextTypes.DEFAULT_TYPE, 
         test_manager.activate_test(test_id)
         test = test_manager.get_test(test_id)
 
+        # Get student bot username from environment
+        student_bot_username = os.getenv('STUDENT_BOT_USERNAME', 'Talabgor_bot')
+
         await update.message.reply_text(
             f"✅ *Test yaratish tugallandi va avtomatik faollashtirildi!*\n\n"
             f"📋 {test['name']}\n"
@@ -3446,8 +3454,8 @@ async def handle_test_input(update: Update, context: ContextTypes.DEFAULT_TYPE, 
             f"📝 Savollar: {len(test['questions'])} ta\n"
             f"📊 Status: ✅ Faol\n\n"
             f"Test talabgorlarda ko'rinadi.\n\n"
-            f"Test havolasi:\n"
-            f"https://t.me/{context.bot.username}?start=test_{test_id}",
+            f"📱 *Test havolasi (talabgorlar uchun):*\n"
+            f"https://t.me/{student_bot_username}?start=test_{test_id}",
             parse_mode='Markdown',
             reply_markup=get_main_keyboard()
         )
@@ -3485,6 +3493,9 @@ async def handle_finish_test(update: Update, context: ContextTypes.DEFAULT_TYPE)
 
     test = test_manager.get_test(test_id)
 
+    # Get student bot username from environment
+    student_bot_username = os.getenv('STUDENT_BOT_USERNAME', 'Talabgor_bot')
+
     await update.message.reply_text(
         f"✅ *Test yaratish tugallandi!*\n\n"
         f"📋 {test['name']}\n"
@@ -3492,7 +3503,9 @@ async def handle_finish_test(update: Update, context: ContextTypes.DEFAULT_TYPE)
         f"📅 Boshlanish: {test.get('start_date', 'Belgilanmagan')} {test.get('start_time', '')}\n"
         f"⏱ Davomiylik: {test['duration']} daqiqa\n"
         f"📝 Savollar: {len(test['questions'])} ta\n\n"
-        f"Testni faollashtirish uchun '📋 Testlarimni ko'rish' dan testni tanlang.",
+        f"Testni faollashtirish uchun '📋 Testlarimni ko'rish' dan testni tanlang.\n\n"
+        f"📱 *Test havolasi (talabgorlar uchun):*\n"
+        f"https://t.me/{student_bot_username}?start=test_{test_id}",
         parse_mode='Markdown',
         reply_markup=get_main_keyboard()
     )
