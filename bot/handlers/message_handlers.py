@@ -57,7 +57,7 @@ WAITING_FOR_PHOTO = 25
 def get_main_keyboard():
     """Create main reply keyboard with 3 buttons"""
     keyboard = [
-        [KeyboardButton("📝 Ommaviy test o'tkazish")],
+        [KeyboardButton("📝 Online test o'tkazish")],
         [KeyboardButton("⚙️ Sozlamalar"), KeyboardButton("ℹ️ Boshqa")]
     ]
     return ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
@@ -2633,7 +2633,7 @@ async def handle_public_test(update: Update, context: ContextTypes.DEFAULT_TYPE)
     # Get user's tests
     user_tests = test_manager.get_teacher_tests(user_id)
 
-    test_text = "📝 *Ommaviy test o'tkazish*\n\n"
+    test_text = "📝 *Online test o'tkazish*\n\n"
 
     if user_tests:
         test_text += f"Sizning testlaringiz ({len(user_tests)} ta):\n\n"
@@ -3937,7 +3937,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     # Handle 'Boshqa' section buttons
     elif message_text == "📁 File Cleaner":
         await handle_file_cleaner(update, context)
-    elif message_text == "📝 Ommaviy test o'tkazish":
+    elif message_text == "📝 Online test o'tkazish":
         await handle_public_test(update, context)
     elif message_text == "📊 Statistika":
         await handle_statistics(update, context)
