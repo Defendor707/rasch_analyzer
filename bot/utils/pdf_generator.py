@@ -524,23 +524,9 @@ class PDFReportGenerator:
 
         story.append(Spacer(1, 0.3 * inch))
 
-        # Add Wright Map (Item-Person Map)
-        story.append(Paragraph("Wright Map (Item-Person Map)", heading_style))
-        chart_files_to_cleanup = []
-        try:
-            chart_path = self._create_item_person_map(results)
-            if chart_path and os.path.exists(chart_path):
-                img = Image(chart_path, width=6.5*inch, height=5.2*inch)
-                story.append(img)
-                story.append(Spacer(1, 0.2 * inch))
-                chart_files_to_cleanup.append(chart_path)
-        except Exception as e:
-            logger.error(f"Error creating Wright map: {e}")
-            story.append(Paragraph("Wright Map yaratishda xatolik yuz berdi.", styles['Normal']))
-            story.append(Spacer(1, 0.2 * inch))
-
         # Add Grade Distribution Chart
         story.append(Paragraph("Darajalar Taqsimoti", heading_style))
+        chart_files_to_cleanup = []
         try:
             grade_chart_path = self._create_grade_distribution(results)
             if grade_chart_path and os.path.exists(grade_chart_path):
