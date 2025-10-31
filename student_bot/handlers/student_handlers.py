@@ -68,87 +68,15 @@ async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '../..')))
     from bot.utils.student_data import StudentDataManager
     student_data_manager = StudentDataManager()
-    
+
     # Try to get user profile
     user_profile = student_data_manager.get_student_profile(user_id)
-    
+
     # If no full name saved, ask for it
     if not user_profile or not user_profile.get('full_name'):
         context.user_data['registering'] = True
         await update.message.reply_text(
             "👋 Xush kelibsiz!\n\n"
-
-
-
-async def status_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Show bot statistics - total users, tests, and other info"""
-    try:
-        # Load student profiles
-        student_profiles_file = 'data/student_profiles.json'
-        if os.path.exists(student_profiles_file):
-            with open(student_profiles_file, 'r', encoding='utf-8') as f:
-                student_profiles = json.load(f)
-            total_students = len(student_profiles)
-        else:
-            total_students = 0
-
-        # Load tests
-        tests_file = 'data/tests.json'
-        if os.path.exists(tests_file):
-            with open(tests_file, 'r', encoding='utf-8') as f:
-                all_tests = json.load(f)
-            
-            total_tests = len(all_tests)
-            active_tests = sum(1 for test in all_tests.values() if test.get('is_active', False))
-            
-            # Count total participants
-            total_participants = 0
-            total_submissions = 0
-            for test in all_tests.values():
-                participants = test.get('participants', {})
-                if isinstance(participants, dict):
-                    total_participants += len(participants)
-                    total_submissions += sum(1 for p in participants.values() 
-                                            if isinstance(p, dict) and p.get('submitted', False))
-                elif isinstance(participants, list):
-                    total_participants += len(participants)
-                    total_submissions += sum(1 for p in participants if p.get('submitted', False))
-        else:
-            total_tests = 0
-            active_tests = 0
-            total_participants = 0
-            total_submissions = 0
-
-        # Load teacher data
-        user_profiles_file = 'data/user_profiles.json'
-        if os.path.exists(user_profiles_file):
-            with open(user_profiles_file, 'r', encoding='utf-8') as f:
-                user_profiles = json.load(f)
-            total_teachers = len(user_profiles)
-        else:
-            total_teachers = 0
-
-        status_message = (
-            f"📊 *Talabgorlar Boti Statistikasi*\n\n"
-            f"👥 *Foydalanuvchilar:*\n"
-            f"  • Jami talabgorlar: {total_students} ta\n"
-            f"  • Jami o'qituvchilar: {total_teachers} ta\n\n"
-            f"📝 *Testlar:*\n"
-            f"  • Jami testlar: {total_tests} ta\n"
-            f"  • Faol testlar: {active_tests} ta\n"
-            f"  • Ishtirokchilar: {total_participants} ta\n"
-            f"  • Topshirilgan testlar: {total_submissions} ta\n\n"
-            f"✅ Bot faol ishlayapti!"
-        )
-
-        await update.message.reply_text(status_message, parse_mode='Markdown')
-
-    except Exception as e:
-        logger.error(f"Status command error: {e}")
-        await update.message.reply_text(
-            "❌ Statistikani olishda xatolik yuz berdi.\n"
-            "Iltimos, keyinroq qayta urinib ko'ring."
-        )
 
             "Davom etish uchun ism va familiyangizni kiriting:\n\n"
             "*Masalan:* Javohir Mirzanazarov",
@@ -160,7 +88,7 @@ async def status_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if context.args and len(context.args) > 0:
         deep_link = context.args[0]
         logger.info(f"Deep link qabul qilindi: {deep_link}")
-        
+
         if deep_link.startswith('test_'):
             test_id = deep_link
             logger.info(f"Test boshlash: {test_id}")
@@ -210,6 +138,77 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(help_message, parse_mode='Markdown')
 
 
+async def status_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Show bot statistics - total users, tests, and other info"""
+    try:
+        # Load student profiles
+        student_profiles_file = 'data/student_profiles.json'
+        if os.path.exists(student_profiles_file):
+            with open(student_profiles_file, 'r', encoding='utf-8') as f:
+                student_profiles = json.load(f)
+            total_students = len(student_profiles)
+        else:
+            total_students = 0
+
+        # Load tests
+        tests_file = 'data/tests.json'
+        if os.path.exists(tests_file):
+            with open(tests_file, 'r', encoding='utf-8') as f:
+                all_tests = json.load(f)
+
+            total_tests = len(all_tests)
+            active_tests = sum(1 for test in all_tests.values() if test.get('is_active', False))
+
+            # Count total participants
+            total_participants = 0
+            total_submissions = 0
+            for test in all_tests.values():
+                participants = test.get('participants', {})
+                if isinstance(participants, dict):
+                    total_participants += len(participants)
+                    total_submissions += sum(1 for p in participants.values() 
+                                            if isinstance(p, dict) and p.get('submitted', False))
+                elif isinstance(participants, list):
+                    total_participants += len(participants)
+                    total_submissions += sum(1 for p in participants if p.get('submitted', False))
+        else:
+            total_tests = 0
+            active_tests = 0
+            total_participants = 0
+            total_submissions = 0
+
+        # Load teacher data
+        user_profiles_file = 'data/user_profiles.json'
+        if os.path.exists(user_profiles_file):
+            with open(user_profiles_file, 'r', encoding='utf-8') as f:
+                user_profiles = json.load(f)
+            total_teachers = len(user_profiles)
+        else:
+            total_teachers = 0
+
+        status_message = (
+            f"📊 *Talabgorlar Boti Statistikasi*\n\n"
+            f"👥 *Foydalanuvchilar:*\n"
+            f"  • Jami talabgorlar: {total_students} ta\n"
+            f"  • Jami o'qituvchilar: {total_teachers} ta\n\n"
+            f"📝 *Testlar:*\n"
+            f"  • Jami testlar: {total_tests} ta\n"
+            f"  • Faol testlar: {active_tests} ta\n"
+            f"  • Ishtirokchilar: {total_participants} ta\n"
+            f"  • Topshirilgan testlar: {total_submissions} ta\n\n"
+            f"✅ Bot faol ishlayapti!"
+        )
+
+        await update.message.reply_text(status_message, parse_mode='Markdown')
+
+    except Exception as e:
+        logger.error(f"Status command error: {e}")
+        await update.message.reply_text(
+            "❌ Statistikani olishda xatolik yuz berdi.\n"
+            "Iltimos, keyinroq qayta urinib ko'ring."
+        )
+
+
 async def handle_announcements(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Show announcements"""
     announcements_text = (
@@ -219,13 +218,13 @@ async def handle_announcements(update: Update, context: ContextTypes.DEFAULT_TYP
         "Hozircha yangi e'lonlar yo'q.\n\n"
         "Keyinroq qaytib kelib tekshiring!"
     )
-    
+
     keyboard = [
         [InlineKeyboardButton("👥 Hamjamiyat", url="https://t.me/rasch_analyzer_ustozlar")],
         [InlineKeyboardButton("👨‍💼 Admin", url="https://t.me/sanjaroktamov")]
     ]
     reply_markup = InlineKeyboardMarkup(keyboard)
-    
+
     await update.message.reply_text(
         announcements_text,
         parse_mode='Markdown',
@@ -388,7 +387,7 @@ async def search_tests(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def start_test(update: Update, context: ContextTypes.DEFAULT_TYPE, test_id: str):
     """Start taking a test"""
     logger.info(f"Start_test chaqirildi. Test ID: {test_id}")
-    
+
     test = test_manager.get_test(test_id)
     user_id = update.effective_user.id
 
@@ -397,13 +396,13 @@ async def start_test(update: Update, context: ContextTypes.DEFAULT_TYPE, test_id
 
     if not test:
         logger.error(f"Test topilmadi! Test ID: {test_id}")
-        
+
         # Debug: barcha testlarni ko'rish
         all_tests = test_manager._load_tests()
         logger.info(f"Mavjud testlar soni: {len(all_tests)}")
         if all_tests:
             logger.info(f"Mavjud test ID'lar: {list(all_tests.keys())[:5]}")
-        
+
         await message.reply_text(
             f"❌ Test topilmadi!\n\n"
             f"Test ID: `{test_id}`\n\n"
@@ -425,7 +424,7 @@ async def start_test(update: Update, context: ContextTypes.DEFAULT_TYPE, test_id
     if test.get('is_paid', False):
         price = test.get('price', 0)
         paid_students = context.user_data.get('paid_tests', {})
-        
+
         if test_id not in paid_students:
             # Show payment invoice
             title = f"💰 {test['name']}"
@@ -437,7 +436,7 @@ async def start_test(update: Update, context: ContextTypes.DEFAULT_TYPE, test_id
             )
             payload = f"test_{test_id}_{user_id}"
             prices = [LabeledPrice("Test to'lovi", price)]
-            
+
             try:
                 await context.bot.send_invoice(
                     chat_id=update.effective_chat.id,
@@ -451,14 +450,14 @@ async def start_test(update: Update, context: ContextTypes.DEFAULT_TYPE, test_id
                         [InlineKeyboardButton("⭐ To'lov qilish", pay=True)]
                     ])
                 )
-                
+
                 # Save test info for later
                 context.user_data['pending_test_payment'] = {
                     'test_id': test_id,
                     'price': price,
                     'teacher_id': test['teacher_id']
                 }
-                
+
                 logger.info(f"Invoice yuborildi: Test {test_id}, Price {price}")
                 return
             except Exception as e:
@@ -1029,7 +1028,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if context.user_data.get('registering'):
         # Validate name (at least 2 words, each with at least 2 letters)
         name_parts = message_text.strip().split()
-        
+
         # Check if at least 2 words
         if len(name_parts) < 2:
             await update.message.reply_text(
@@ -1039,7 +1038,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 parse_mode='Markdown'
             )
             return
-        
+
         # Check if each part has at least 2 characters and contains only letters
         valid = True
         capitalization_error = False
@@ -1049,12 +1048,12 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
             if len(cleaned_part) < 2:
                 valid = False
                 break
-            
+
             # Check if first letter is capitalized
             if cleaned_part and not cleaned_part[0].isupper():
                 capitalization_error = True
                 break
-        
+
         if capitalization_error:
             await update.message.reply_text(
                 "❌ Ism va familiya bosh harf bilan boshlanishi kerak.\n\n"
@@ -1065,7 +1064,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 parse_mode='Markdown'
             )
             return
-        
+
         if not valid:
             await update.message.reply_text(
                 "❌ Ism va familiya har biri kamida 2 ta harfdan iborat bo'lishi kerak.\n\n"
@@ -1079,7 +1078,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         # Save user profile
         from bot.utils.student_data import StudentDataManager
         student_data_manager = StudentDataManager()
-        
+
         student_data_manager.save_student_profile(user_id, {
             'full_name': message_text.strip(),
             'telegram_id': user_id,
