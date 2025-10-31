@@ -77,7 +77,6 @@ async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         context.user_data['registering'] = True
         await update.message.reply_text(
             "👋 Xush kelibsiz!\n\n"
-
             "Davom etish uchun ism va familiyangizni kiriting:\n\n"
             "*Masalan:* Javohir Mirzanazarov",
             parse_mode='Markdown'
