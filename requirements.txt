@@ -28,3 +28,6 @@ sqlalchemy[asyncio]
 telegram
 xlrd
 openai
+fastapi
+uvicorn
+httpx
