@@ -628,8 +628,7 @@ async def perform_analysis_after_payment(message, context: ContextTypes.DEFAULT_
             if auto_cleaner_enabled:
                 # AUTO CLEAN MODE: Automatically clean the file and retry analysis
                 await message.reply_text(
-                    "🧽 Auto File Cleaner yoqilgan!\n\n"
-                    "⏳ Fayl avtomatik tozalanmoqda va qayta tahlil qilinmoqda..."
+                    "🧽 Auto File Cleaner: Fayl tozalanmoqda va tahlil qilinmoqda..."
                 )
 
                 try:
@@ -655,10 +654,6 @@ async def perform_analysis_after_payment(message, context: ContextTypes.DEFAULT_
                         cleaned_data.to_csv(cleaned_file_path, index=False)
                     else:
                         cleaned_data.to_excel(cleaned_file_path, index=False, engine='openpyxl')
-
-                    # Send cleaning report
-                    report = cleaner.get_cleaning_report(metadata)
-                    await message.reply_text(f"✅ Avtomatik tozalash muvaffaqiyatli!\n\n{report}")
 
                     # Now use cleaned data for analysis
                     # Remove participant column from cleaned data and save names
@@ -744,7 +739,7 @@ async def perform_analysis_after_payment(message, context: ContextTypes.DEFAULT_
 
             if auto_cleaner_enabled:
                 # AUTO CLEAN MODE: Automatically clean the file and retry analysis
-                await status_message.edit_text("🧽 Auto File Cleaner yoqilgan!\n\n⏳ Fayl avtomatik tozalanmoqda va qayta tahlil qilinmoqda...", parse_mode='Markdown')
+                await status_message.edit_text("🧽 Auto File Cleaner: Fayl tozalanmoqda...", parse_mode='Markdown')
 
                 try:
                     # Read original file again
@@ -759,10 +754,6 @@ async def perform_analysis_after_payment(message, context: ContextTypes.DEFAULT_
                     # Clean the file using DataCleaner
                     cleaner = DataCleaner()
                     cleaned_data, metadata = cleaner.clean_data(original_data)
-
-                    # Send cleaning report
-                    report = cleaner.get_cleaning_report(metadata)
-                    await message.reply_text(f"✅ Avtomatik tozalash muvaffaqiyatli!\n\n{report}")
 
                     # Now use cleaned data for analysis
                     # Remove participant column from cleaned data and save names
@@ -787,7 +778,7 @@ async def perform_analysis_after_payment(message, context: ContextTypes.DEFAULT_
                     numeric_data = cleaned_data
 
                     # Retry analysis with cleaned data
-                    await status_message.edit_text("✅ Fayl muvaffaqiyatli tozalandi! Rasch tahlili boshlanmoqda...", parse_mode='Markdown')
+                    await status_message.edit_text("⏳ Tahlil qilinmoqda...\n\n▰▰▰▱▱▱▱▱▱▱ 40%\n_Tozalangan fayl tahlil qilinmoqda..._", parse_mode='Markdown')
 
                     analyzer = RaschAnalyzer()
                     results = analyzer.fit(numeric_data, person_names=person_names)
