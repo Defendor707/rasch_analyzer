@@ -3,7 +3,7 @@ PostgreSQL Database Schema
 Bu fayl barcha database jadvallarini aniqlaydi
 """
 from sqlalchemy import Column, Integer, String, Boolean, DateTime, Text, JSON, Float, ForeignKey
-from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy.orm import declarative_base
 from sqlalchemy.sql import func
 from datetime import datetime
 

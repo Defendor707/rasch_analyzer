@@ -74,6 +74,10 @@ async def main():
     application.add_handler(CommandHandler("restart", restart_command))
     application.add_handler(CommandHandler("help", help_command))
     application.add_handler(CommandHandler("status", status_command))
+
+async def status_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    await update.message.reply_text("✅ Bot ishlayapti")
+
     
     application.add_handler(CallbackQueryHandler(handle_callback_query))
     
