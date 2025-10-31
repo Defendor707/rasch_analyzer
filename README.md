@@ -1,5 +1,7 @@
 # Rasch Model Telegram Bot System
 
+> Status: CI and code quality tooling configured (ruff, black, pytest). See `docs/index.md` for quick start.
+
 Two-bot system: Teacher bot for creating tests and analyzing data, Student bot for taking tests.
 
 ## Features

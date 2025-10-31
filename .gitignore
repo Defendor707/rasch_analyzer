@@ -16,6 +16,24 @@ build/
 .env
 .DS_Store
 
+# Python cache
+.pytest_cache/
+.mypy_cache/
+
+# Editor/IDE
+.idea/
+.vscode/
+
+# Coverage & reports
+.coverage
+coverage.xml
+htmlcov/
+
+# Local data artifacts
+data/**/*.tmp
+data/**/*.bak
+sample_data.csv
+
 data/uploads/*
 data/results/*
 !data/uploads/.gitkeep
