@@ -1390,7 +1390,7 @@ async def handle_callback_query(update: Update, context: ContextTypes.DEFAULT_TY
             await query.edit_message_text(
                 f"✅ Test faollashtirildi!\n\n"
                 f"📱 *Talabgorlar uchun test havolasi:*\n"
-                f"https://t.me/{student_bot_username}?start=test_{test_id}\n\n"
+                f"`https://t.me/{student_bot_username}?start=test_{test_id}`\n\n"
                 f"Havolani talabgorlarga ulashing.",
                 parse_mode='Markdown'
             )
@@ -1610,7 +1610,7 @@ async def handle_callback_query(update: Update, context: ContextTypes.DEFAULT_TY
 
                     # Add student bot link info
                     student_bot_username = os.getenv('STUDENT_BOT_USERNAME', 'Talabgor_bot')
-                    results_text += f"\n\n📱 *Test havolasi (talabgorlar uchun):*\nhttps://t.me/{student_bot_username}?start=test_{test_id}"
+                    results_text += f"\n\n📱 *Test havolasi (talabgorlar uchun):*\n`https://t.me/{student_bot_username}?start=test_{test_id}`"
 
                     reply_markup = InlineKeyboardMarkup(keyboard)
                     await query.edit_message_text(results_text, parse_mode='Markdown', reply_markup=reply_markup)
@@ -3403,7 +3403,7 @@ async def handle_test_input(update: Update, context: ContextTypes.DEFAULT_TYPE, 
                 f"📋 *{test_temp['name']}*\n"
                 f"📚 Fan: {test_temp['subject']}\n"
                 f"{date_info}"
-                f"{price_info}\n"
+                f"{price_info}"
                 "❓ Savollarni qanday qo'shmoqchisiz?",
                 parse_mode='Markdown',
                 reply_markup=reply_markup
@@ -3590,7 +3590,7 @@ async def handle_test_input(update: Update, context: ContextTypes.DEFAULT_TYPE, 
             f"📊 Status: ✅ Faol\n\n"
             f"Test talabgorlarda ko'rinadi.\n\n"
             f"📱 *Test havolasi (talabgorlar uchun):*\n"
-            f"https://t.me/{student_bot_username}?start=test_{test_id}",
+            f"`https://t.me/{student_bot_username}?start=test_{test_id}`",
             parse_mode='Markdown',
             reply_markup=get_main_keyboard()
         )
@@ -3640,7 +3640,7 @@ async def handle_finish_test(update: Update, context: ContextTypes.DEFAULT_TYPE)
         f"📝 Savollar: {len(test['questions'])} ta\n\n"
         f"Testni faollashtirish uchun '📋 Testlarimni ko'rish' dan testni tanlang.\n\n"
         f"📱 *Test havolasi (talabgorlar uchun):*\n"
-        f"https://t.me/{student_bot_username}?start=test_{test_id}",
+        f"`https://t.me/{student_bot_username}?start=test_{test_id}`",
         parse_mode='Markdown',
         reply_markup=get_main_keyboard()
     )
@@ -3840,7 +3840,7 @@ async def show_pdf_question_answer_selector(update_or_message, context: ContextT
             f"📊 Status: ✅ Faol\n\n"
             f"Test talabgorlarda ko'rinadi.\n\n"
             f"Test havolasi:\n"
-            f"https://t.me/{context.bot.username}?start=test_{test_id}",
+            f"`https://t.me/{context.bot.username}?start=test_{test_id}`",
             parse_mode='Markdown',
             reply_markup=get_main_keyboard()
         )
