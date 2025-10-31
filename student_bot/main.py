@@ -73,6 +73,7 @@ async def main():
     application.add_handler(CommandHandler("start", start_command))
     application.add_handler(CommandHandler("restart", restart_command))
     application.add_handler(CommandHandler("help", help_command))
+    application.add_handler(CommandHandler("status", status_command))
     
     application.add_handler(CallbackQueryHandler(handle_callback_query))
     

@@ -4,6 +4,7 @@ from telegram.ext import ContextTypes
 import sys
 import os
 from datetime import datetime, timedelta
+import json
 
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '../..')))
 
@@ -76,6 +77,79 @@ async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         context.user_data['registering'] = True
         await update.message.reply_text(
             "👋 Xush kelibsiz!\n\n"
+
+
+
+async def status_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Show bot statistics - total users, tests, and other info"""
+    try:
+        # Load student profiles
+        student_profiles_file = 'data/student_profiles.json'
+        if os.path.exists(student_profiles_file):
+            with open(student_profiles_file, 'r', encoding='utf-8') as f:
+                student_profiles = json.load(f)
+            total_students = len(student_profiles)
+        else:
+            total_students = 0
+
+        # Load tests
+        tests_file = 'data/tests.json'
+        if os.path.exists(tests_file):
+            with open(tests_file, 'r', encoding='utf-8') as f:
+                all_tests = json.load(f)
+            
+            total_tests = len(all_tests)
+            active_tests = sum(1 for test in all_tests.values() if test.get('is_active', False))
+            
+            # Count total participants
+            total_participants = 0
+            total_submissions = 0
+            for test in all_tests.values():
+                participants = test.get('participants', {})
+                if isinstance(participants, dict):
+                    total_participants += len(participants)
+                    total_submissions += sum(1 for p in participants.values() 
+                                            if isinstance(p, dict) and p.get('submitted', False))
+                elif isinstance(participants, list):
+                    total_participants += len(participants)
+                    total_submissions += sum(1 for p in participants if p.get('submitted', False))
+        else:
+            total_tests = 0
+            active_tests = 0
+            total_participants = 0
+            total_submissions = 0
+
+        # Load teacher data
+        user_profiles_file = 'data/user_profiles.json'
+        if os.path.exists(user_profiles_file):
+            with open(user_profiles_file, 'r', encoding='utf-8') as f:
+                user_profiles = json.load(f)
+            total_teachers = len(user_profiles)
+        else:
+            total_teachers = 0
+
+        status_message = (
+            f"📊 *Talabgorlar Boti Statistikasi*\n\n"
+            f"👥 *Foydalanuvchilar:*\n"
+            f"  • Jami talabgorlar: {total_students} ta\n"
+            f"  • Jami o'qituvchilar: {total_teachers} ta\n\n"
+            f"📝 *Testlar:*\n"
+            f"  • Jami testlar: {total_tests} ta\n"
+            f"  • Faol testlar: {active_tests} ta\n"
+            f"  • Ishtirokchilar: {total_participants} ta\n"
+            f"  • Topshirilgan testlar: {total_submissions} ta\n\n"
+            f"✅ Bot faol ishlayapti!"
+        )
+
+        await update.message.reply_text(status_message, parse_mode='Markdown')
+
+    except Exception as e:
+        logger.error(f"Status command error: {e}")
+        await update.message.reply_text(
+            "❌ Statistikani olishda xatolik yuz berdi.\n"
+            "Iltimos, keyinroq qayta urinib ko'ring."
+        )
+
             "Davom etish uchun ism va familiyangizni kiriting:\n\n"
             "*Masalan:* Javohir Mirzanazarov",
             parse_mode='Markdown'
