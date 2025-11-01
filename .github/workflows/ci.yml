@@ -34,4 +34,25 @@ jobs:
       - name: Run tests
         run: pytest -q || true
 
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Deploy to server
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_KEY }}
+          script: |
+            cd rasch_analyzer
+            git pull origin main
+            sudo systemctl daemon-reload
+            sudo systemctl restart rasch-bots.service
+            sudo systemctl status rasch-bots.service --no-pager | head -10
+
 

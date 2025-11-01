@@ -220,7 +220,6 @@ async def handle_announcements(update: Update, context: ContextTypes.DEFAULT_TYP
 
     keyboard = [
         [InlineKeyboardButton("👥 Hamjamiyat", url="https://t.me/rasch_analyzer_ustozlar")],
-        [InlineKeyboardButton("👨‍💼 Admin", url="https://t.me/sanjaroktamov")]
     ]
     reply_markup = InlineKeyboardMarkup(keyboard)
 
