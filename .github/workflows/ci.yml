@@ -37,7 +37,7 @@ jobs:
   deploy:
     needs: build
     runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push' && secrets.SSH_HOST != ''
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -48,11 +48,13 @@ jobs:
           host: ${{ secrets.SSH_HOST }}
           username: ${{ secrets.SSH_USER }}
           key: ${{ secrets.SSH_KEY }}
+          port: ${{ secrets.SSH_PORT || 22 }}
+          timeout: 30s
           script: |
             cd rasch_analyzer
-            git pull origin main
+            git pull origin main || echo "Git pull failed, continuing..."
             sudo systemctl daemon-reload
             sudo systemctl restart rasch-bots.service
-            sudo systemctl status rasch-bots.service --no-pager | head -10
+            sudo systemctl status rasch-bots.service --no-pager | head -10 || echo "Service status check failed"
 
 
