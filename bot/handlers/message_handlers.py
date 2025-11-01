@@ -2638,6 +2638,7 @@ def get_other_keyboard():
 
     keyboard.extend([
         [KeyboardButton("👥 Hamjamiyat")],
+        [KeyboardButton("📢 E'lon joylash")],
         [KeyboardButton("◀️ Ortga")]
     ])
 
@@ -2655,6 +2656,26 @@ async def handle_other(update: Update, context: ContextTypes.DEFAULT_TYPE):
         parse_mode='Markdown',
         reply_markup=get_other_keyboard()
     )
+
+async def handle_post_announcement(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Handle posting announcement to job seekers (talabgorlarga)"""
+    announcement_text = (
+        "📢 *Talabgorlarga e'lon joylash*\n\n"
+        "Quyidagi formatcha e'loningizni yuboring:\n\n"
+        "📌 *Sarlavha:* [sarlavhani kiriting]\n"
+        "📝 *Tavsif:* [tavsifni kiriting]\n"
+        "💰 *Maosh:* [maosh miqdorini kiriting]\n"
+        "📍 *Manzil:* [ish joyini kiriting]\n"
+        "📞 *Aloqa:* [telefon yoki telegram username]\n\n"
+        "E'loningizni yuborishingiz mumkin:"
+    )
+    await update.message.reply_text(
+        announcement_text,
+        parse_mode='Markdown',
+        reply_markup=get_other_keyboard()
+    )
+    # Set state for receiving announcement
+    context.user_data['posting_announcement'] = True
 
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Handle regular text messages"""
@@ -2749,6 +2770,8 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await show_payment_history(update, context)
     elif message_text == "👥 Hamjamiyat":
         await handle_community(update, context)
+    elif message_text == "📢 E'lon joylash":
+        await handle_post_announcement(update, context)
     elif message_text == "◀️ Ortga":
         await handle_back(update, context)
     # Handle student management buttons
